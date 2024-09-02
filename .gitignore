@@ -7,6 +7,9 @@
 
 /build
 
+/ideas.txt
+/CMakeUserPresets.json
+
 # User-specific files
 *.rsuser
 *.suo
