@@ -1,0 +1,4 @@
+D:/Game Development/All Things Bongo/BongoJam-Compiler/build/CMakeFiles/bongo.dir
+D:/Game Development/All Things Bongo/BongoJam-Compiler/build/CMakeFiles/BongoJam_Script.dir
+D:/Game Development/All Things Bongo/BongoJam-Compiler/build/CMakeFiles/ALL_BUILD.dir
+D:/Game Development/All Things Bongo/BongoJam-Compiler/build/CMakeFiles/ZERO_CHECK.dir
