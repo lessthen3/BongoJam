@@ -1,6 +1,4 @@
-# Bongo-Jam
- BONGO JAM
-
+# BongoJam
 BongoJam is an open-source compiler + interpreter.
 
 If you want to build the compiler + runtime for yourself:
