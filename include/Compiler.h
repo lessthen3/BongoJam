@@ -30,121 +30,160 @@ namespace BongoJam {
 	{
 		{"NULL", 0x00},
 
-		{"INT", 0x01},
-		{"FLOAT", 0x02},
+		//////////////////// Basic Math Operations ////////////////////
 
-		{"BOOL", 0x03},
+		{"ADD", 0x001},
+		{"SUB", 0x002},
 
-		{"CHAR", 0x04},
-		{"STRING", 0x05},
+		{"DIV", 0x003},
+		{"MULT", 0x004},
 
-		{"VOID", 0x06},
-		{"EXCEPTION", 0x07},
+		{"POW", 0x005},
 
-		{"THREAD", 0x07},
+		//////////////////// Primitive Types ////////////////////
 
-		{"VEC2", 0x016},
-		{"VEC3", 0x017},
-		{"VEC4", 0x00},
+		{"INT", 0x006},
+		{"FLOAT", 0x007},
 
-		{"MAT2", 0x018},
-		{"MAT3", 0x019},
-		{"MAT4", 0x01A},
-		{"MAT", 0x01A},
+		{"BOOL", 0x008}, //false or true always follows, 0 = false, 1 = true as always
 
-		{"LOGICAL_AND", 0x00},
-		{"LOGICAL_OR", 0x00},
-		{"LOGICAL_NOT", 0x00},
+		{"CHAR", 0x009},
+		{"STRING", 0x00A}, //string literal value always follows, pattern is: str size in bytes -> encoded utf-8 str
 
-		{"LINE_NUMBER", 0x05}, //Used for tracking the exact line of code that threw a runtime error
+		//////////////////// Built-in Class Types ////////////////////
 
-		{"JUMP", 0x06},
-		{"JUMP_IF", 0x07},
+		{"VOID", 0x00B},
+		{"EXCEPTION", 0x00C},
 
-		{"VARIABLE_REASSIGNMENT", 0x09},
+		{"THREAD", 0x00D},
 
-		{"FUNCTION_DEFINITION", 0x0A},
-		{"METHOD_DEFINITION", 0x0B},
+		{"VEC2", 0x00E},
+		{"VEC3", 0x00F},
+		{"VEC4", 0x010},
 
-		{"FUCTION_CALL", 0x0C},
-		{"METHOD_CALL", 0x0D},
+		{"MAT2", 0x011},
+		{"MAT3", 0x012},
+		{"MAT4", 0x013},
+		{"MAT", 0x014},
 
-		{"FUNCTION_RETURN", 0x0D},
+		//////////////////// Boolean Comparison Operations ////////////////////
 
-		{"CLASS_DEFINITION", 0x0E},
-		{"STRUCT_DEFINITION", 0x0F},
+		{"LOGICAL_AND", 0x015},
+		{"LOGICAL_OR", 0x016},
+		{"LOGICAL_NOT", 0x017},
 
-		{"CLASS_CONSTRUCTOR", 0x010},
-		{"STRUCT_CONSTRUCTOR", 0x011},
+		{"NEW_LINE", 0xFF}, //Used for tracking the exact line of code that threw a runtime error
 
-		{"ADD", 0x012},
-		{"SUB", 0x013},
+		{"JUMP", 0x018},
+		{"JUMP_IF", 0x019},
 
-		{"DIV", 0x014},
-		{"MULT", 0x015},
+		{"VARIABLE_REASSIGNMENT", 0x01A},
+
+		//////////////////// Function/Method Operations ////////////////////
+
+		{"FUNCTION_DEFINITION", 0x01B},
+		{"METHOD_DEFINITION", 0x01C},
+
+		{"FUCTION_CALL", 0x01D},
+		{"METHOD_CALL", 0x01E},
+
+		{"FUNCTION_RETURN", 0x01F},
+
+		//////////////////// Class/Struct Operations ////////////////////
+
+		{"CLASS_DEFINITION", 0x020},
+		{"STRUCT_DEFINITION", 0x021},
+
+		{"CLASS_CONSTRUCTOR", 0x022},
+		{"STRUCT_CONSTRUCTOR", 0x023},
 
 		// Follows a Variable Assignment flag
 
-		{"LOAD", 0x016}, //stack allocates a var
-		{"UNLOAD", 0x017}, //dereferences stack alloc'd var in interpreter
-		{"MOVE", 0x018}, //move() semantic
-		{"COPY", 0x07}, //used for copying vars
-		{"HEAP_ALLOC", 0x019}, //used for heap allocations
-		{"HEAP_DE_ALLOC", 0x01A}, //delete baby
+		{"LOAD", 0x024}, //stack allocates a var
+		{"UNLOAD", 0x025}, //dereferences stack alloc'd var in interpreter
+		{"MOVE", 0x026}, //move() semantic
+		{"COPY", 0x027}, //used for copying vars
+		{"HEAP_ALLOC", 0x028}, //used for heap allocations
+		{"HEAP_DE_ALLOC", 0x029}, //delete baby
 
-		{"PRINT", 0x019},
-		{"CLOCK", 0x01A},
-		{"SLEEP", 0x01B},
+		{"PRINT", 0x02A},
+		{"CLOCK", 0x02B},
+		{"SLEEP", 0x02C},
 
-		{"INPUT", 0x0FF},
-		{"ROUND_UP", 0x01B},
-		{"ROUND_DOWN", 0x01B},
-		{"SQUARE_ROOT", 0x01B},
-		{"POWER", 0x01B},
-		{"EXP", 0x00},
-		{"SIN", 0x01B},
-		{"COS", 0x01B},
-		{"SINH", 0x01B},
-		{"COSH", 0x00},
-		{"ARCSIN", 0x00},
-		{"ARCCOS", 0x00},
+		{"INPUT", 0x02D},
+		{"ROUND_UP", 0x02E},
+		{"ROUND_DOWN", 0x02F},
+		{"SQUARE_ROOT", 0x030},
+		{"POWER", 0x031},
+		{"EXP", 0x032},
+		{"SIN", 0x033},
+		{"COS", 0x034},
+		{"SINH", 0x035},
+		{"COSH", 0x036},
+		{"ARCSIN", 0x037},
+		{"ARCCOS", 0x038},
 	};
 
 	//////////////////////////////////////////////
 	// Utility Functions
 	//////////////////////////////////////////////
 
-	static StatementNode
-		ShiftForward(vector<StatementNode>& fp_ProgramBody)
+	static unique_ptr<StatementNode>
+		ShiftForward(vector<unique_ptr<StatementNode>>& fp_ProgramBody)
 	{
 		if (fp_ProgramBody.empty())
 		{
-			return StatementNode(); //return escape char when source code is done being read
+			return make_unique<StatementNode>(); //return escape char when source code is done being read
 		}
 
-		StatementNode f_FirstElement = fp_ProgramBody.front();
+		unique_ptr<StatementNode> f_FirstElement = move(fp_ProgramBody.front());
 		fp_ProgramBody.erase(fp_ProgramBody.begin());
 
-		return f_FirstElement;
+		return move(f_FirstElement);
 	}
 
 	void 
-		WriteBytecodeToFile(const string& filename, const vector<uint8_t>& bytecode) 
+		WriteBytecodeToFile(const string& fp_DesiredOutputDirectory, const string& fp_DesiredName, const vector<uint8_t>& fp_ByteCode) 
 	{
-		ofstream file(filename + ".bongo", ios::binary);  // Open in binary mode
+		LogAndPrint("Bytecode size: " + to_string(fp_ByteCode.size()), "Compiler", "info", "cyan");
+
+		if (fp_ByteCode.empty()) 
+		{
+			LogAndPrint("Compiler Error: Failed to write " + fp_DesiredName + " for writing.\nNo bytecode to write.", "Compiler", "error", "red");
+		}
+
+		const string f_BongoFileName = fp_DesiredOutputDirectory + "/" + fp_DesiredName + ".bongo";
+
+		ofstream file(f_BongoFileName, ios::binary);  // Open in binary mode
 
 		if (!file) 
 		{
-			LogAndPrint("Failed to open the file for writing.", "Compiler", "error", "red");
+			LogAndPrint("Compiler Error: Failed to open "+ f_BongoFileName +" for writing.", "Compiler", "error", "red");
 			return;
 		}
 
 		// Write the entire contents of the vector to the file
-		file.write(reinterpret_cast<const char*>(bytecode.data()), bytecode.size());
+		file.write(reinterpret_cast<const char*>(fp_ByteCode.data()), fp_ByteCode.size());
 
 		file.close();  // Close the file
 	}
 
+	string 
+		ReadFileIntoString(const string& fp_ScriptFilePath) 
+	{
+		ifstream f_FileStream(fp_ScriptFilePath);
+
+		if (!f_FileStream)
+		{
+			LogAndPrint("Compiler Error: Failed to open bongojam script for reading.", "Compiler", "error", "red");
+			return "";
+		}
+
+		stringstream f_Buffer;
+		f_Buffer << f_FileStream.rdbuf();
+
+		return f_Buffer.str();
+	}
 
 	//////////////////////////////////////////////
 	// Encoding Functions
@@ -192,28 +231,76 @@ namespace BongoJam {
 	}
 	
 	//////////////////////////////////////////////
-	// Compile to Byte-Code
+	// MAIN COMPILING FUNCTION
 	//////////////////////////////////////////////
 
-	static void //doesn't return anything because the compiler writes the output to a .bongo file
-		CompileProgram(Program& fp_Program)
+	static bool //doesn't return anything because the compiler writes the output to a .bongo file
+		CompileProgram(const string& fp_DesiredBongoScriptFilePath, const string& fp_DesiredOutputDirectory)
 	{
-		vector<uint8_t> f_CompiledByteCode;
+		//////////////////// Read .bj file, Tokenize and Parse it ////////////////////
 
-		size_t f_ProgramCounter = 0;
+		Parser f_BongoParser = Parser(); //needa make this a class since that's the only way cpp will let me do mutual recursion for some reason lmao
+		
+		string f_SourceCode = ReadFileIntoString(fp_DesiredBongoScriptFilePath);
+		Program* f_BongoProgram = f_BongoParser.ConstructAST(Tokenize(f_SourceCode));
+
+		//////////////////// Check for Main Func ////////////////////
+
+		vector<uint8_t> f_CompiledByteCode;
+		unique_ptr<FuncDeclaration> f_MainFunc = move(f_BongoProgram->m_ProgramFunctions.back());
+
+		if (f_MainFunc->m_FuncName.m_Value != "main")
+		{
+			//THROW ERROR
+			LogAndPrint("Compiler Error: main function is not defined as the last function in the program", "Compiler", "error", "red");
+			LogAndPrint("Please take a look at your program structure and re-organize it such that main() is defined last", "Compiler", "warn", "yellow");
+			return false;
+		}
+		
+		//////////////////// Define Main Loop Variables ////////////////////
+
+		size_t f_ProgramCounter = 0; //idk why but ill keep track of where we are
 
 		bool f_ShouldShift = true;
 
-		while (fp_Program.m_ProgramBody.size() > 0)
+		unique_ptr<StatementNode> f_CurrentProgramStatement = make_unique<StatementNode>();
+
+		//////////////////// Main Compile Loop ////////////////////
+
+		//cout << CreateColouredText("MainFunc Token Size: ", "bright green") << static_cast<PrintFunction>(f_MainFunc->m_CodeBody[0]) << "\n";
+
+		while (f_MainFunc->m_CodeBody.size() > 0) //compiling the main function code body
 		{
+			f_CurrentProgramStatement = ShiftForward(f_MainFunc->m_CodeBody);
+			f_ProgramCounter++;
 
+			cout << CreateColouredText("Compiler Statement Node ENUM: ", "bright blue") << static_cast<int>(f_CurrentProgramStatement->m_Domain) << "\n";
 
+			switch (f_CurrentProgramStatement->m_Domain)
+			{
+			case SyntaxNodeType::PrintFunction:
+			{
+				cout << "AND I FUCKING GOT HERE" << "\n";
+				f_CompiledByteCode.push_back(0x02A); //print function opcode
+
+				PrintFunction* _pf = dynamic_cast<PrintFunction*>(f_CurrentProgramStatement.get());
+
+				EncodeUTF8String( f_CompiledByteCode, _pf->m_PrintValue.m_Value);
+				continue;
+			}
+			break;
+			default:
+				break;
+			}
 
 		}
 
 		//////////////////// Write the Compiled Byte Code to a File ////////////////////
 
-		WriteBytecodeToFile("UwU", f_CompiledByteCode);
+		WriteBytecodeToFile(fp_DesiredOutputDirectory, "UwU", f_CompiledByteCode);
 		f_CompiledByteCode.clear(); //dump the vector since the code has been written to a file hopefully >w<
+
+		delete f_BongoProgram;
+		f_BongoProgram = nullptr;
 	}
 }

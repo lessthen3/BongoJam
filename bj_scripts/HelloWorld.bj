@@ -1,0 +1,8 @@
+//One of the simplest BongoJam scripts you could ever write
+//This is how you would print hello world!
+
+func main() -> int
+{
+    print("Hello World!");
+    //return 0;
+}

@@ -44,6 +44,10 @@ int main()
     5 + 5 + 5 + 5 + 5 + 5 + 5 + 5 + 5 + 5 + 5;
     vector<Token> Tokens = Tokenize(SourceCode);
     
+    //Parser Bongo_P = Parser();
+
+    //Program* Bongo_Program = Bongo_P.ConstructAST(Tokens);
+
     for (Token _t : Tokens)
     {
         cout << 
@@ -55,27 +59,13 @@ int main()
 
     BongoInterpreter* Interpreter = new BongoInterpreter();
 
-    vector<uint8_t> HelloWorld = 
-    {
-        0x019, //print() bytecode instruction
-    };
-
-   EncodeUTF8String(HelloWorld, "Hello World!");
+    CompileProgram("../bj_scripts/HelloWorld.bj", "../bj_bytecode");
 
 
-    //Interpreter->RunBongoScript(HelloWorld);
+    Interpreter->RunBongoScript("../bj_bytecode/UwU.bongo");
 
     delete Interpreter;
     Interpreter = nullptr;
-
-    int _n = 0;
-
-    int _lim = _n + 5;
-
-    for (_n; _n < _lim; _n++)
-    {
-        cout << _n << "\n";
-    }
 
     //cout << "Hello World!" << "\n";
     

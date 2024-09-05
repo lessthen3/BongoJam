@@ -197,7 +197,6 @@ namespace BongoJam {
 
 		Exp,
 
-
 		NO_TOKEN_VALUE,
 		ENDF
 	};
@@ -352,7 +351,6 @@ namespace BongoJam {
 		{"arctan", TokenType::ArcTan},
 
 		{"exp", TokenType::Exp}
-		
 	};
 
 	//////////////////////////////////////////////
@@ -660,7 +658,7 @@ namespace BongoJam {
 					{
 						s_DoesNotEqualsString += f_CurrentChar;
 						f_Tokens.push_back(Token(s_DoesNotEqualsString, TokenType::DoesNotEquals, f_CurrentLineNumber));
-						assert(f_ShouldShift = true);
+						assert(f_ShouldShift == true);
 						continue; //just iterate as normal, and make sure the equals character isn't double counted
 					}
 					else //handles the case for when nothing valid follows a '!' in the source code
@@ -687,7 +685,7 @@ namespace BongoJam {
 					{
 						f_PlusString += f_CurrentChar;
 						f_Tokens.push_back(Token(f_PlusString, TokenType::PlusEqualsOperator, f_CurrentLineNumber));
-						assert(f_ShouldShift = true);
+						assert(f_ShouldShift == true);
 						continue; //just iterate as normal, and make sure the equals character isn't double counted
 					}
 					else //handles the case for when nothing valid follows a '!' in the source code
@@ -712,7 +710,7 @@ namespace BongoJam {
 					{
 						f_MultString += f_CurrentChar;
 						f_Tokens.push_back(Token(f_MultString, TokenType::MultEqualsOperator, f_CurrentLineNumber));
-						assert(f_ShouldShift = true);
+						assert(f_ShouldShift == true);
 						continue; //just iterate as normal, and make sure the equals character isn't double counted
 					}
 					else //handles the case for when nothing valid follows a '!' in the source code
@@ -738,14 +736,14 @@ namespace BongoJam {
 					{
 						f_TypeArrow += f_CurrentChar;
 						f_Tokens.push_back(Token(f_TypeArrow, TokenType::TypeArrow, f_CurrentLineNumber));
-						assert(f_ShouldShift = true);
+						assert(f_ShouldShift == true);
 						continue; //just iterate as normal, and make sure the equals character isn't double counted
 					}
 					else if (f_CurrentChar == '=')
 					{
 						f_TypeArrow += f_CurrentChar; //IDC THAT ITS NOT A TYPEARROW
 						f_Tokens.push_back(Token(f_TypeArrow, TokenType::MinusEqualsOperator, f_CurrentLineNumber));
-						assert(f_ShouldShift = true);
+						assert(f_ShouldShift == true);
 						continue; //just iterate as normal, and make sure the equals character isn't double counted
 					}
 					else if (f_TypeArrow.size() == 1) //fuck it we ball, we deal with minus here BROTHERS
@@ -779,7 +777,7 @@ namespace BongoJam {
 					{
 						f_DivString += f_CurrentChar;
 						f_Tokens.push_back(Token(f_DivString, TokenType::DivEqualsOperator, f_CurrentLineNumber));
-						assert(f_ShouldShift = true);
+						assert(f_ShouldShift == true);
 						continue; //just iterate as normal, and make sure the equals character isn't double counted
 					}
 					else if (f_CurrentChar == '/')
@@ -809,7 +807,7 @@ namespace BongoJam {
 					{
 						f_ModString += f_CurrentChar;
 						f_Tokens.push_back(Token(f_ModString, TokenType::ModuloEqualsOperator, f_CurrentLineNumber));
-						assert(f_ShouldShift = true);
+						assert(f_ShouldShift == true);
 						continue; //just iterate as normal, and make sure the equals character isn't double counted
 					}
 					else //handles the case for when nothing valid follows a '!' in the source code
@@ -835,7 +833,7 @@ namespace BongoJam {
 					{
 						f_LesserThanString += f_CurrentChar;
 						f_Tokens.push_back(Token(f_LesserThanString, TokenType::LesserThanOrEqual, f_CurrentLineNumber));
-						assert(f_ShouldShift = true);
+						assert(f_ShouldShift == true);
 						continue; //just iterate as normal, and make sure the equals character isn't double counted
 					}
 					else //handles the case for just '<'
@@ -860,7 +858,7 @@ namespace BongoJam {
 					{
 						f_GreaterThanString += f_CurrentChar;
 						f_Tokens.push_back(Token(f_GreaterThanString, TokenType::GreaterThanOrEqual, f_CurrentLineNumber));
-						assert(f_ShouldShift = true);
+						assert(f_ShouldShift == true);
 						continue; //just iterate as normal, and make sure the equals character isn't double counted
 					}
 					else //handles the case for just '>'
