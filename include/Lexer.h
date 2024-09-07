@@ -171,6 +171,7 @@ namespace BongoJam {
 
 		Print,
 		Input,
+		Colourize,
 
 		Clock,
 		TypeOf,
@@ -196,6 +197,8 @@ namespace BongoJam {
 		Tanh,
 
 		Exp,
+		NaturalLog,
+		Factorial,
 
 		NO_TOKEN_VALUE,
 		ENDF
@@ -325,6 +328,7 @@ namespace BongoJam {
 
 		{"print", TokenType::Print},
 		{"input", TokenType::Input},
+		{"colourize", TokenType::Colourize},
 
 		{"clock", TokenType::Clock},
 		{"typeof", TokenType::TypeOf},
@@ -350,7 +354,9 @@ namespace BongoJam {
 		{"arcsin", TokenType::ArcSin},
 		{"arctan", TokenType::ArcTan},
 
-		{"exp", TokenType::Exp}
+		{"exp", TokenType::Exp},
+		{"log", TokenType::NaturalLog},
+		{"factorial", TokenType::Factorial}
 	};
 
 	//////////////////////////////////////////////
@@ -583,9 +589,41 @@ namespace BongoJam {
 					f_CurrentChar = ShiftForward(fp_SourceCode);
 					f_ProgramCounter++;
 
-					while (fp_SourceCode.size() > 0 && f_CurrentChar != '"')
+					bool f_IsEscapeCharacter = false;
+
+					while (fp_SourceCode.size() > 0 and f_CurrentChar != '"')
 					{
-						f_CurrentStringLiteral += f_CurrentChar;
+						if (f_CurrentChar == '\\')
+						{
+							f_CurrentChar = ShiftForward(fp_SourceCode); //shift to next character
+							f_ProgramCounter++;
+
+							switch (f_CurrentChar) 
+							{
+							case 'n':
+								f_CurrentStringLiteral += '\n'; // Add a newline character
+								break;
+							case 't':
+								f_CurrentStringLiteral += '\t'; // Add a tab character
+								break;
+							case '\\':
+								f_CurrentStringLiteral += '\\'; // Add a literal backslash
+								break;
+							case '"':
+								f_CurrentStringLiteral += '"'; // Add a literal double quote
+								break;
+							default:
+								// Handle unknown escape sequences or add a fallback behavior
+								f_CurrentStringLiteral += '\\'; // Re-add the backslash as it was part of the input
+								f_CurrentStringLiteral += f_CurrentChar; // Add the unknown character as is
+								break;
+							}
+						}
+						else
+						{
+							f_CurrentStringLiteral += f_CurrentChar;
+						}
+
 						f_CurrentChar = ShiftForward(fp_SourceCode); //shift to next character
 						f_ProgramCounter++;
 					}

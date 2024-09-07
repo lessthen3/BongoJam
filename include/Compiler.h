@@ -45,10 +45,11 @@ namespace BongoJam {
 		{"INT", 0x006},
 		{"FLOAT", 0x007},
 
-		{"BOOL", 0x008}, //false or true always follows, 0 = false, 1 = true as always
+		{"BOOL", 0x008}, //false or true follows, 0 = false, 1 = true as always
 
 		{"CHAR", 0x009},
 		{"STRING", 0x00A}, //string literal value always follows, pattern is: str size in bytes -> encoded utf-8 str
+		{"STRING_LITERAL", 0x0AA}, //used for detecting constant strings in the byte code for translation during runtime
 
 		//////////////////// Built-in Class Types ////////////////////
 
@@ -72,7 +73,7 @@ namespace BongoJam {
 		{"LOGICAL_OR", 0x016},
 		{"LOGICAL_NOT", 0x017},
 
-		{"NEW_LINE", 0xFF}, //Used for tracking the exact line of code that threw a runtime error
+		{"LINE_NUMBER", 0xFF}, //Used for tracking the exact line of code that threw a runtime error
 
 		{"JUMP", 0x018},
 		{"JUMP_IF", 0x019},
@@ -109,19 +110,25 @@ namespace BongoJam {
 		{"PRINT", 0x02A},
 		{"CLOCK", 0x02B},
 		{"SLEEP", 0x02C},
-
 		{"INPUT", 0x02D},
+		{"COLOURIZE", 0x0CE},
+
 		{"ROUND_UP", 0x02E},
 		{"ROUND_DOWN", 0x02F},
+
 		{"SQUARE_ROOT", 0x030},
 		{"POWER", 0x031},
 		{"EXP", 0x032},
+
 		{"SIN", 0x033},
 		{"COS", 0x034},
 		{"SINH", 0x035},
 		{"COSH", 0x036},
 		{"ARCSIN", 0x037},
 		{"ARCCOS", 0x038},
+
+		{"LOG", 0x039},
+		{"FACTORIAL", 0x03A}
 	};
 
 	//////////////////////////////////////////////
@@ -145,7 +152,7 @@ namespace BongoJam {
 	void 
 		WriteBytecodeToFile(const string& fp_DesiredOutputDirectory, const string& fp_DesiredName, const vector<uint8_t>& fp_ByteCode) 
 	{
-		LogAndPrint("Bytecode size: " + to_string(fp_ByteCode.size()), "Compiler", "info", "cyan");
+		//LogAndPrint("Bytecode size: " + to_string(fp_ByteCode.size()), "Compiler", "info", "cyan");
 
 		if (fp_ByteCode.empty()) 
 		{
@@ -168,21 +175,38 @@ namespace BongoJam {
 		file.close();  // Close the file
 	}
 
-	string 
-		ReadFileIntoString(const string& fp_ScriptFilePath) 
+	bool 
+		ReadFileIntoString(const string& fp_ScriptFilePath, string* fp_SourceCode) 
 	{
+		// Extract file extension assuming format "filename.ext"
+		size_t lastDotIndex = fp_ScriptFilePath.rfind('.');
+
+		if (lastDotIndex == string::npos) 
+		{
+			LogAndPrint("Compiler Error: No file extension found", "Compiler", "error", "red");
+			return false;
+		}
+
+		string f_FileExtension = fp_ScriptFilePath.substr(lastDotIndex);
+
+		if (f_FileExtension != ".bj") 
+		{
+			LogAndPrint("Compiler Error: Please only try to compile .bj files", "Compiler", "error", "red");
+			return false;
+		}
+
 		ifstream f_FileStream(fp_ScriptFilePath);
 
 		if (!f_FileStream)
 		{
 			LogAndPrint("Compiler Error: Failed to open bongojam script for reading.", "Compiler", "error", "red");
-			return "";
+			return false;
 		}
 
 		stringstream f_Buffer;
 		f_Buffer << f_FileStream.rdbuf();
-
-		return f_Buffer.str();
+		*fp_SourceCode = f_Buffer.str();
+		return true;
 	}
 
 	//////////////////////////////////////////////
@@ -199,14 +223,35 @@ namespace BongoJam {
 	}
 
 	static void
-		EncodeUTF8String(vector<uint8_t>& bytes, const string& str)
+		EncodeUTF8String(vector<uint8_t>& fp_ByteCode, const string& fp_String)
 	{
-		Encode32BitInt(bytes, static_cast<uint32_t>(str.size())); // Store the length of the string
-
-		for (char _c : str)
+		vector<uint8_t> f_EncodedBytes; // Temporary buffer to hold encoded bytes
+		// Encode each character in the string
+		for (char _c : fp_String)
 		{
-			bytes.push_back(static_cast<uint8_t>(_c)); // Store each character
+			switch (_c)
+			{
+			case '\n':  // Newline
+				f_EncodedBytes.push_back('\\');
+				f_EncodedBytes.push_back('n');
+				break;
+			case '\t':  // Tab
+				f_EncodedBytes.push_back('\\');
+				f_EncodedBytes.push_back('t');
+				break;
+			case '\\':  // Backslash
+				f_EncodedBytes.push_back('\\');
+				f_EncodedBytes.push_back('\\');
+				cout << "what the" << "\n";
+				break;
+			default:
+				f_EncodedBytes.push_back(static_cast<uint8_t>(_c));
+				break;
+			}
 		}
+
+		Encode32BitInt(fp_ByteCode, static_cast<uint32_t>(f_EncodedBytes.size())); // Store the length of the string
+		fp_ByteCode.insert(fp_ByteCode.end(), f_EncodedBytes.begin(), f_EncodedBytes.end());
 	}
 
 	static void
@@ -241,7 +286,14 @@ namespace BongoJam {
 
 		Parser f_BongoParser = Parser(); //needa make this a class since that's the only way cpp will let me do mutual recursion for some reason lmao
 		
-		string f_SourceCode = ReadFileIntoString(fp_DesiredBongoScriptFilePath);
+		string f_SourceCode; 
+		if (!ReadFileIntoString(fp_DesiredBongoScriptFilePath, &f_SourceCode))
+		{
+			//stop compilation immediately
+			LogAndPrint("Compiler was not able to read a valid source file, compilation will not proceed any further. nothing was done.", "Compiler", "warn", "yellow");
+			return false;
+		}
+
 		Program* f_BongoProgram = f_BongoParser.ConstructAST(Tokenize(f_SourceCode));
 
 		//////////////////// Check for Main Func ////////////////////
@@ -263,7 +315,7 @@ namespace BongoJam {
 
 		bool f_ShouldShift = true;
 
-		unique_ptr<StatementNode> f_CurrentProgramStatement = make_unique<StatementNode>();
+		unique_ptr<StatementNode> f_CurrentProgramStatement;
 
 		//////////////////// Main Compile Loop ////////////////////
 
@@ -274,18 +326,20 @@ namespace BongoJam {
 			f_CurrentProgramStatement = ShiftForward(f_MainFunc->m_CodeBody);
 			f_ProgramCounter++;
 
-			cout << CreateColouredText("Compiler Statement Node ENUM: ", "bright blue") << static_cast<int>(f_CurrentProgramStatement->m_Domain) << "\n";
-
 			switch (f_CurrentProgramStatement->m_Domain)
 			{
 			case SyntaxNodeType::PrintFunction:
 			{
-				cout << "AND I FUCKING GOT HERE" << "\n";
 				f_CompiledByteCode.push_back(0x02A); //print function opcode
+				f_CompiledByteCode.push_back(0x0AA); //STRING_LITERAL
 
 				PrintFunction* _pf = dynamic_cast<PrintFunction*>(f_CurrentProgramStatement.get());
 
-				EncodeUTF8String( f_CompiledByteCode, _pf->m_PrintValue.m_Value);
+				for(int _i = 0; _i < _pf->m_FuncArgs.size(); _i++)
+				{
+					EncodeUTF8String( f_CompiledByteCode, (dynamic_cast<StringLiteral*>(_pf->m_FuncArgs[_i].get()))->m_StringValue.m_Value );
+				}
+
 				continue;
 			}
 			break;

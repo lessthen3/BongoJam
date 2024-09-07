@@ -682,7 +682,7 @@ namespace BongoJam {
 				case TokenType::Print:
 				{
 					unique_ptr<PrintFunction> s_PrintFunctionCall = make_unique<PrintFunction>();
-					cout << "GOT HERE" << "\n";
+
 					if (!ParsePrintFunction(fp_CurrentScopeDepth, fp_CurrentToken, fp_ProgramTokens, fp_ProgramCounter, &s_PrintFunctionCall))
 					{
 						fp_ProgramTokens.clear(); //dump source code so that parsing ends immediately
@@ -690,7 +690,6 @@ namespace BongoJam {
 					}
 					else
 					{
-						cout << s_PrintFunctionCall->m_PrintValue.m_Value << "\n";
 						(*fp_FuncBlock)->m_CodeBody.push_back(move(s_PrintFunctionCall));
 						continue; //current token should be ';' should be safe to shift
 					}
@@ -1110,7 +1109,7 @@ namespace BongoJam {
 			{
 				//THROW ERROR
 				LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error", "red");
-				LogAndPrint("Unexpected symbol found after type-indicator while declaring a variable brother! Try taking a look at the variable type definition", "Parser", "warn", "yellow");
+				LogAndPrint("Unexpected symbol found when '(' was expected during a print() call!", "Parser", "warn", "yellow");
 				return false;
 			}
 			else
@@ -1123,21 +1122,44 @@ namespace BongoJam {
 			{
 				//THROW ERROR
 				LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error", "red");
-				LogAndPrint("Unexpected symbol found after type-indicator while declaring a variable brother! Try taking a look at the variable type definition", "Parser", "warn", "yellow");
+				LogAndPrint("Tried to pass a non-text data type when text was expected! Try taking a look at your print() call argument", "Parser", "warn", "yellow");
 				return false;
 			}
 			else
 			{
-				(*fp_PrintFunctionCall)->m_PrintValue = fp_CurrentToken;
+				(*fp_PrintFunctionCall)->m_FuncArgs.push_back(make_unique<StringLiteral>(fp_CurrentToken));
 				fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift forward one token to check for a type arrow
 				fp_ProgramCounter++;
 			}
+
+			//check for an optional colour parameter
+			if (fp_CurrentToken.m_Type == TokenType::Comma)
+			{
+				fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift forward to look for another string literal that indicates the colour
+				fp_ProgramCounter++;
+
+				if (fp_CurrentToken.m_Type != TokenType::StringLiteral)
+				{
+					//THROW ERROR
+					LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error", "red");
+					LogAndPrint("Tried to pass a non-text data type when text was expected! Try taking a look at your print() call colour argument", "Parser", "warn", "yellow");
+					return false;
+				}
+				else
+				{
+					(*fp_PrintFunctionCall)->m_FuncArgs.push_back(make_unique<StringLiteral>(fp_CurrentToken)); //colour arg
+					fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift forward one token to check for a type arrow
+					fp_ProgramCounter++;
+				}
+			}
+
+			//we overstep a token if the above arguments for print are valid, so no need to shift again
 
 			if (fp_CurrentToken.m_Type != TokenType::CloseParen)
 			{
 				//THROW ERROR
 				LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error", "red");
-				LogAndPrint("Unexpected symbol found after type-indicator while declaring a variable brother! Try taking a look at the variable type definition", "Parser", "warn", "yellow");
+				LogAndPrint("Unexpected symbol found when ')' was expected during a print() call!", "Parser", "warn", "yellow");
 				return false;
 			}
 			else
@@ -1162,7 +1184,7 @@ namespace BongoJam {
 		 bool
 			ValidateAST(vector<StatementNode>& fp_ProgramStatements)
 		{
-
+			 return true;
 		}
 	public:
 		//////////////////////////////////////////////
@@ -1197,7 +1219,6 @@ namespace BongoJam {
 					f_CurrentToken = ShiftForward(f_ProgramTokens);
 					f_ProgramCounter++;
 				}
-				cout << CreateColouredText("Current compile token: ", "bright blue") << f_CurrentToken.m_Value << "\n";
 				switch (f_CurrentToken.m_Type)
 				{
 				case TokenType::Func: //used for func and class method definitions
@@ -1215,9 +1236,7 @@ namespace BongoJam {
 						//at the end of the top-level conditional flow, we will have overstepped a single token since our algorithm involves checking the next token after '}' to look for an else/else-if
 						f_ShouldShift = true;
 
-						cout << "type: " << static_cast<int>(f_Program->m_ProgramFunctions[0]->m_CodeBody[0]->m_Domain) << "\n";
-
-						cout << CreateColouredText("Func Parse Success: ", "bright green") << f_CurrentToken.m_Value << "\n";
+						//cout << CreateColouredText("Func Parse Success: ", "bright green") << f_CurrentToken.m_Value << "\n";
 						continue;
 					}
 					//after parsing the function successfully we should be pointing to an already processed token, so we can safely iterate and ShiftForward() at the top of the loop

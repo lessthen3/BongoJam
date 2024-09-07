@@ -8,7 +8,6 @@
 
 #include <memory>
 
-#include "Tools.h"
 #include "Binder.h"
 
 using namespace std;
@@ -29,7 +28,7 @@ namespace BongoJam {
 
 			if (!file) 
 			{
-				LogAndPrint("Failed to open the file for reading!", "Interpreter", "fatal", "magenta");
+				LogAndPrint("Fatal Error: Interpreter failed to open .bongo file for reading!", "Interpreter", "fatal", "magenta");
 				return false;
 			}
 
@@ -54,38 +53,70 @@ namespace BongoJam {
 		//////////////////////////////////////////////
 
 		uint32_t 
-			Decode32BitInt(const vector<uint8_t>& fp_ByteCode, size_t& fp_Offset)
+			Decode32BitInt(const vector<uint8_t>* fp_ByteCode, size_t* fp_Offset)
 		{
 			uint32_t value = 
-				(static_cast<uint32_t>(fp_ByteCode[fp_Offset]) << 24    ) |
-				(static_cast<uint32_t>(fp_ByteCode[fp_Offset + 1]) << 16) |
-				(static_cast<uint32_t>(fp_ByteCode[fp_Offset + 2]) << 8 ) |
-				(static_cast<uint32_t>(fp_ByteCode[fp_Offset + 3])      );
+				(static_cast<uint32_t>((*fp_ByteCode)[*fp_Offset]) << 24) |
+				(static_cast<uint32_t>((*fp_ByteCode)[*fp_Offset + 1]) << 16) |
+				(static_cast<uint32_t>((*fp_ByteCode)[*fp_Offset + 2]) << 8 ) |
+				(static_cast<uint32_t>((*fp_ByteCode)[*fp_Offset + 3])      );
 
-			fp_Offset += 4; // Move the offset forward by the number of bytes read
+			*fp_Offset += 3; // Move the offset forward by the number of bytes read - 1 because the pointer should sit on the last decoded byte
 
 			return value;
 		}
 
 		string 
-			DecodeUTF8String(const vector<uint8_t>& fp_ByteCode, size_t& fp_Offset)
+			DecodeUTF8String(const vector<uint8_t>* fp_ByteCode, size_t* fp_Offset)
 		{
 			uint32_t length = Decode32BitInt(fp_ByteCode, fp_Offset);
-			string _s;
+			(*fp_Offset)++; //iterate again to move off of last int byte
 
+			string _s;
 			_s.reserve(length); // Reserve space to optimize append operations
 
-			for (uint32_t i = 0; i < length; ++i) 
+			size_t f_End = (*fp_Offset) + length;
+
+			for (size_t _i = *fp_Offset; _i < f_End; ++_i)
 			{
-				_s.push_back(static_cast<char>(fp_ByteCode[fp_Offset++]));
+				char f_CurrentChar = static_cast<char>((*fp_ByteCode)[_i]);
+
+				if (f_CurrentChar == '\\' and _i + 1 < f_End) // Check for escape character and ensure it's not the last char
+				{  
+					char f_NextChar = static_cast<char>((*fp_ByteCode)[_i + 1]);
+
+					switch (f_NextChar)
+					{
+					case 'n':
+						_s.push_back('\n');
+						_i++;  // Skip the 'n' character in the stream
+						break;
+					case 't':
+						_s.push_back('\t');
+						_i++;  // Skip the 't' character in the stream
+						break;
+					case '\\':
+						_s.push_back('\\');
+						_i++;  // Skip the next '\'
+						break;
+					default:
+						_s.push_back(f_CurrentChar);  // If it's not a recognized escape sequence, add the backslash
+						break;
+					}
+				}
+				else 
+				{
+					_s.push_back(f_CurrentChar);
+				}
 			}
 
+			(*fp_Offset) += (length - 1); // -1 so we end on the last byte of the decoded string
 			return _s;
 		}
 
 
 		float 
-			DecodeFloat(const vector<uint8_t>& fp_ByteCode, size_t& fp_Offset)
+			DecodeFloat(const vector<uint8_t>* fp_ByteCode, size_t* fp_Offset)
 		{
 			uint32_t asInt = Decode32BitInt(fp_ByteCode, fp_Offset);
 			float value;
@@ -93,21 +124,70 @@ namespace BongoJam {
 			return value;
 		}
 
-		uint32_t 
-			Decode32BitChar(const vector<uint8_t>& fp_ByteCode, size_t& fp_Offset)
+		char 
+			Decode32BitChar(const vector<uint8_t>* fp_ByteCode, size_t* fp_Offset)
 		{
 			return Decode32BitInt(fp_ByteCode, fp_Offset);
 		}
 
 		bool 
-			DecodeBool(const vector<uint8_t>& fp_ByteCode, size_t& fp_Offset)
+			DecodeBool(const vector<uint8_t>* fp_ByteCode, size_t* fp_Offset)
 		{
 			return Decode32BitInt(fp_ByteCode, fp_Offset) != 0;
 		}
 
 		//////////////////////////////////////////////
+		// Utility Functions
+		//////////////////////////////////////////////
+
+		void
+			Encode32BitInt(vector<uint8_t>* fp_ByteCode, uint32_t fp_Int)
+		{
+			fp_ByteCode->push_back((fp_Int >> 24) & 0xFF); // High byte
+			fp_ByteCode->push_back((fp_Int >> 16) & 0xFF);
+			fp_ByteCode->push_back((fp_Int >> 8) & 0xFF);
+			fp_ByteCode->push_back(fp_Int & 0xFF);         // Low byte
+		}
+
+		void
+			DecodeAndStoreUTF8Strings(vector<uint8_t>* fp_ByteCode)
+		{
+			size_t _p = 0;
+
+			for (_p; _p < fp_ByteCode->size(); _p++)
+			{
+				if ((*fp_ByteCode)[_p] == 0x0AA) //bongo-code for a String literal
+				{
+					_p++; //advance one to look for string size
+
+					size_t f_InitialIndex = _p; //index of STRING_LITERAL bongo-code
+
+					//push the actual string put together into a vector
+					ListOfDecodedStrings.push_back(make_unique<string>(DecodeUTF8String((fp_ByteCode), &_p)));
+
+					//encode the uint32_t that represents the index of the string
+					vector<uint8_t> f_IndexBytes;
+					Encode32BitInt(&f_IndexBytes, ListOfDecodedStrings.size() - 1);
+
+					//erase the encoded string bytes, _p should be sitting on the last byte of the encoded string
+					fp_ByteCode->erase(fp_ByteCode->begin()+f_InitialIndex, fp_ByteCode->begin()+_p+1);
+
+					//insert the uint32_t that represents the string index
+					fp_ByteCode->insert(fp_ByteCode->begin() + f_InitialIndex, f_IndexBytes.begin(), f_IndexBytes.end());
+
+					//move the program pointer back to the index of the string-index, then the for-loop will advance _p to the next byte
+					_p = f_InitialIndex + 4; //4 bytes = uint32_t
+
+					//should be sitting on the last byte of the uint32_t representing the vector index of the string, the for-loop should advance to the next byte
+				}
+			}
+		}
+
+		//////////////////////////////////////////////
 		// Class Members
 		//////////////////////////////////////////////
+
+		vector<unique_ptr<string>> ListOfDecodedStrings;
 
 		//variable suffix legend:
 		//_n indicates the scope its defined in
@@ -255,6 +335,11 @@ namespace BongoJam {
 			{
 				return;
 			}
+			else
+			{
+				DecodeAndStoreUTF8Strings(&f_ByteCode);
+			}
+
 
 			const const const const const size_t f_Size = f_ByteCode.size(); //you never know if ones enough, gotta throw in a few more just in case
 
@@ -262,6 +347,7 @@ namespace BongoJam {
 
 			for (size_t _p = 0; _p < f_Size; _p++)
 			{
+				//cout << _p << "\n";
 				
 				switch (f_ByteCode[_p])
 				{
@@ -299,8 +385,12 @@ namespace BongoJam {
 					_p++; //shift program pointer to the next byte so that we can read the string
 
 					//we're going to decode the utf8 string directly from the bytecode, however we should do a once-over and decode all function names for the lib versions of the compiled bytecode
-					string s_PrintString = DecodeUTF8String(f_ByteCode, _p); //we're pointing to a string now, assuming the parser has done its job correctly
-					cout << s_PrintString << "\n";
+					if (f_ByteCode[_p] == 0x0AA)
+					{
+						_p++; //shift forward for the string vector index
+
+						cout << *ListOfDecodedStrings[Decode32BitInt(&f_ByteCode, &_p)] << "\n";
+					}
 					continue;
 				}
 				break;
@@ -308,12 +398,13 @@ namespace BongoJam {
 					//THROW ERROR
 					LogAndPrint("INTERNAL COMPILER ERROR: Error at Line Number:"+to_string(_l)+", Error at BYTE-CODE: "+to_string(f_ByteCode[_p]), "Interpreter", "error", "red");
 					LogAndPrint("Something terrible happened while running the code, invalid bytecode was generated by the compiler (sorry not your fault I think LOL)", "Interpreter", "warn", "yellow");
-					LogAndPrint("BongoJam program exited with code -1", "Interpreter", "info", "bright blue");
+					LogAndPrint("BongoJam program exited with code -1", "Interpreter", "info", "blue");
 					return;
 				}
 			}
 
-			LogAndPrint("BongoJam program exited with code 0", "Interpreter", "info", "cyan");
+			//LogAndPrint("BongoJam program exited with code 0", "Interpreter", "info", "bright blue");
+			cout << CreateColouredText("BongoJam program exited with code 0", "bright cyan") << "\n";
 		}
 	};
 

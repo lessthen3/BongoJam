@@ -1,5 +1,26 @@
 # BongoJam
-BongoJam is an open-source compiler + interpreter.
+BongoJam is an open-source compiler + interpreter. (primarily intended for use in game engines)
+
+BongoJam is statically typed, and uses manual memory management (no GC sorry not sorry)
+
+The syntax is an unholy amalgamation of Cpp and Python with a sprinkle of Rust, because I like Python and Rust
+
+### Philosophy
+
+#### __Debugging should be easy.__
+
+My main priorites in order are:
+
+1. Debugging
+2. Readability
+3. Working with Teams
+4. Performance
+
+Any runtime or compile-time error will always have an associated line number, so you will always know which statement, or byte-code instruction caused the error and at what line of code exactly in the stack-trace.
+
+I'm planning on adding a profiler.
+
+### Building BongoJam for Yourself
 
 If you want to build the compiler + runtime for yourself:
 
@@ -24,7 +45,7 @@ compiler.version=193
 os=Windows
 ```
 
-### Resources:
+### Resources
 
 [Latest CMake Download](https://cmake.org/download/)
 

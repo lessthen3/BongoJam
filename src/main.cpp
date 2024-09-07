@@ -12,62 +12,35 @@ using namespace BongoJam;
 
 int main()
 {
+    EnableColors();
     LogManager::MainLogger().Initialize("../logs", "MainLogger");
-    LogManager::MainLogger().Debug(("MainLogger successfully initialized!"), "main");
-
-    string SourceCode = 
-        R"(if (20 <= 30 ) "////////////////AWWWWWWWWWWWWWWWWWWWYE" //>w<
-                { 
-                    print("Hello World!");
-                    let x -> public int = 99.69 - 30;
-                }  
-                while( text _dn != "your_mom" ) 
-                { 
-                    if( 5 =================================================== 5)
-                    {
-                        print("Who's in Paris?", "red"); 
-                        let f_MyDictionary = new Dictionary[];
-                    }
-                } 
-                #no_frills
-                func main
-                (
-                    args --------> text, 
-                    your_mom -> decimal
-                ) --------------------------------------> int
-                {
-                    5 += 2 -= 3 *= /= %= 3;
-                    return 0;  
-                }
-                @DN 
-               )";
-    5 + 5 + 5 + 5 + 5 + 5 + 5 + 5 + 5 + 5 + 5;
-    vector<Token> Tokens = Tokenize(SourceCode);
-    
-    //Parser Bongo_P = Parser();
-
-    //Program* Bongo_Program = Bongo_P.ConstructAST(Tokens);
-
-    for (Token _t : Tokens)
-    {
-        cout << 
-            CreateColouredText("token value: ", "bright magenta") << _t.m_Value << 
-            CreateColouredText(" token type: ", "bright cyan") << static_cast<int>(_t.m_Type) <<
-            CreateColouredText(" line number: ", "bright yellow") << _t.m_SourceCodeLineNumber << 
-        "\n";
-    }
+    //LogManager::MainLogger().Debug(("MainLogger successfully initialized!"), "main");
 
     BongoInterpreter* Interpreter = new BongoInterpreter();
 
     CompileProgram("../bj_scripts/HelloWorld.bj", "../bj_bytecode");
 
-
+    auto BongoJam_Timer_Start = chrono::high_resolution_clock::now(); 
     Interpreter->RunBongoScript("../bj_bytecode/UwU.bongo");
+    auto BongoJam_Timer_Stop = chrono::high_resolution_clock::now();
+
+    auto BongoJam_Runtime_Duration = chrono::duration_cast<chrono::microseconds>(BongoJam_Timer_Stop - BongoJam_Timer_Start);
+
+    // Output the time taken by bongojam
+    cout << CreateColouredText("Time taken by bongojam interpreter: ", "bright yellow") << BongoJam_Runtime_Duration.count() << CreateColouredText(" microseconds", "bright blue") << "\n";
 
     delete Interpreter;
     Interpreter = nullptr;
-
-    //cout << "Hello World!" << "\n";
     
+    auto Cpp_Timer_Start = chrono::high_resolution_clock::now();
+    cout << "Hello World!" << "\n";
+    cout << "Who's in paris?" << "\n";
+    auto Cpp_Timer_Stop = chrono::high_resolution_clock::now();
+
+    auto Cpp_Runtime_Duration = chrono::duration_cast<chrono::microseconds>(Cpp_Timer_Start - Cpp_Timer_Stop);
+    
+    // Output the time taken by cpp
+    cout << CreateColouredText("Time taken by cpp: ", "bright magenta") << Cpp_Runtime_Duration.count() << CreateColouredText(" microseconds", "bright blue") << "\n";
+
     return 0;
 }

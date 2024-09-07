@@ -126,6 +126,10 @@ namespace BongoJam {
 		ArcCosFunction,
 		ArcTanFunction,
 
+		ExpFunction,
+		LogFunction,
+		FactorialFunction,
+
 		//////////////////// User Defined Names ////////////////////
 
 		ClassName,
@@ -142,6 +146,7 @@ namespace BongoJam {
 		ElseIfDeclaration,
 		ElseDeclaration,
 		ReturnSubStatement,
+		ImportStatement,
 
 		None
 	};
@@ -171,12 +176,13 @@ namespace BongoJam {
 
 	struct StandardFunction : public StatementNode
 	{
-		//vector<const Token> m_FuncArgs;
+		vector<unique_ptr<Expr>> m_FuncArgs;
 		StandardFunction(): StatementNode() { m_Domain = SyntaxNodeType::StandardFunction; }
 	};
 
 	struct ImportStatement :public StatementNode
 	{
+		ImportStatement() { m_Domain = SyntaxNodeType::ImportStatement; }
 
 	};
 
@@ -186,28 +192,28 @@ namespace BongoJam {
 
 	struct LetDeclaration : public Expr
 	{
-		SyntaxNodeType m_Domain = SyntaxNodeType::LetDeclaration;
+		LetDeclaration() { m_Domain = SyntaxNodeType::LetDeclaration; }
 		Token m_VariableName;
 		Token m_VariableType;
 		Token m_Value;
-		int m_ScopeDepth;
+		int m_ScopeDepth = -1;
 	};
 
 	struct FieldDeclaration : public LetDeclaration
 	{
-		SyntaxNodeType m_Domain = SyntaxNodeType::FieldDeclaration;
+		FieldDeclaration() { m_Domain = SyntaxNodeType::FieldDeclaration; }
 
 		Token m_AccessLevel; //used for tracking private, public, or protected
 	};
 
 	struct VariableReassignmentExpr : public Expr
 	{
-		SyntaxNodeType m_Domain = SyntaxNodeType::VariableReassignmentExpr;
+		VariableReassignmentExpr() { m_Domain = SyntaxNodeType::VariableReassignmentExpr; }
 	};
 
 	struct FieldReassignmentExpr : public Expr
 	{
-		SyntaxNodeType m_Domain = SyntaxNodeType::FieldReassignmentExpr;
+		FieldReassignmentExpr() { m_Domain = SyntaxNodeType::FieldReassignmentExpr; }
 	};
 
 	//////////////////////////////////////////////
@@ -216,22 +222,22 @@ namespace BongoJam {
 
 	struct ElseDeclaration : StatementBlockNode
 	{
-		SyntaxNodeType m_Domain = SyntaxNodeType::ElseDeclaration;
-		int m_ScopeDepth;
+		ElseDeclaration() { m_Domain = SyntaxNodeType::ElseDeclaration; }
+		int m_ScopeDepth = -1;
 	};
 
 	struct IfDeclaration : public StatementBlockNode
 	{
-		SyntaxNodeType m_Domain = SyntaxNodeType::IfDeclaration;
+		IfDeclaration() { m_Domain = SyntaxNodeType::IfDeclaration; }
 		vector<Expr> m_Condition; //needs to be a vector since and and or's are a thing
 		vector<unique_ptr<IfDeclaration>> m_ElseIfStatements;
 		unique_ptr<ElseDeclaration> m_ElseStatement;
-		int m_ScopeDepth;
+		int m_ScopeDepth = -1;
 	};
 
 	struct FuncDeclaration : public StatementBlockNode
 	{
-		SyntaxNodeType m_Domain = SyntaxNodeType::FuncDeclaration;
+		FuncDeclaration() { m_Domain = SyntaxNodeType::FuncDeclaration; }
 		Token m_FuncName;
 		Token m_FuncReturnType;
 
@@ -241,26 +247,25 @@ namespace BongoJam {
 
 	struct MethodDeclaration : public StatementNode
 	{
-		SyntaxNodeType m_Domain = SyntaxNodeType::MethodDeclaration;
+		MethodDeclaration() { m_Domain = SyntaxNodeType::MethodDeclaration; }
 		Token m_AccessLevel; //used for tracking private, public, or protected
 		FuncDeclaration m_FunctionDefinition;
 	};
 
 	struct WhileLoopDeclaration : public StatementBlockNode
 	{
-		SyntaxNodeType m_Domain = SyntaxNodeType::WhileLoopDeclaration;
+		WhileLoopDeclaration() { m_Domain = SyntaxNodeType::WhileLoopDeclaration; }
 		vector<Expr> m_Condition; //needs to be a vector since and and or's are a thing
 	};
 
 	struct ForLoopDeclaration : public StatementBlockNode
 	{
-		SyntaxNodeType m_Domain = SyntaxNodeType::ForLoopDeclaration;
-
+		ForLoopDeclaration() { m_Domain = SyntaxNodeType::ForLoopDeclaration; }
 	};
 
 	struct ClassDeclaration : public StatementBlockNode
 	{
-		SyntaxNodeType m_Domain = SyntaxNodeType::ClassDeclaration;
+		ClassDeclaration() { m_Domain = SyntaxNodeType::ClassDeclaration; }
 
 		vector<Token> m_ConstructorArgs; //tracks all tokens that are relevant for the class constructor
 		map<string, FieldDeclaration> m_FieldValues;
@@ -270,26 +275,23 @@ namespace BongoJam {
 	//structs are just used as generic data containers, where operators are defined on it that dictate how this struct interacts with other of its or other types
 	struct StructDeclaration : public StatementBlockNode
 	{
-		SyntaxNodeType m_Domain = SyntaxNodeType::StructDeclaration;
 		vector<Token> m_ConstructorArgs; //tracks all tokens that are relevant for the struct constructor
+		StructDeclaration() { m_Domain = SyntaxNodeType::StructDeclaration; }
 	};
 
 	struct ScopeDeclaration : public StatementBlockNode
 	{
-		SyntaxNodeType m_Domain = SyntaxNodeType::ScopeDeclaration;
-
+		ScopeDeclaration() { m_Domain = SyntaxNodeType::ScopeDeclaration; }
 	};
 
 	struct ListDeclaration : public StatementBlockNode
 	{
-		SyntaxNodeType m_Domain = SyntaxNodeType::ListDeclaration;
-
+		ListDeclaration() { m_Domain = SyntaxNodeType::ListDeclaration; }
 	};
 
 	struct DictionaryDeclaration : public StatementBlockNode
 	{
-		SyntaxNodeType m_Domain = SyntaxNodeType::DictionaryDeclaration;
-
+		DictionaryDeclaration() { m_Domain = SyntaxNodeType::DictionaryDeclaration; }
 	};
 
 	//////////////////////////////////////////////
@@ -298,88 +300,97 @@ namespace BongoJam {
 	
 	struct PrintFunction : public StandardFunction
 	{
-		Token m_PrintValue;
 		PrintFunction() { m_Domain = SyntaxNodeType::PrintFunction; }
 	};
 
 	struct InputFunction : public StandardFunction
 	{
-		SyntaxNodeType m_Domain = SyntaxNodeType::InputFunction;
+		InputFunction() { m_Domain = SyntaxNodeType::InputFunction; }
 	};
 
 	struct ClockFunction : public StandardFunction
 	{
-
+		ClockFunction() { m_Domain = SyntaxNodeType::ClockFunction; }
 	};
 
 	struct RoundDown : public StandardFunction
 	{
-
+		RoundDown() { m_Domain = SyntaxNodeType::RoundDown; }
 	};
 
 	struct RoundUp : public StandardFunction
 	{
-
+		RoundUp() { m_Domain = SyntaxNodeType::RoundUp; }
 	};
 
 	struct SquareRoot : public StandardFunction
 	{
-
+		SquareRoot() { m_Domain = SyntaxNodeType::SquareRootFunction; }
 	};
 
 	struct Power : public StandardFunction
 	{
-
+		Power() { m_Domain = SyntaxNodeType::PowerFunction; }
 	};
 
 	struct Sin : public StandardFunction
 	{
-
+		Sin() { m_Domain = SyntaxNodeType::SinFunction; }
 	};
 
 	struct Cos : public StandardFunction
 	{
-
+		Cos() { m_Domain = SyntaxNodeType::CosFunction; }
 	};
 
 	struct Tan : public StandardFunction
 	{
-
+		Tan() { m_Domain = SyntaxNodeType::TanFunction; }
 	};
 
 	struct Sinh : public StandardFunction
 	{
-
+		Sinh() { m_Domain = SyntaxNodeType::SinhFunction; }
 	};
 
 	struct Cosh : public StandardFunction
 	{
-
+		Cosh() { m_Domain = SyntaxNodeType::CoshFunction; }
 	};
 
 	struct Tanh : public StandardFunction
 	{
-
+		Tanh() { m_Domain = SyntaxNodeType::TanhFunction; }
 	};
 
 	struct ArcSin : public StandardFunction
 	{
-
+		ArcSin() { m_Domain = SyntaxNodeType::ArcSinFunction; }
 	};
 
 	struct ArcCos : public StandardFunction
 	{
-
+		ArcCos() { m_Domain = SyntaxNodeType::ArcCosFunction; }
 	};
 
 	struct ArcTan : public StandardFunction
 	{
-
+		ArcTan() { m_Domain = SyntaxNodeType::ArcTanFunction; }
 	};
 
 	struct Exponential : public StandardFunction
 	{
+		Exponential() { m_Domain = SyntaxNodeType::ExpFunction; }
+	};
 
+	struct Log : public StandardFunction
+	{
+		Log() { m_Domain = SyntaxNodeType::LogFunction; }
+	};
+
+	struct Factorial : public StandardFunction
+	{
+		Factorial() { m_Domain = SyntaxNodeType::FactorialFunction; }
 	};
 
 	//////////////////////////////////////////////
@@ -389,7 +400,7 @@ namespace BongoJam {
 	struct BinaryExpr: public Expr
 	{
 		//meant to be overriden
-		SyntaxNodeType m_Domain = SyntaxNodeType::BinaryExpr;
+		BinaryExpr() { m_Domain = SyntaxNodeType::BinaryExpr; }
 		Token m_Operator;
 
 		Expr m_First; //used for ordering of non commutative operations (non-abelian)
@@ -398,7 +409,10 @@ namespace BongoJam {
 
 	struct UnaryExpr : public Expr
 	{
+		UnaryExpr() { m_Domain = SyntaxNodeType::UnaryExpr; }
+		Token m_Operator;
 
+		Expr m_Only;
 	};
 
 	//////////////////////////////////////////////
@@ -407,64 +421,64 @@ namespace BongoJam {
 
 	struct AdditionExpr : public BinaryExpr
 	{
-		SyntaxNodeType m_Domain = SyntaxNodeType::AdditionExpr;
+		AdditionExpr() { m_Domain = SyntaxNodeType::AdditionExpr; }
 	};
 
 	struct SubtractionExpr : public BinaryExpr
 	{
-		SyntaxNodeType m_Domain = SyntaxNodeType::SubtractionExpr;
+		SubtractionExpr() { m_Domain = SyntaxNodeType::SubtractionExpr; }
 	};
 
 	struct MultiplicationExpr : public BinaryExpr
 	{
-		SyntaxNodeType m_Domain = SyntaxNodeType::MultiplicationExpr;
+		MultiplicationExpr() { m_Domain = SyntaxNodeType::MultiplicationExpr; }
 	};
 
 	struct DivisionExpr : public BinaryExpr
 	{
-		SyntaxNodeType m_Domain = SyntaxNodeType::DivisionExpr;
+		DivisionExpr() { m_Domain = SyntaxNodeType::DivisionExpr; }
 	};
 
 	struct ModuloExpr : public BinaryExpr
 	{
-		SyntaxNodeType m_Domain = SyntaxNodeType::ModuloExpr;
+		ModuloExpr() { m_Domain = SyntaxNodeType::ModuloExpr; }
 	};
 
 	struct PlusEqualsExpr : public BinaryExpr
 	{
-		SyntaxNodeType m_Domain = SyntaxNodeType::PlusEqualsExpr;
+		PlusEqualsExpr() { m_Domain = SyntaxNodeType::PlusEqualsExpr; }
 	};
 
 	struct MinusEqualsExpr : public BinaryExpr
 	{
-		SyntaxNodeType m_Domain = SyntaxNodeType::MinusEqualsExpr;
+		MinusEqualsExpr() { m_Domain = SyntaxNodeType::MinusEqualsExpr; }
 	};
 
 	struct MultEqualsExpr : public BinaryExpr
 	{
-		SyntaxNodeType m_Domain = SyntaxNodeType::MultEqualsExpr;
+		MultEqualsExpr() { m_Domain = SyntaxNodeType::MultEqualsExpr; }
 	};
 
 	struct DivEqualsExpr : public BinaryExpr
 	{
-		SyntaxNodeType m_Domain = SyntaxNodeType::DivEqualsExpr;
+		DivEqualsExpr() { m_Domain = SyntaxNodeType::DivEqualsExpr; }
 	};
 
 	struct ModuloEqualsExpr : public BinaryExpr
 	{
-		SyntaxNodeType m_Domain = SyntaxNodeType::ModuloEqualsExpr;
+		ModuloEqualsExpr() { m_Domain = SyntaxNodeType::ModuloEqualsExpr; }
 	};
 
 	struct BracketedExpr : public Expr
 	{
-		SyntaxNodeType m_Domain = SyntaxNodeType::BracketedExpr;
+		BracketedExpr() { m_Domain = SyntaxNodeType::ExpFunction; }
 		vector<BinaryExpr> m_BinaryExpressions;
 		vector<UnaryExpr> m_UnaryExpressions;
 	};
 
 	struct MethodCallExpr : public Expr
 	{
-		SyntaxNodeType m_Domain = SyntaxNodeType::MethodCallExpr;
+		MethodCallExpr() { m_Domain = SyntaxNodeType::MethodCallExpr; }
 		Token m_MethodName;
 		Token m_ReturnType;
 		vector<Token> m_MethodArgs;
@@ -472,7 +486,7 @@ namespace BongoJam {
 
 	struct FunctionCallExpr : public Expr
 	{
-		SyntaxNodeType m_Domain = SyntaxNodeType::FunctionCallExpr;
+		FunctionCallExpr() { m_Domain = SyntaxNodeType::FunctionCallExpr; }
 		Token m_FuncName;
 		Token m_ReturnType;
 		vector<Token> m_FuncArgs;
@@ -480,14 +494,14 @@ namespace BongoJam {
 
 	struct ClassCallExpr : public Expr //used for: "let x->myClass = new myClass();"
 	{
-		SyntaxNodeType m_Domain = SyntaxNodeType::ClassCallExpr;
+		ClassCallExpr() { m_Domain = SyntaxNodeType::ClassCallExpr; }
 
 		bool m_IsHeapAllocated = false;
 	};
 
 	struct StructCallExpr : public Expr //used for: "let x->myStruct = new myStruct();"
 	{
-		SyntaxNodeType m_Domain = SyntaxNodeType::StructCallExpr;
+		StructCallExpr() { m_Domain = SyntaxNodeType::StructCallExpr; }
 
 		bool m_IsHeapAllocated = false;
 	};
@@ -498,41 +512,49 @@ namespace BongoJam {
 
 	struct GreaterThanExpr : public Expr
 	{
+		GreaterThanExpr() { m_Domain = SyntaxNodeType::GreaterThanExpr; }
 
 	};
 
 	struct GreaterThanOrEqualsExpr : public Expr
 	{
+		GreaterThanOrEqualsExpr() { m_Domain = SyntaxNodeType::GreaterThanOrEqualsExpr; }
 
 	};
 
 	struct LesserThanExpr : public Expr
 	{
+		LesserThanExpr() { m_Domain = SyntaxNodeType::LesserThanExpr; }
 
 	};
 
 	struct LesserThanOrEqualsExpr : public Expr
 	{
+		LesserThanOrEqualsExpr() { m_Domain = SyntaxNodeType::LesserThanOrEqualsExpr; }
 
 	};
 
 	struct StrictlyEqualsExpr : public Expr
 	{
+		StrictlyEqualsExpr() { m_Domain = SyntaxNodeType::StrictlyEqualsExpr; }
 
 	};
 
 	struct AndExpr : public Expr
 	{
+		AndExpr() { m_Domain = SyntaxNodeType::AndExpr; }
 
 	};
 
 	struct OrExpr : public Expr
 	{
+		OrExpr() { m_Domain = SyntaxNodeType::OrExpr; }
 
 	};
 
 	struct NotExpr : public Expr
 	{
+		NotExpr() { m_Domain = SyntaxNodeType::NotExpr; }
 
 	};
 
@@ -542,41 +564,44 @@ namespace BongoJam {
 
 	struct IntLiteral : public Expr //all ints are 32-bits, fuck you the register size is big enough
 	{
-		SyntaxNodeType m_Domain = SyntaxNodeType::IntLiteral;
 		int32_t m_Value;
 
-		explicit IntLiteral(int32_t fp_Value)
+		explicit IntLiteral(const int32_t fp_Value) 
 		{
+			m_Domain = SyntaxNodeType::IntLiteral; 
 			m_Value = fp_Value;
 		}
 	};
 
 	struct FloatLiteral : public Expr //we treat all numbers as floats until we get to the interpreter, where it will re-cast the number as an int if needed
 	{
-		SyntaxNodeType m_Domain = SyntaxNodeType::FloatLiteral;
 		float m_Value;
 
-		explicit FloatLiteral(float fp_Value)
-		{
+		explicit FloatLiteral(const float fp_Value) 
+		{ 
+			m_Domain = SyntaxNodeType::FloatLiteral; 
 			m_Value = fp_Value;
 		}
 	};
 
 	struct StringLiteral : public Expr
 	{
-		SyntaxNodeType m_Domain = SyntaxNodeType::StringLiteral;
-		string m_Value;
+		Token m_StringValue;
 
-		explicit StringLiteral(const string& fp_Value) //we're just using the default cpp string implementation, I don't see why not
-		{
-			m_Value = fp_Value;
+		//we're just using the default cpp string implementation, I don't see why not
+		explicit StringLiteral(const Token& fp_StringValue) 
+		{ 
+			m_Domain = SyntaxNodeType::StringLiteral;
+			m_StringValue = fp_StringValue;
 		}
 	};
 
 	struct NullLiteral : public Expr
 	{
-		SyntaxNodeType m_Domain = SyntaxNodeType::NullLiteral;
-		const nullptr_t null = nullptr;
+		explicit NullLiteral() //we dont need a value since null is always just null
+		{
+			m_Domain = SyntaxNodeType::NullLiteral;
+		}
 	};
 
 	//////////////////////////////////////////////
@@ -585,20 +610,20 @@ namespace BongoJam {
 
 	struct ReturnSubStatement : public StatementNode
 	{
-		SyntaxNodeType m_Domain = SyntaxNodeType::ReturnSubStatement;
+		ReturnSubStatement() { m_Domain = SyntaxNodeType::ReturnSubStatement; }
 
 		vector<BracketedExpr> m_ReturnExpression; //contains the order in which the expression should be done for a particular return statement
 	};
 
 	struct BreakSubStatement :public StatementNode
 	{
-		SyntaxNodeType m_Domain = SyntaxNodeType::BreakSubStatement;
+		BreakSubStatement() { m_Domain = SyntaxNodeType::BreakSubStatement; }
 	};
 
 
 	struct Program : public StatementNode
 	{
-		SyntaxNodeType m_Domain = SyntaxNodeType::Program;
+		Program() { m_Domain = SyntaxNodeType::Program; }
 
 		vector<ClassDeclaration> m_ProgramClasses; //contains all statements held inside the main func
 		vector<StructDeclaration> m_ProgramStructs;
@@ -613,8 +638,6 @@ namespace BongoJam {
 		//these maps hold the var/func name and its corresponding type/return-type, need to be strings since they could be user-defined types
 		map<const string, const string> m_MapFuncNames; //can't recast a functions return type though
 		map<const string, string> m_MapVariableNames; //types can be recast for variables
-
-		Program() {}
 	};
 
 }
