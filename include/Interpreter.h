@@ -1,3 +1,14 @@
+/*****************************************************************
+ *                                        BongoJam Script v0.3
+ *                           Created by Ranyodh Mandur - © 2024
+ *
+ *                         Licensed under the MIT License (MIT).
+ *                  For more details, see the LICENSE file or visit:
+ *                        https://opensource.org/licenses/MIT
+ *
+ * BongoJam is an open-source scripting language compiler and interpreter
+ *              primarily intended for embedding within game engines.
+ *****************************************************************/
 #pragma once
 
 #include <chrono>
@@ -22,7 +33,7 @@ namespace BongoJam {
 		//////////////////////////////////////////////
 
 		bool 
-			ReadBytecodeFromFile(const string& filename, vector<uint8_t>& bytecode) 
+			ReadBytecodeFromFile(const string& filename, vector<uint8_t>* bytecode) 
 		{
 			ifstream file(filename, ios::binary);
 
@@ -38,10 +49,10 @@ namespace BongoJam {
 			file.seekg(0, ios::beg);
 
 			// Resize the vector to the size of the file
-			bytecode.resize(size);
+			bytecode->resize(size);
 
 			// Read the entire file into the vector
-			file.read(reinterpret_cast<char*>(bytecode.data()), size);
+			file.read(reinterpret_cast<char*>(bytecode->data()), size);
 
 			file.close();  // Close the file
 
@@ -331,7 +342,7 @@ namespace BongoJam {
 		{
 			vector<uint8_t> f_ByteCode;
 
-			if (!ReadBytecodeFromFile(fp_BongoScriptName, f_ByteCode)) //stop execution immediately if the file was not able to be read
+			if (!ReadBytecodeFromFile(fp_BongoScriptName, &f_ByteCode)) //stop execution immediately if the file was not able to be read
 			{
 				return;
 			}
