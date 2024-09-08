@@ -7,7 +7,7 @@
  *					https://opensource.org/licenses/MIT
  *
  *		BongoJam is an open-source scripting language compiler and interpreter
- *				primarily intended for embedding within game engines.
+ *			       primarily intended for embedding within game engines.
  *****************************************************************/
 #pragma once
 
