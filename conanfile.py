@@ -8,7 +8,7 @@ class BJScript(ConanFile):
     generators = "CMakeDeps", "CMakeToolchain"
 
     def requirements(self):
-        self.requires("spdlog/1.14.1")
+        self.requires("zlib/1.3.1")
         
     def generate(self):
         cmake = CMakeDeps(self)

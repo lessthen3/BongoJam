@@ -1,18 +1,15 @@
-/*****************************************************************
- *                                        BongoJam Script v0.3
- *                           Created by Ranyodh Mandur - © 2024
- *
- *                         Licensed under the MIT License (MIT).
- *                  For more details, see the LICENSE file or visit:
- *                        https://opensource.org/licenses/MIT
- *
- * BongoJam is an open-source scripting language compiler and interpreter
- *              primarily intended for embedding within game engines.
- *****************************************************************/
+/*******************************************************************
+ *                                        BongoJam Script v0.3                                        
+ *                           Created by Ranyodh Mandur - ï¿½ 2024                            
+ *                                                                                                                  
+ *                         Licensed under the MIT License (MIT).                           
+ *                  For more details, see the LICENSE file or visit:                     
+ *                        https://opensource.org/licenses/MIT                               
+ *                                                                                                                  
+ *  BongoJam is an open-source scripting language compiler and interpreter 
+ *              primarily intended for embedding within game engines.               
+********************************************************************/
 #pragma once
-
-#include <string>
-#include <vector>
 
 #include "Lexer.h"
 
@@ -187,7 +184,11 @@ namespace BongoJam {
 
 	struct StandardFunction : public StatementNode
 	{
-		vector<unique_ptr<Expr>> m_FuncArgs;
+		vector< //outer list is (arg1, arg2)
+			vector< //inner list is if arg1 = funcCall1() + funcCall2() - 3 / "hello world" + 3.14156969
+				unique_ptr<Expr>
+		>> m_FuncArgs;
+
 		StandardFunction(): StatementNode() { m_Domain = SyntaxNodeType::StandardFunction; }
 	};
 
@@ -311,7 +312,12 @@ namespace BongoJam {
 	
 	struct PrintFunction : public StandardFunction
 	{
-		PrintFunction() { m_Domain = SyntaxNodeType::PrintFunction; }
+		PrintFunction() 
+		{  
+			m_Domain = SyntaxNodeType::PrintFunction;
+			m_FuncArgs.push_back(vector<unique_ptr<Expr>>());
+			m_FuncArgs.push_back(vector<unique_ptr<Expr>>());
+		}
 	};
 
 	struct InputFunction : public StandardFunction

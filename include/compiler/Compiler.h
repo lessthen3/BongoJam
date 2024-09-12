@@ -1,18 +1,18 @@
-/*****************************************************************
- *                                        BongoJam Script v0.3
- *                           Created by Ranyodh Mandur - © 2024
- *
- *                         Licensed under the MIT License (MIT).
- *                  For more details, see the LICENSE file or visit:
- *                        https://opensource.org/licenses/MIT
- *
- * BongoJam is an open-source scripting language compiler and interpreter
- *              primarily intended for embedding within game engines.
- *****************************************************************/
+/*******************************************************************
+ *                                        BongoJam Script v0.0.6                                        
+ *                           Created by Ranyodh Mandur - ï¿½ 2024                            
+ *                                                                                                                  
+ *                         Licensed under the MIT License (MIT).                           
+ *                  For more details, see the LICENSE file or visit:                     
+ *                        https://opensource.org/licenses/MIT                               
+ *                                                                                                                  
+ *  BongoJam is an open-source scripting language compiler and interpreter 
+ *              primarily intended for embedding within game engines.               
+********************************************************************/
 #pragma once
 
 #include "Parser.h"
-#include <fstream>
+#include "../Binder.h"
 
 using namespace std;
 
@@ -163,20 +163,29 @@ namespace BongoJam {
 	void 
 		WriteBytecodeToFile(const string& fp_DesiredOutputDirectory, const string& fp_DesiredName, const vector<uint8_t>& fp_ByteCode) 
 	{
-		//LogAndPrint("Bytecode size: " + to_string(fp_ByteCode.size()), "Compiler", "info", "cyan");
+		//LogManager::Logger().LogAndPrint("Bytecode size: " + to_string(fp_ByteCode.size()), "Compiler", "info", "cyan");
 
 		if (fp_ByteCode.empty()) 
 		{
-			LogAndPrint("Compiler Error: Failed to write " + fp_DesiredName + " for writing.\nNo bytecode to write.", "Compiler", "error", "red");
+			LogManager::Logger().LogAndPrint("Compiler Error: Failed to write " + fp_DesiredName + " for writing.\nNo bytecode to write.", "Compiler", "error");
 		}
 
-		const string f_BongoFileName = fp_DesiredOutputDirectory + "/" + fp_DesiredName + ".bongo";
+		string f_BongoFileName;
+
+		if (fp_DesiredOutputDirectory == "./")
+		{
+			f_BongoFileName = "./" + fp_DesiredName;
+		}
+		else
+		{
+			f_BongoFileName = fp_DesiredOutputDirectory + "/" + fp_DesiredName;
+		}
 
 		ofstream file(f_BongoFileName, ios::binary);  // Open in binary mode
 
 		if (!file) 
 		{
-			LogAndPrint("Compiler Error: Failed to open "+ f_BongoFileName +" for writing.", "Compiler", "error", "red");
+			LogManager::Logger().LogAndPrint("Compiler Error: Failed to open "+ f_BongoFileName +" for writing.", "Compiler", "error");
 			return;
 		}
 
@@ -194,7 +203,7 @@ namespace BongoJam {
 
 		if (lastDotIndex == string::npos) 
 		{
-			LogAndPrint("Compiler Error: No file extension found", "Compiler", "error", "red");
+			LogManager::Logger().LogAndPrint("Compiler Error: No file extension found", "Compiler", "error");
 			return false;
 		}
 
@@ -202,7 +211,7 @@ namespace BongoJam {
 
 		if (f_FileExtension != ".bj") 
 		{
-			LogAndPrint("Compiler Error: Please only try to compile .bj files", "Compiler", "error", "red");
+			LogManager::Logger().LogAndPrint("Compiler Error: Please only try to compile .bj files", "Compiler", "error");
 			return false;
 		}
 
@@ -210,7 +219,7 @@ namespace BongoJam {
 
 		if (!f_FileStream)
 		{
-			LogAndPrint("Compiler Error: Failed to open bongojam script for reading.", "Compiler", "error", "red");
+			LogManager::Logger().LogAndPrint("Compiler Error: Failed to open bongojam script for reading.", "Compiler", "error");
 			return false;
 		}
 
@@ -291,7 +300,7 @@ namespace BongoJam {
 	//////////////////////////////////////////////
 
 	static bool //doesn't return anything because the compiler writes the output to a .bongo file
-		CompileProgram(const string& fp_DesiredBongoScriptFilePath, const string& fp_DesiredOutputDirectory)
+		CompileProgram(const string& fp_DesiredBongoScriptFilePath, const string& fp_DesiredOutputDirectory, const string& fp_DesiredOutputFileName, const bool fp_IsDebug = false)
 	{
 		//////////////////// Read .bj file, Tokenize and Parse it ////////////////////
 
@@ -301,10 +310,10 @@ namespace BongoJam {
 		if (!ReadFileIntoString(fp_DesiredBongoScriptFilePath, &f_SourceCode))
 		{
 			//stop compilation immediately
-			LogAndPrint("Compiler was not able to read a valid source file, compilation will not proceed any further. nothing was done.", "Compiler", "warn", "yellow");
+			LogManager::Logger().LogAndPrint("Compiler was not able to read a valid source file, compilation will not proceed any further. nothing was done.", "Compiler", "warn");
 			return false;
 		}
-
+		cout << f_SourceCode << "\n";
 		Program* f_BongoProgram = f_BongoParser.ConstructAST(Tokenize(f_SourceCode));
 
 		//////////////////// Check for Main Func ////////////////////
@@ -315,8 +324,8 @@ namespace BongoJam {
 		if (f_MainFunc->m_FuncName.m_Value != "main")
 		{
 			//THROW ERROR
-			LogAndPrint("Compiler Error: main function is not defined as the last function in the program", "Compiler", "error", "red");
-			LogAndPrint("Please take a look at your program structure and re-organize it such that main() is defined last", "Compiler", "warn", "yellow");
+			LogManager::Logger().LogAndPrint("Compiler Error: main function is not defined as the last function in the program", "Compiler", "error");
+			LogManager::Logger().LogAndPrint("Please take a look at your program structure and re-organize it such that main() is defined last", "Compiler", "warn");
 			return false;
 		}
 		
@@ -345,10 +354,96 @@ namespace BongoJam {
 				f_CompiledByteCode.push_back(0x0AA); //STRING_LITERAL
 
 				PrintFunction* _pf = dynamic_cast<PrintFunction*>(f_CurrentProgramStatement.get());
+				string s_TextColour = "white";
 
-				for(int _i = 0; _i < _pf->m_FuncArgs.size(); _i++)
+				if (_pf->m_FuncArgs[1].size() > 0) //check if the colour arg exists
 				{
-					EncodeUTF8String( f_CompiledByteCode, (dynamic_cast<StringLiteral*>(_pf->m_FuncArgs[_i].get()))->m_StringValue.m_Value );
+					f_CompiledByteCode.push_back(0x0CE); //COLOURIZE
+					s_TextColour = (dynamic_cast<StringLiteral*>(_pf->m_FuncArgs[1][0].get()))->m_StringValue.m_Value; //only handling string literals for now
+
+					if (s_TextColour == "blue")
+					{
+						f_CompiledByteCode.push_back(0x01);
+					}
+					else if (s_TextColour == "bright blue")
+					{
+						f_CompiledByteCode.push_back(0x02);
+					}
+
+					else if (s_TextColour == "green")
+					{
+						f_CompiledByteCode.push_back(0x03);
+					}
+					else if (s_TextColour == "bright green")
+					{
+						f_CompiledByteCode.push_back(0x04);
+					}
+
+					else if (s_TextColour == "magenta")
+					{
+						f_CompiledByteCode.push_back(0x05);
+					}
+					else if (s_TextColour == "bright magenta")
+					{
+						f_CompiledByteCode.push_back(0x06);
+					}
+
+					else if (s_TextColour == "cyan")
+					{
+						f_CompiledByteCode.push_back(0x07);
+					}
+					else if (s_TextColour == "bright cyan")
+					{
+						f_CompiledByteCode.push_back(0x08);
+					}
+
+					else if (s_TextColour == "red")
+					{
+						f_CompiledByteCode.push_back(0x09);
+					}
+					else if (s_TextColour == "bright red")
+					{
+						f_CompiledByteCode.push_back(0x0A);
+					}
+
+					else if (s_TextColour == "yellow")
+					{
+						f_CompiledByteCode.push_back(0x0B);
+					}
+					else if (s_TextColour == "bright yellow")
+					{
+						f_CompiledByteCode.push_back(0x0C);
+					}
+
+					else if (s_TextColour == "black")
+					{
+						f_CompiledByteCode.push_back(0x0D);
+					}
+					else if (s_TextColour == "bright black")
+					{
+						f_CompiledByteCode.push_back(0x0E);
+					}
+
+					else if (s_TextColour == "bright white")
+					{
+						f_CompiledByteCode.push_back(0x0F);
+					}
+				}
+
+				//////////////////// Parse First Argument ////////////////////
+
+				// [0][_i] because the 0th index refers to the string input, the _i'th input is if we're doing string operations inside like "hello" + myVar + "world"
+				for(int _i = 0; _i < _pf->m_FuncArgs[0].size(); _i++)
+				{
+					EncodeUTF8String
+					( 
+						f_CompiledByteCode, 
+						CreateColouredText
+						(
+							(dynamic_cast<StringLiteral*>(_pf->m_FuncArgs[0][_i].get()))->m_StringValue.m_Value, 
+							s_TextColour
+						) 
+					);
 				}
 
 				continue;
@@ -362,7 +457,7 @@ namespace BongoJam {
 
 		//////////////////// Write the Compiled Byte Code to a File ////////////////////
 
-		WriteBytecodeToFile(fp_DesiredOutputDirectory, "UwU", f_CompiledByteCode);
+		WriteBytecodeToFile(fp_DesiredOutputDirectory, fp_DesiredOutputFileName, f_CompiledByteCode);
 		f_CompiledByteCode.clear(); //dump the vector since the code has been written to a file hopefully >w<
 
 		delete f_BongoProgram;

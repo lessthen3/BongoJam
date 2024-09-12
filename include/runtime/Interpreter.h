@@ -1,60 +1,57 @@
-/*****************************************************************
- *                                        BongoJam Script v0.3
- *                           Created by Ranyodh Mandur - © 2024
- *
- *                         Licensed under the MIT License (MIT).
- *                  For more details, see the LICENSE file or visit:
- *                        https://opensource.org/licenses/MIT
- *
- * BongoJam is an open-source scripting language compiler and interpreter
- *              primarily intended for embedding within game engines.
- *****************************************************************/
+/*******************************************************************
+ *                                        BongoJam Script v0.3                                        
+ *                           Created by Ranyodh Mandur - ï¿½ 2024                            
+ *                                                                                                                  
+ *                         Licensed under the MIT License (MIT).                           
+ *                  For more details, see the LICENSE file or visit:                     
+ *                        https://opensource.org/licenses/MIT                               
+ *                                                                                                                  
+ *  BongoJam is an open-source scripting language compiler and interpreter 
+ *              primarily intended for embedding within game engines.               
+********************************************************************/
 #pragma once
 
-#include <chrono>
 #include <thread>
-
-#include <fstream>
-#include <vector>
-
 #include <memory>
 
-#include "Binder.h"
+#include "../Binder.h"
 
 using namespace std;
 
 namespace BongoJam {
 
 	class
-		BongoInterpreter
+		BongoJamInterpreter
 	{
 		//////////////////////////////////////////////
 		// Read Bongo Code
 		//////////////////////////////////////////////
 
 		bool 
-			ReadBytecodeFromFile(const string& filename, vector<uint8_t>* bytecode) 
+			ReadBytecodeFromFile(const string& fp_FileName, vector<uint8_t>* fp_ByteCode) 
 		{
-			ifstream file(filename, ios::binary);
+			ifstream f_BongoCode(fp_FileName, ios::binary);
 
-			if (!file) 
+			if (!f_BongoCode) 
 			{
-				LogAndPrint("Fatal Error: Interpreter failed to open .bongo file for reading!", "Interpreter", "fatal", "magenta");
+				LogManager::Logger().LogAndPrint("Fatal Error: Interpreter failed to open .bongo file for reading!", "Interpreter", "fatal");
 				return false;
 			}
 
 			// Get the size of the file
-			file.seekg(0, ios::end);
-			size_t size = file.tellg();
-			file.seekg(0, ios::beg);
+			f_BongoCode.seekg(0, ios::end);
+
+			size_t f_Size = f_BongoCode.tellg();
+
+			f_BongoCode.seekg(0, ios::beg);
 
 			// Resize the vector to the size of the file
-			bytecode->resize(size);
+			fp_ByteCode->resize(f_Size);
 
 			// Read the entire file into the vector
-			file.read(reinterpret_cast<char*>(bytecode->data()), size);
+			f_BongoCode.read(reinterpret_cast<char*>(fp_ByteCode->data()), f_Size);
 
-			file.close();  // Close the file
+			f_BongoCode.close();  // Close the file
 
 			return true;
 		}
@@ -165,16 +162,88 @@ namespace BongoJam {
 		{
 			size_t _p = 0;
 
+			string f_TextColour;
+
 			for (_p; _p < fp_ByteCode->size(); _p++)
 			{
 				if ((*fp_ByteCode)[_p] == 0x0AA) //bongo-code for a String literal
 				{
 					_p++; //advance one to look for string size
 
-					size_t f_InitialIndex = _p; //index of STRING_LITERAL bongo-code
+					f_TextColour = "white";
+
+					size_t f_InitialIndex = _p; //start index of actual string index bytes
+
+					if((*fp_ByteCode)[_p] == 0x0CE) //colourize bytecode
+					{
+						_p++; //advance to look for colour byte
+
+						switch ((*fp_ByteCode)[_p])
+						{
+						case 0x01:
+							f_TextColour = "blue";
+							break;
+						case 0x02:
+							f_TextColour = "bright blue";
+							break;
+						case 0x03:
+							f_TextColour = "green";
+							break;
+						case 0x04:
+							f_TextColour = "bright green";
+							break;
+						case 0x05:
+							f_TextColour = "magenta";
+							break;
+						case 0x06:
+							f_TextColour = "bright magenta";
+							break;
+						case 0x07:
+							f_TextColour = "cyan";
+							break;
+						case 0x08:
+							f_TextColour = "bright cyan";
+							break;
+						case 0x09:
+							f_TextColour = "red";
+							break;
+						case 0x0A:
+							f_TextColour = "bright red";
+							break;
+						case 0x0B:
+							f_TextColour = "yellow";
+							break;
+						case 0x0C:
+							f_TextColour = "bright yellow";
+							break;
+						case 0x0D:
+							f_TextColour = "black";
+							break;
+						case 0x0E:
+							f_TextColour = "bright black";
+							break;
+						case 0x0F:
+							f_TextColour = "bright white";
+							break;
+						default:
+							break;
+						}
+
+						_p++; //advance again to look for actual string
+					}
 
 					//push the actual string put together into a vector
-					ListOfDecodedStrings.push_back(make_unique<string>(DecodeUTF8String((fp_ByteCode), &_p)));
+					ListOfDecodedStrings.push_back
+					(
+						make_unique<string>
+						(
+							CreateColouredText
+							(
+								DecodeUTF8String((fp_ByteCode), &_p), 
+								f_TextColour
+							)
+						)
+					);
 
 					//encode the uint32_t that represents the index of the string
 					vector<uint8_t> f_IndexBytes;
@@ -334,8 +403,8 @@ namespace BongoJam {
 		//};
 
 	public:
-		explicit BongoInterpreter() {}
-		~BongoInterpreter() {}
+		explicit BongoJamInterpreter() {}
+		~BongoJamInterpreter() {}
 
 		void
 			RunBongoScript(const string& fp_BongoScriptName)
@@ -400,23 +469,75 @@ namespace BongoJam {
 					{
 						_p++; //shift forward for the string vector index
 
-						cout << *ListOfDecodedStrings[Decode32BitInt(&f_ByteCode, &_p)] << "\n";
+						cout << *ListOfDecodedStrings[Decode32BitInt(&f_ByteCode, &_p)];
 					}
 					continue;
 				}
 				break;
 				default:
 					//THROW ERROR
-					LogAndPrint("INTERNAL COMPILER ERROR: Error at Line Number:"+to_string(_l)+", Error at BYTE-CODE: "+to_string(f_ByteCode[_p]), "Interpreter", "error", "red");
-					LogAndPrint("Something terrible happened while running the code, invalid bytecode was generated by the compiler (sorry not your fault I think LOL)", "Interpreter", "warn", "yellow");
-					LogAndPrint("BongoJam program exited with code -1", "Interpreter", "info", "blue");
+					LogManager::Logger().LogAndPrint("INTERNAL COMPILER ERROR: Error at Line Number: "+to_string(_l)+", Error at BYTE-CODE: "+to_string(f_ByteCode[_p]), "Interpreter", "error");
+					LogManager::Logger().LogAndPrint("Something terrible happened while running the code, invalid bytecode was generated by the compiler (sorry not your fault I think LOL)", "Interpreter", "warn");
+					LogManager::Logger().LogAndPrint("BongoJam program exited with code -1", "Interpreter", "debug");
 					return;
 				}
 			}
 
-			//LogAndPrint("BongoJam program exited with code 0", "Interpreter", "info", "bright blue");
-			cout << CreateColouredText("BongoJam program exited with code 0", "bright cyan") << "\n";
+			LogManager::Logger().Log("BongoJam program exited with code 0", "Interpreter", "debug");
+			Print("\nBongoJam program exited with code 0", "bright cyan");
 		}
+
+
+		string
+			Add(const string& fp_First, const string& fp_Second)
+			const
+		{
+			return fp_First + fp_Second;
+		}
+
+		string
+			Add(const int fp_First, const string& fp_Second)
+			const
+		{
+			return to_string(fp_First) + fp_Second;
+		}
+
+		string
+			Add(const float fp_First, const string& fp_Second)
+			const
+		{
+			return to_string(fp_First) + fp_Second;
+		}
+
+		string
+			const
+			Add(const bool fp_First, const string& fp_Second)
+			const
+		{
+			return to_string(fp_First) + fp_Second;
+		}
+
+		string
+			Add(const string& fp_First, const int fp_Second)
+			const
+		{
+			return to_string(fp_Second) + fp_First;
+		}
+
+		string
+			Add(const string& fp_First, const float fp_Second)
+			const
+		{
+			return to_string(fp_Second) + fp_First;
+		}
+
+		string
+			Add(const string& fp_First, const bool fp_Second)
+			const
+		{
+			return fp_First + to_string(fp_Second);
+		}
+
 	};
 
 

@@ -3,8 +3,8 @@
 
 func main() -> int
 {
-    print(" \t Hello \t World! \n \n");
-    print("Who's in paris?");
+    print(" \t Hello \t World! \n \n", "bright magenta");
+    print("Who's in paris?", "bright red");
 
-    return 0;
+    //return 0;
 }

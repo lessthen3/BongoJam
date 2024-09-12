@@ -12,33 +12,67 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Include the conan toolchain
 include (build/build/generators/conan_toolchain.cmake)
 
-####################################### Source Files
+####################################### Compiler Project
 
 # Automatically find all the source files in the source directory
-file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS "src/*.cpp" "include/*.h")
+file(
+    GLOB_RECURSE 
+    COMPILER_SOURCES 
+    CONFIGURE_DEPENDS 
+    "src/compiler/*.cpp" 
+    "include/compiler/*.h"
+    "include/LogManager.h"
+    "include/Binder.h"
+)
 
-####################################### Library Target
+#### Library Target
 
 # Create a static library
-add_library(bongo STATIC ${SOURCES})
+add_library(bongoC STATIC ${COMPILER_SOURCES})
 
 # Specify include directories for the library
-target_include_directories(bongo PUBLIC include)
+target_include_directories(bongoC PUBLIC include/compiler)
 
-####################################### Executable Target
+#### Executable Target
 
 # Add executable based on source files
-add_executable(${PROJECT_NAME} src/main.cpp)
+add_executable(bongo src/compiler/main.cpp)
 
 # Link the library with the executable
-target_link_libraries(${PROJECT_NAME} PRIVATE bongo)
+target_link_libraries(bongo PRIVATE bongoC)
+
+####################################### Interpreter Project
+
+# Automatically find all the source files in the source directory
+file(
+    GLOB_RECURSE 
+    INTERPRETER_SOURCES 
+    CONFIGURE_DEPENDS 
+    "src/runtime/*.cpp" 
+    "include/runtime/*.h" 
+    "include/LogManager.h"
+    "include/Binder.h"
+)
+
+#### Library Target
+
+# Create a static library
+add_library(bongojam STATIC ${INTERPRETER_SOURCES})
+
+# Specify include directories for the library
+target_include_directories(bongojam PUBLIC include/runtime)
+
+#### Executable Target
+
+# Add executable based on source files
+add_executable(jam src/runtime/main.cpp)
+
+# Link the library with the executable
+target_link_libraries(jam PRIVATE bongojam)
 
 ####################################### Dependency Linking
 
-# Locate Conan Packages
-find_package(spdlog REQUIRED)
+find_package(ZLIB REQUIRED)
 
-# Link Conan Packages
-target_link_libraries(bongo PUBLIC
-    spdlog::spdlog
-)
+target_link_libraries(bongoC ZLIB::ZLIB)
+target_link_libraries(bongojam ZLIB::ZLIB)

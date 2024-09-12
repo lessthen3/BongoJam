@@ -1,18 +1,17 @@
-/*****************************************************************
- *                                        BongoJam Script v0.3
- *                           Created by Ranyodh Mandur - © 2024
- *
- *                         Licensed under the MIT License (MIT).
- *                  For more details, see the LICENSE file or visit:
- *                        https://opensource.org/licenses/MIT
- *
- * BongoJam is an open-source scripting language compiler and interpreter
- *              primarily intended for embedding within game engines.
- *****************************************************************/
+/*******************************************************************
+ *                                        BongoJam Script v0.3                                        
+ *                           Created by Ranyodh Mandur - ï¿½ 2024                            
+ *                                                                                                                  
+ *                         Licensed under the MIT License (MIT).                           
+ *                  For more details, see the LICENSE file or visit:                     
+ *                        https://opensource.org/licenses/MIT                               
+ *                                                                                                                  
+ *  BongoJam is an open-source scripting language compiler and interpreter 
+ *              primarily intended for embedding within game engines.               
+********************************************************************/
 #pragma once
 
-#include <filesystem>
-#include "Tools.h"
+#include "LogManager.h"
 
 #if defined(_WIN32) || defined(_WIN64)
 #define WIN32_LEAN_AND_MEAN
@@ -33,7 +32,7 @@ static bool
     }
     else
     {
-        cout << "Was not able to set console mode to allow windows to display ANSI escape codes" << "\n";
+        BongoJam::LogManager::Logger().LogAndPrint("Was not able to set console mode to allow windows to display ANSI escape codes", "Binder", "error");
         return false;
     }
 }
@@ -69,30 +68,32 @@ namespace BongoJam {
     static vector<DYNLIB_HANDLE> LIBRARY_HANDLES;
 
     void 
-        LoadBindedLibrary(const string& fp_Path)
+        LoadBindedLibrary
+        (
+            const string& fp_Path
+        )
     {
         DYNLIB_HANDLE f_Handle;
 
-        if (fs::exists(fp_Path) && fs::is_regular_file(fp_Path))
+        if (fs::exists(fp_Path) and fs::is_regular_file(fp_Path))
         {
             f_Handle = DYNLIB_LOAD(fp_Path.c_str());
-            LogManager::MainLogger().Debug("Successfully located Cpp DLL at: " + fp_Path, "Binder");
+            LogManager::Logger().LogAndPrint("Successfully located Cpp DLL at: " + fp_Path, "Binder", "debug");
         }
-
         else
         {
-            LogManager::MainLogger().Error("Failed to locate Cpp DLL at: " + fp_Path, "Binder");
+            LogManager::Logger().LogAndPrint("Failed to locate Cpp DLL at: " + fp_Path, "Binder", "error");
             return;
         }
 
         if (!f_Handle)
         {
-            LogManager::MainLogger().Error("Failed to load Cpp Library at path: " + fp_Path, "Binder");
+            LogManager::Logger().LogAndPrint("Failed to load Cpp Library at path: " + fp_Path, "Binder", "error");
             return;
         }
         else
         {
-            LogManager::MainLogger().Debug("Successfully loaded Cpp Library at: " + fp_Path, "Binder");
+            LogManager::Logger().LogAndPrint("Successfully loaded Cpp Library at: " + fp_Path, "Binder", "debug");
         }
 
         auto f_CreateFunc = (CreateCppLibraryFunc)DYNLIB_GETSYM(f_Handle, "CreateCppLibrary");
@@ -100,19 +101,19 @@ namespace BongoJam {
 
         if (!f_CreateFunc)
         {
-            LogManager::MainLogger().Error("Failed to find CreateCppLibrary() functions in: " + fp_Path, "Binder");
+            LogManager::Logger().LogAndPrint("Failed to find CreateCppLibrary() functions in: " + fp_Path, "Binder", "error");
             DYNLIB_UNLOAD(f_Handle);
             return;
         }
         else if (!f_DestroyFunc)
         {
-            LogManager::MainLogger().Error("Failed to find DestroyCppLibrary() functions in: " + fp_Path, "Binder");
+            LogManager::Logger().LogAndPrint("Failed to find DestroyCppLibrary() functions in: " + fp_Path, "Binder", "error");
             DYNLIB_UNLOAD(f_Handle);
             return;
         }
         else
         {
-            LogManager::MainLogger().Debug("Successfully located CreateCppLibrary() and DestroyCppLibrary() functions in: " + fp_Path, "Binder");
+            LogManager::Logger().LogAndPrint("Successfully located CreateCppLibrary() and DestroyCppLibrary() functions in: " + fp_Path, "Binder", "debug");
         }
 
         unique_ptr<CppLibrary, DestroyCppLibraryFunc> plugin(f_CreateFunc(), f_DestroyFunc); //creates smrt poiner with destructor tied to it;

@@ -1,25 +1,21 @@
-/*****************************************************************
- *                                        BongoJam Script v0.3
- *                           Created by Ranyodh Mandur - © 2024
- *
- *                         Licensed under the MIT License (MIT).
- *                  For more details, see the LICENSE file or visit:
- *                        https://opensource.org/licenses/MIT
- *
- * BongoJam is an open-source scripting language compiler and interpreter
- *              primarily intended for embedding within game engines.
- *****************************************************************/
+/*******************************************************************
+ *                                        BongoJam Script v0.3                                        
+ *                           Created by Ranyodh Mandur - ï¿½ 2024                            
+ *                                                                                                                  
+ *                         Licensed under the MIT License (MIT).                           
+ *                  For more details, see the LICENSE file or visit:                     
+ *                        https://opensource.org/licenses/MIT                               
+ *                                                                                                                  
+ *  BongoJam is an open-source scripting language compiler and interpreter 
+ *              primarily intended for embedding within game engines.               
+********************************************************************/
 #pragma once
-
-#include <string>
-#include <iostream>
-#include <vector>
-#include <map>
 
 #include <algorithm>
 #include <cctype>
+#include <cassert>
 
-#include "Tools.h"
+#include "../LogManager.h"
 
 using namespace std;
 
@@ -37,6 +33,7 @@ namespace BongoJam {
 		FloatNumber,
 		UserIdentifier,
 		Import,
+		Name,
 
 		//////////////////// Operators ////////////////////
 
@@ -87,6 +84,7 @@ namespace BongoJam {
 		QuestionMark,
 		QuotationMark,
 		HashTag,
+		Ampersand,
 
 		//////////////////// Declaratives ////////////////////
 
@@ -171,6 +169,7 @@ namespace BongoJam {
 
 		Vector2,
 		Vector3,
+		Vector4,
 		Vector,
 
 		Mat2,
@@ -247,6 +246,7 @@ namespace BongoJam {
 		//////////////////// GOAT ////////////////////
 
 		{"import", TokenType::Import}, //PLEASE I LOVE USING OTHER PEOPLE'S CODE
+		{"name", TokenType::Name}, //used for namespaces, name identifier {}
 
 		//////////////////// Declaratives ////////////////////
 
@@ -328,6 +328,7 @@ namespace BongoJam {
 
 		{"Vector2", TokenType::Vector2},
 		{"Vector3", TokenType::Vector3},
+		{"Vector4", TokenType::Vector4},
 		{"Vector", TokenType::Vector}, //generic n-length vector
 
 		{"Mat2", TokenType::Mat2},
@@ -507,8 +508,8 @@ namespace BongoJam {
 					if (!isdigit(f_CurrentChar))
 					{
 						// Handle error: Unterminated type arrow
-						LogAndPrint("Error at Line Number: " + to_string(f_CurrentLineNumber), "Lexer", "error", "red");
-						LogAndPrint("Unexpected symbol following a '.' brother!, looks like you've input a non-numeric symbol while defining a decimal number", "Lexer", "warn", "yellow");
+						LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(f_CurrentLineNumber), "Lexer", "error");
+						LogManager::Logger().LogAndPrint("Unexpected symbol following a '.' brother!, looks like you've input a non-numeric symbol while defining a decimal number", "Lexer", "warn");
 
 						fp_SourceCode.clear(); //dump the source code vector, so that the compiler will stop processing the source code
 						continue;
@@ -652,7 +653,7 @@ namespace BongoJam {
 					else
 					{
 						// Handle error: Unterminated string literal, and exit program execution
-						LogAndPrint("Unterminated string literal, brother! Error occured at line number: " + to_string(f_CurrentLineNumber), "Lexer", "error", "red");
+						LogManager::Logger().LogAndPrint("Unterminated string literal, brother! Error occured at line number: " + to_string(f_CurrentLineNumber), "Lexer", "error");
 						fp_SourceCode.clear();
 						continue;
 					}
@@ -684,8 +685,8 @@ namespace BongoJam {
 					else
 					{
 						//THROW ERROR
-						LogAndPrint("Error at Line Number: " + to_string(f_CurrentLineNumber), "Lexer", "error", "red");
-						LogAndPrint("Something bad happened involving a '=' sign brother", "Lexer", "warn", "yellow");
+						LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(f_CurrentLineNumber), "Lexer", "error");
+						LogManager::Logger().LogAndPrint("Something bad happened involving a '=' sign brother", "Lexer", "warn");
 						fp_SourceCode.clear(); //dump source code so that lexical analysis ends immediately
 					}
 
@@ -713,8 +714,8 @@ namespace BongoJam {
 					else //handles the case for when nothing valid follows a '!' in the source code
 					{
 						//THROW ERROR
-						LogAndPrint("Error at Line Number: " + to_string(f_CurrentLineNumber), "Lexer", "error", "red");
-						LogAndPrint("Something bad happened involving a '!' sign brother", "Lexer", "warn", "yellow");
+						LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(f_CurrentLineNumber), "Lexer", "error");
+						LogManager::Logger().LogAndPrint("Something bad happened involving a '!' sign brother", "Lexer", "warn");
 						fp_SourceCode.clear(); //dump source code so that lexical analysis ends immediately
 						continue;
 					}
@@ -804,8 +805,8 @@ namespace BongoJam {
 					else //if we have more than one consecutive '-', then it's a mistake regardless of what you were trying to do
 					{
 						// Handle error: Unterminated type arrow
-						LogAndPrint("Error at Line Number: " + to_string(f_CurrentLineNumber), "Lexer", "error", "red");
-						LogAndPrint("Unterminated type arrow brother!, looks like you're missing an arrow head to your type arrow definition", "Lexer", "warn", "yellow");
+						LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(f_CurrentLineNumber), "Lexer", "error");
+						LogManager::Logger().LogAndPrint("Unterminated type arrow brother!, looks like you're missing an arrow head to your type arrow definition", "Lexer", "warn");
 
 						fp_SourceCode.clear(); //dump the source code vector, so that the compiler will stop processing the source code
 						continue;
@@ -930,9 +931,12 @@ namespace BongoJam {
 				case '#':
 					f_Tokens.push_back(Token(f_CurrentChar, TokenType::HashTag, f_CurrentLineNumber));
 					break;
+				case '&':
+					f_Tokens.push_back(Token(f_CurrentChar, TokenType::Ampersand, f_CurrentLineNumber));
+					break;
 				default:
 
-					LogAndPrint("Compiler Error: Unrecognized character found in source code at line " + to_string(f_CurrentLineNumber), "Lexer", "error", "red");
+					LogManager::Logger().LogAndPrint("Compiler Error: Unrecognized character found in source code at line " + to_string(f_CurrentLineNumber), "Lexer", "error");
 
 					fp_SourceCode.clear(); //dump the source code vector, so that the compiler will stop processing the source code
 					break;
