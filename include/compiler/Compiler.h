@@ -174,11 +174,11 @@ namespace BongoJam {
 
 		if (fp_DesiredOutputDirectory == "./")
 		{
-			f_BongoFileName = "./" + fp_DesiredName;
+			f_BongoFileName = "./" + fp_DesiredName + ".bongo";
 		}
 		else
 		{
-			f_BongoFileName = fp_DesiredOutputDirectory + "/" + fp_DesiredName;
+			f_BongoFileName = fp_DesiredOutputDirectory + "/" + fp_DesiredName + ".bongo";
 		}
 
 		ofstream file(f_BongoFileName, ios::binary);  // Open in binary mode
