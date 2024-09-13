@@ -102,7 +102,7 @@ int
 
             Configs.m_ScriptFilePath = "./" + f_ScriptName; // we add before hand because we want a bj here :^)
 
-            if (!FileExists(f_ScriptName))
+            if (not FileExists(f_ScriptName))
             {
                 PrintError("No script with name: " + f_ScriptName + " found in top-level directory", "magenta");
                 return SCRIPT_DOES_NOT_EXIST;
