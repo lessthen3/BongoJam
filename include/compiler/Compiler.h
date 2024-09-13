@@ -313,7 +313,7 @@ namespace BongoJam {
 			LogManager::Logger().LogAndPrint("Compiler was not able to read a valid source file, compilation will not proceed any further. nothing was done.", "Compiler", "warn");
 			return false;
 		}
-		cout << f_SourceCode << "\n";
+
 		Program* f_BongoProgram = f_BongoParser.ConstructAST(Tokenize(f_SourceCode));
 
 		//////////////////// Check for Main Func ////////////////////
@@ -358,76 +358,8 @@ namespace BongoJam {
 
 				if (_pf->m_FuncArgs[1].size() > 0) //check if the colour arg exists
 				{
-					f_CompiledByteCode.push_back(0x0CE); //COLOURIZE
+					//f_CompiledByteCode.push_back(0x0CE); //COLOURIZE
 					s_TextColour = (dynamic_cast<StringLiteral*>(_pf->m_FuncArgs[1][0].get()))->m_StringValue.m_Value; //only handling string literals for now
-
-					if (s_TextColour == "blue")
-					{
-						f_CompiledByteCode.push_back(0x01);
-					}
-					else if (s_TextColour == "bright blue")
-					{
-						f_CompiledByteCode.push_back(0x02);
-					}
-
-					else if (s_TextColour == "green")
-					{
-						f_CompiledByteCode.push_back(0x03);
-					}
-					else if (s_TextColour == "bright green")
-					{
-						f_CompiledByteCode.push_back(0x04);
-					}
-
-					else if (s_TextColour == "magenta")
-					{
-						f_CompiledByteCode.push_back(0x05);
-					}
-					else if (s_TextColour == "bright magenta")
-					{
-						f_CompiledByteCode.push_back(0x06);
-					}
-
-					else if (s_TextColour == "cyan")
-					{
-						f_CompiledByteCode.push_back(0x07);
-					}
-					else if (s_TextColour == "bright cyan")
-					{
-						f_CompiledByteCode.push_back(0x08);
-					}
-
-					else if (s_TextColour == "red")
-					{
-						f_CompiledByteCode.push_back(0x09);
-					}
-					else if (s_TextColour == "bright red")
-					{
-						f_CompiledByteCode.push_back(0x0A);
-					}
-
-					else if (s_TextColour == "yellow")
-					{
-						f_CompiledByteCode.push_back(0x0B);
-					}
-					else if (s_TextColour == "bright yellow")
-					{
-						f_CompiledByteCode.push_back(0x0C);
-					}
-
-					else if (s_TextColour == "black")
-					{
-						f_CompiledByteCode.push_back(0x0D);
-					}
-					else if (s_TextColour == "bright black")
-					{
-						f_CompiledByteCode.push_back(0x0E);
-					}
-
-					else if (s_TextColour == "bright white")
-					{
-						f_CompiledByteCode.push_back(0x0F);
-					}
 				}
 
 				//////////////////// Parse First Argument ////////////////////

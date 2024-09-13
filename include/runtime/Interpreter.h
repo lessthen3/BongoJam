@@ -174,74 +174,12 @@ namespace BongoJam {
 
 					size_t f_InitialIndex = _p; //start index of actual string index bytes
 
-					if((*fp_ByteCode)[_p] == 0x0CE) //colourize bytecode
-					{
-						_p++; //advance to look for colour byte
-
-						switch ((*fp_ByteCode)[_p])
-						{
-						case 0x01:
-							f_TextColour = "blue";
-							break;
-						case 0x02:
-							f_TextColour = "bright blue";
-							break;
-						case 0x03:
-							f_TextColour = "green";
-							break;
-						case 0x04:
-							f_TextColour = "bright green";
-							break;
-						case 0x05:
-							f_TextColour = "magenta";
-							break;
-						case 0x06:
-							f_TextColour = "bright magenta";
-							break;
-						case 0x07:
-							f_TextColour = "cyan";
-							break;
-						case 0x08:
-							f_TextColour = "bright cyan";
-							break;
-						case 0x09:
-							f_TextColour = "red";
-							break;
-						case 0x0A:
-							f_TextColour = "bright red";
-							break;
-						case 0x0B:
-							f_TextColour = "yellow";
-							break;
-						case 0x0C:
-							f_TextColour = "bright yellow";
-							break;
-						case 0x0D:
-							f_TextColour = "black";
-							break;
-						case 0x0E:
-							f_TextColour = "bright black";
-							break;
-						case 0x0F:
-							f_TextColour = "bright white";
-							break;
-						default:
-							break;
-						}
-
-						_p++; //advance again to look for actual string
-					}
-
 					//push the actual string put together into a vector
 					ListOfDecodedStrings.push_back
 					(
 						make_unique<string>
 						(
-							CreateColouredText
-							(
-								DecodeUTF8String((fp_ByteCode), &_p), 
-								f_TextColour
-							)
+							DecodeUTF8String((fp_ByteCode), &_p)
 						)
 					);
 

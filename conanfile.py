@@ -10,6 +10,7 @@ class BJScript(ConanFile):
     def requirements(self):
         self.requires("zlib/1.3.1")
         
+        
     def generate(self):
         cmake = CMakeDeps(self)
 

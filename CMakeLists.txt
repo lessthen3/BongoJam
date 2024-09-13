@@ -73,6 +73,28 @@ target_link_libraries(jam PRIVATE bongojam)
 ####################################### Dependency Linking
 
 find_package(ZLIB REQUIRED)
+find_package(LLVM REQUIRED CONFIG)
 
-target_link_libraries(bongoC ZLIB::ZLIB)
-target_link_libraries(bongojam ZLIB::ZLIB)
+message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
+message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
+
+include_directories(${LLVM_INCLUDE_DIRS})
+separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
+add_definitions(${LLVM_DEFINITIONS_LIST})
+
+llvm_map_components_to_libnames(llvm_libs support core irreader)
+
+set_target_properties(${llvm_libs} PROPERTIES
+    INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/static_libs/llvm/include"
+)
+
+target_link_libraries(bongoC PUBLIC
+    ZLIB::ZLIB
+    ${llvm_libs}
+)
+target_link_libraries(bongojam PUBLIC
+    ZLIB::ZLIB
+    ${llvm_libs}
+)
+
+#READ THE ANNOTATED TURING UWU

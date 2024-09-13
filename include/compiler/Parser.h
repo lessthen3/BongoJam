@@ -1142,7 +1142,6 @@ namespace BongoJam {
 			else
 			{
 				((*fp_PrintFunctionCall)->m_FuncArgs[0]).push_back(make_unique<StringLiteral>(fp_CurrentToken)); //index 0 for the first arg of print
-				cout << "GOT HERE" << "\n";
 
 				fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift forward one token to check for a type arrow
 				fp_ProgramCounter++;

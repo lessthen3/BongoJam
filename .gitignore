@@ -10,6 +10,10 @@
 /ideas.txt
 /CMakeUserPresets.json
 
+# ignore llvm
+
+/static_libs
+
 # User-specific files
 *.rsuser
 *.suo

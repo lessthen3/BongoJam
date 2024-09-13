@@ -30,7 +30,11 @@ If you want to build the compiler + runtime for yourself:
 
 1. Clone the repo
 
-2. Run: __python init.py --debug or --release or --both__ in your terminal and your done!
+2. Run: __python init.py --debug or --release or --both__ in your terminal
+
+3. You'll need LLVM 18.1.8 to build BongoJam, the current CMakeLists.txt expects to find the includes in:
+
+### __"${PROJECT_SOURCE_DIR}/static_libs/llvm/include"__
 
 __Note:__ BongoJam can only print hello world at the moment, however I am adding more functionality in the hopes of embedding this scripting language into Peach-E
 

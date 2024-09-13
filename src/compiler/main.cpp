@@ -13,6 +13,8 @@
 #include "../../include/compiler/Compiler.h"
 #include "../../include/runtime/Interpreter.h"
 
+#include <llvm/CodeGen/Analysis.h>
+
 using namespace std;
 using namespace BongoJam;
 
@@ -163,15 +165,21 @@ int
         LogManager::Logger().Initialize(Configs.m_LogOutputDirectory, Configs.m_LogLevelMinor, Configs.m_LogLevelMajor);
     }
 
-    LogManager::Logger().LogAndPrint("Logger successfully initialized!", "main", "info");
+    LogManager::Logger().Log("Logger successfully initialized!", "main", "info");
 
-    cout << CreateColouredText("Output file: ", "bright yellow")
-            << CreateColouredText(Configs.m_OutputFileName, "bright cyan")
-            << "\n" 
-            << CreateColouredText("Debug mode: ", "bright yellow") 
-            << CreateColouredText((Configs.m_IsDebugMode ? "enabled" : "disabled"), "bright cyan")
+    if(Configs.m_IsDebugMode)
+    {
+        cout << CreateColouredText("Output File Name: ", "bright yellow")
+            << CreateColouredText(Configs.m_OutputFileName + ".bongo", "bright cyan")
             << "\n"
-    ;
+            << CreateColouredText("Output Directory: ", "bright yellow")
+            << CreateColouredText(Configs.m_BongoFileOutputDirectory, "bright cyan")
+            << "\n"
+            << CreateColouredText("Log Output Directory: ", "bright yellow")
+            << CreateColouredText(Configs.m_LogOutputDirectory, "bright cyan")
+            << "\n\n"
+            ;
+    }
 
     if (Configs.m_IsCompileRun and Configs.m_IsDebugMode)
     {
@@ -186,7 +194,7 @@ int
         auto BongoJam_Runtime_Duration = chrono::duration_cast<chrono::microseconds>(BongoJam_Timer_Stop - BongoJam_Timer_Start);
 
         // Output the time taken by bongojam
-        cout << CreateColouredText("Time taken by bongojam interpreter: ", "bright yellow") << BongoJam_Runtime_Duration.count() << CreateColouredText(" microseconds", "bright blue") << "\n";
+        cout << CreateColouredText("\nTime taken by bongojam interpreter: ", "bright yellow") << BongoJam_Runtime_Duration.count() << CreateColouredText(" microseconds", "bright blue") << "\n";
         
         delete BongoJamRuntime; //probably should let the os handle cleaning up the heap alloc since its faster but w/e it feels wrong not to do this
         BongoJamRuntime = nullptr;

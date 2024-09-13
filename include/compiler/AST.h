@@ -168,6 +168,7 @@ namespace BongoJam {
 	{
 		SyntaxNodeType m_Domain = SyntaxNodeType::None;
 		virtual ~StatementNode() {}
+		//virtual llvm::Value* codegen() = 0;
 	};
 
 	struct Expr : public StatementNode
@@ -315,7 +316,7 @@ namespace BongoJam {
 		PrintFunction() 
 		{  
 			m_Domain = SyntaxNodeType::PrintFunction;
-			m_FuncArgs.push_back(vector<unique_ptr<Expr>>());
+			m_FuncArgs.push_back(vector<unique_ptr<Expr>>()); //reserve doesnt work here uwu
 			m_FuncArgs.push_back(vector<unique_ptr<Expr>>());
 		}
 	};
