@@ -22,6 +22,7 @@ constexpr int NO_ARGUMENT_PROVIDED = -1;
 constexpr int UNKNOWN_OR_INCOMPLETE_ARGUMENT = -2;
 constexpr int INVALID_SET_ARGUMENT = -3;
 constexpr int INVALID_SCRIPT_TARGET = -4;
+constexpr int SCRIPT_DOES_NOT_EXIST = -5;
 
 
 static void
@@ -54,6 +55,12 @@ static void
     ;
 }
 
+static bool 
+    FileExists(const string& fp_FileName) 
+{
+    filesystem::path f_FilePath(fp_FileName);
+    return filesystem::exists(f_FilePath);
+}
 int 
     main(int fp_ArgCount, char* fp_ArgVector[])
 {
@@ -94,6 +101,12 @@ int
             size_t f_Dot = f_ScriptName.rfind('.');
 
             Configs.m_ScriptFilePath = "./" + f_ScriptName; // we add before hand because we want a bj here :^)
+
+            if (!FileExists(f_ScriptName))
+            {
+                PrintError("No script with name: " + f_ScriptName + " found in top-level directory", "magenta");
+                return SCRIPT_DOES_NOT_EXIST;
+            }
 
             if (f_Dot != string::npos and f_ScriptName.substr(f_Dot) == ".bj")
             {
