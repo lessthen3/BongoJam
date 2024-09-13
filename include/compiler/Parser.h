@@ -294,7 +294,7 @@ namespace BongoJam {
 				{
 					Expr s_UserDefinedAction; //used for var reassignment, class method access
 
-					if (!ParseUserIdentifier(fp_CurrentScopeDepth, fp_CurrentToken, fp_ProgramTokens, fp_ProgramCounter, &s_UserDefinedAction))
+					if (not ParseUserIdentifier(fp_CurrentScopeDepth, fp_CurrentToken, fp_ProgramTokens, fp_ProgramCounter, &s_UserDefinedAction))
 					{
 						return false;
 					}
