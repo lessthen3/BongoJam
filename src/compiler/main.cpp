@@ -61,6 +61,7 @@ static bool
     filesystem::path f_FilePath(fp_FileName);
     return filesystem::exists(f_FilePath);
 }
+
 int 
     main(int fp_ArgCount, char* fp_ArgVector[])
 {
@@ -70,6 +71,8 @@ int
     #endif
 
     ConfigManager Configs; //initializes with default settings
+
+    BongoCompiler* BongoJamCompiler = new BongoCompiler();
 
     if (fp_ArgCount < 2) 
     {
@@ -192,11 +195,12 @@ int
             << CreateColouredText(Configs.m_LogOutputDirectory, "bright cyan")
             << "\n\n"
             ;
+        Print("Script File Path: " + Configs.m_ScriptFilePath, "bright green");
     }
 
     if (Configs.m_IsCompileRun and Configs.m_IsDebugMode)
     {
-        CompileProgram(Configs.m_ScriptFilePath, Configs.m_BongoFileOutputDirectory, Configs.m_OutputFileName, Configs.m_IsDebugMode);
+        BongoJamCompiler->CompileProgram(Configs.m_ScriptFilePath, Configs.m_BongoFileOutputDirectory, Configs.m_OutputFileName, Configs.m_IsDebugMode);
 
         BongoJamInterpreter* BongoJamRuntime = new BongoJamInterpreter();
 
@@ -214,7 +218,7 @@ int
     }
     else if (Configs.m_IsCompileRun)
     {
-        CompileProgram(Configs.m_ScriptFilePath, Configs.m_BongoFileOutputDirectory, Configs.m_OutputFileName, Configs.m_IsDebugMode);
+        BongoJamCompiler->CompileProgram(Configs.m_ScriptFilePath, Configs.m_BongoFileOutputDirectory, Configs.m_OutputFileName, Configs.m_IsDebugMode);
 
         BongoJamInterpreter* BongoJamRuntime = new BongoJamInterpreter();
 
@@ -225,8 +229,7 @@ int
     }
     else
     {
-        Print("Script File Path: " + Configs.m_ScriptFilePath, "bright green");
-        CompileProgram(Configs.m_ScriptFilePath, Configs.m_BongoFileOutputDirectory, Configs.m_OutputFileName, Configs.m_IsDebugMode);
+        BongoJamCompiler->CompileProgram(Configs.m_ScriptFilePath, Configs.m_BongoFileOutputDirectory, Configs.m_OutputFileName, Configs.m_IsDebugMode);
     }
 
     return EXIT_SUCCESS;

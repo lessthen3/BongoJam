@@ -102,8 +102,8 @@ namespace BongoJam {
 		Elif,
 		Else,
 		For,
-		ForEach,
 		While,
+		Do,
 		Match,
 		Break,
 		Continue,
@@ -137,6 +137,8 @@ namespace BongoJam {
 		New,
 		Delete,
 
+		ThreadSafe,
+
 		//////////////////// Error Handling ////////////////////
 
 		Panic,
@@ -163,9 +165,12 @@ namespace BongoJam {
 		Thread,
 
 		Event,
+
 		Leash, //any var can have a manager, but only one at a time. you can have managers borrow clients from other managers temporarily, but the lifetime must not exceed the length of the original manager because ultimately the lifetime of the client is still tied to the manager
-		Borrower,
-		Reader,
+		Watcher,
+
+		Move,
+		Bounce,
 
 		Vector2,
 		Vector3,
@@ -185,7 +190,9 @@ namespace BongoJam {
 
 		Clock,
 		TypeOf,
-		Cast,
+		UpCast,
+		DownCast,
+		StaticCast,
 		Length,
 
 		Floor,
@@ -264,9 +271,9 @@ namespace BongoJam {
 		{"elif", TokenType::Elif},
 		{"else", TokenType::Else},
 		{"for", TokenType::For},
-		{"foreach", TokenType::ForEach},
 		{"while", TokenType::While},
-		{"match", TokenType::Match},
+		{"do", TokenType::Do}, //do and else statments are compatible with while loops
+		{"match", TokenType::Match}, //switch statement
 		{"break", TokenType::Break},
 		{"continue", TokenType::Continue},
 		{"try", TokenType::Try},
@@ -277,7 +284,7 @@ namespace BongoJam {
 		{"and", TokenType::And},
 		{"or", TokenType::Or},
 		{"not", TokenType::Not},
-		{"is", TokenType::Is},
+		{"is", TokenType::Is}, // used for type checking
 
 		//////////////////// Modifiers ////////////////////
 
@@ -288,7 +295,7 @@ namespace BongoJam {
 		{"as", TokenType::As},
 		{"in", TokenType::In},
 		{"extends", TokenType::Extends},
-		{"single", TokenType::Single},
+		{"single", TokenType::Single}, //explicit singleton keyword
 		{"template", TokenType::Template}, //func's or class' or var's can be templated, this is the replacement for virtual.
 
 		{"parent", TokenType::Parent}, //used as the stand-in for super, because super is a retarded name for the keyword
@@ -298,9 +305,12 @@ namespace BongoJam {
 		{"new", TokenType::New}, //used for heap-allocations
 		{"delete", TokenType::Delete}, //used for clearing heap-allocations
 
+		{"threadsafe", TokenType::ThreadSafe}, // used as a stand in for atomic, we copy the value for paralell, try to queue all actions done on it and execute it in a non-sequence breaking order
+		//we guess how many copies will be needed, if our guess is wrong we increase it, sequence breaking isnt a big deal, but it is for ppl who expect a consistent behaviour which is me
+
 		//////////////////// Error Handling ////////////////////
 		
-		{"panic", TokenType::Panic},
+		{"panic", TokenType::Panic}, //stops program execution and prints a message
 
 		//////////////////// Types ////////////////////
 
@@ -322,14 +332,15 @@ namespace BongoJam {
 		{"Thread", TokenType::Thread},
 
 		{"event", TokenType::Event},
-		{"leash", TokenType::Leash}, //unique_ptr
-		{"borrower", TokenType::Borrower}, //move() on a unique_ptr
-		{"reader", TokenType::Reader}, //readonly ptr
+		{"leash", TokenType::Leash}, //unique_ptr, ref counted and automatically de alloc'd when references are 0
+		{"reader", TokenType::Watcher}, //readonly ptr
+		{"move", TokenType::Move}, //regular move semantic
+		{"bounce", TokenType::Bounce}, //used to move a leash A to leash B but the semantic is that when leash B leaves a scope it returns the value back to leash A
 
-		{"Vector2", TokenType::Vector2},
-		{"Vector3", TokenType::Vector3},
-		{"Vector4", TokenType::Vector4},
-		{"Vector", TokenType::Vector}, //generic n-length vector
+		{"Vec2", TokenType::Vector2},
+		{"Vec3", TokenType::Vector3},
+		{"Vec4", TokenType::Vector4},
+		{"Vec", TokenType::Vector}, //generic n-length vector
 
 		{"Mat2", TokenType::Mat2},
 		{"Mat3", TokenType::Mat3},
@@ -344,7 +355,11 @@ namespace BongoJam {
 
 		{"clock", TokenType::Clock},
 		{"typeof", TokenType::TypeOf},
-		{"cast", TokenType::Cast},
+
+		{"up_cast", TokenType::UpCast},
+		{"down_cast", TokenType::DownCast},
+		{"static_cast", TokenType::StaticCast},
+
 		{"len", TokenType::Length},
 
 		// math functions

@@ -746,7 +746,7 @@ namespace BongoJam {
 				{
 					LetDeclaration s_VariableDefinition;
 
-					if (!ParseLetDeclaration(fp_CurrentScopeDepth, fp_CurrentToken, fp_ProgramTokens, fp_ProgramCounter, fp_Program, s_VariableDefinition))
+					if (!ParseLetDeclaration(fp_CurrentScopeDepth, fp_CurrentToken, fp_ProgramTokens, fp_ProgramCounter, fp_Program, &s_VariableDefinition))
 					{
 						fp_ProgramTokens.clear(); //dump source code so that parsing ends immediately
 						return false;
@@ -992,7 +992,15 @@ namespace BongoJam {
 		}
 
 		bool //returns true if it worked, false if it failed
-			ParseLetDeclaration(uint32_t & fp_CurrentScopeDepth, Token & fp_CurrentToken, vector<Token>&fp_ProgramTokens, size_t & fp_ProgramCounter, Program* fp_Program, LetDeclaration & fp_VariableDefinition)
+			ParseLetDeclaration
+			(
+				uint32_t & fp_CurrentScopeDepth, 
+				Token & fp_CurrentToken, 
+				vector<Token>&fp_ProgramTokens, 
+				size_t & fp_ProgramCounter, 
+				Program* fp_Program, 
+				LetDeclaration* fp_VariableDefinition
+			)
 		{
 			fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift forward one token to check for any accessor symbols
 			fp_ProgramCounter++;
@@ -1006,7 +1014,7 @@ namespace BongoJam {
 			}
 			else
 			{
-				fp_VariableDefinition.m_VariableName = fp_CurrentToken;
+				fp_VariableDefinition->m_VariableName = fp_CurrentToken;
 				fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift forward one token to check for a type arrow
 				fp_ProgramCounter++;
 			}
@@ -1044,7 +1052,7 @@ namespace BongoJam {
 			}
 			else
 			{
-				fp_VariableDefinition.m_VariableType = fp_CurrentToken;
+				fp_VariableDefinition->m_VariableType = fp_CurrentToken;
 				fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift forward one token to check for a type arrow
 				fp_ProgramCounter++;
 			}
@@ -1114,7 +1122,14 @@ namespace BongoJam {
 		//////////////////////////////////////////////
 
 		bool
-			ParsePrintFunction(uint32_t& fp_CurrentScopeDepth, Token& fp_CurrentToken, vector<Token>& fp_ProgramTokens, size_t& fp_ProgramCounter, unique_ptr<PrintFunction>* fp_PrintFunctionCall)
+			ParsePrintFunction
+			(
+				uint32_t& fp_CurrentScopeDepth, 
+				Token& fp_CurrentToken, 
+				vector<Token>& fp_ProgramTokens, 
+				size_t& fp_ProgramCounter, 
+				unique_ptr<PrintFunction>* fp_PrintFunctionCall
+			)
 		{
 			fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift forward one token to check for '('
 			fp_ProgramCounter++;

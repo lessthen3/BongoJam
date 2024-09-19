@@ -582,7 +582,7 @@ namespace BongoJam {
 
 	struct IntLiteral : public Expr //all ints are 32-bits, fuck you the register size is big enough
 	{
-		int32_t m_Value;
+		double m_Value;
 
 		explicit IntLiteral(const int32_t fp_Value) 
 		{
