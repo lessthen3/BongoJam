@@ -6,5 +6,9 @@ func main() -> int
     print(" \t Hello \t World! \n \n", "bright magenta");
     print("Who's in paris?", "bright red");
 
+    print("I believe it\n", "bright green");
+
+    print("Hey Guys \n", "bright cyan");
+
     //return 0;
 }

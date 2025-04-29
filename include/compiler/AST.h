@@ -13,8 +13,6 @@
 
 #include "Lexer.h"
 
-using namespace std;
-
 namespace BongoJam {
 
 	enum class SyntaxNodeType

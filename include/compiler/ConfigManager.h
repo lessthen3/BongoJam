@@ -11,7 +11,7 @@
 ********************************************************************/
 #pragma once
 
-#include "../LogManager.h"
+#include "../Logger.h"
 
 using namespace std;
 
@@ -92,7 +92,7 @@ namespace BongoJam {
 
             if (!f_ConfigFile)
             {
-                PrintError("Failed to open config file for reading.", "magenta");
+                PrintError("Failed to open config file for reading.", Colours::Magenta);
                 return f_Configs;
             }
 

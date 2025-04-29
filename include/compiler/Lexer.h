@@ -15,9 +15,7 @@
 #include <cctype>
 #include <cassert>
 
-#include "../LogManager.h"
-
-using namespace std;
+#include "../Logger.h"
 
 namespace BongoJam {
 
@@ -390,63 +388,8 @@ namespace BongoJam {
 	// Utility Functions
 	//////////////////////////////////////////////
 
-	// Helper function to Trim whitespace from both ends of a string
-	string Trim(const string& str)
-	{
-		auto start = str.begin();
-
-		while (start != str.end() && isspace(*start))
-		{
-			start++;
-		}
-		auto end = str.end();
-
-		do
-		{
-			end--;
-		} while (distance(start, end) > 0 && isspace(*end));
-
-		return string(start, end + 1);
-	}
-
-	vector<string> Split(const string& s, const vector<string>& delimiters)
-	{
-		vector<string> tokens;
-		string temp = s;
-
-		while (!temp.empty())
-		{
-			size_t minPosition = string::npos;
-			string foundDelimiter;
-
-			for (const auto& delimiter : delimiters)
-			{
-				size_t pos = temp.find(delimiter);
-
-				if (pos < minPosition)
-				{
-					minPosition = pos;
-					foundDelimiter = delimiter;
-				}
-			}
-
-			if (minPosition != string::npos)
-			{
-				string token = temp.substr(0, minPosition);
-				tokens.push_back(Trim(token)); // Trim whitespace and add the token
-				temp.erase(0, minPosition + foundDelimiter.length());
-			}
-			else
-			{
-				tokens.push_back(Trim(temp)); // Last token after the final delimiter
-				temp.clear();
-			}
-		}
-
-		return tokens;
-	}
-
-	char ShiftForward(string& fp_Src)
+	[[nodiscard]] char
+		ShiftForward(string& fp_Src)
 	{
 		if (fp_Src.empty())
 		{
@@ -462,10 +405,14 @@ namespace BongoJam {
 	// Tokenize Function
 	//////////////////////////////////////////////
 
-	vector<Token> Tokenize(string& fp_SourceCode)
+	bool 
+		Tokenize
+		(
+			string& fp_SourceCode, 
+			vector<Token>& fp_Tokens,
+			Logger* logger
+		)
 	{
-		vector<Token> f_Tokens;
-
 		size_t f_ProgramCounter = 0;
 		size_t f_CurrentLineNumber = 1;
 
@@ -520,39 +467,39 @@ namespace BongoJam {
 					f_CurrentChar = ShiftForward(fp_SourceCode); //shift to next character
 					f_ProgramCounter++;
 
-					if (!isdigit(f_CurrentChar))
+					if (not isdigit(f_CurrentChar))
 					{
 						// Handle error: Unterminated type arrow
-						LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(f_CurrentLineNumber), "Lexer", "error");
-						LogManager::Logger().LogAndPrint("Unexpected symbol following a '.' brother!, looks like you've input a non-numeric symbol while defining a decimal number", "Lexer", "warn");
+						logger->LogAndPrint("Error at Line Number: " + to_string(f_CurrentLineNumber), "Lexer", Logger::LogLevel::Error);
+						logger->LogAndPrint("Unexpected symbol following a '.' brother!, looks like you've input a non-numeric symbol while defining a decimal number", "Lexer", Logger::LogLevel::Warning);
 
 						fp_SourceCode.clear(); //dump the source code vector, so that the compiler will stop processing the source code
-						continue;
+						return false;
 					}
 
-					while (fp_SourceCode.size() > 0 && isdigit(f_CurrentChar))
+					while (fp_SourceCode.size() > 0 and isdigit(f_CurrentChar))
 					{
 						f_Number += f_CurrentChar;
 						f_CurrentChar = ShiftForward(fp_SourceCode); //shift to next character
 						f_ProgramCounter++;
 					}
 					//push a float
-					f_Tokens.push_back(Token(f_Number, TokenType::FloatNumber, f_CurrentLineNumber)); //No need for a continue here since the current character isnt a digit
+					fp_Tokens.emplace_back(f_Number, TokenType::FloatNumber, f_CurrentLineNumber); //No need for a continue here since the current character isnt a digit
 				}
 				else
 				{	//push an int
-					f_Tokens.push_back(Token(f_Number, TokenType::IntNumber, f_CurrentLineNumber)); //No need for a continue here since the current character isnt a digit
+					fp_Tokens.emplace_back(f_Number, TokenType::IntNumber, f_CurrentLineNumber); //No need for a continue here since the current character isnt a digit
 				}
 
 				f_ShouldShift = false; //ensures we don't skip any crucial branch-logic for the over-stepped character
 				continue; //move to next iteration
 			}
 
-			else if (isalpha(f_CurrentChar) || f_CurrentChar == '_')
+			else if (isalpha(f_CurrentChar) or f_CurrentChar == '_')
 			{
 				string f_Identifier = ""; //start with NOTHING
 
-				while (fp_SourceCode.size() > 0 && (isalpha(f_CurrentChar) || f_CurrentChar == '_'))
+				while (fp_SourceCode.size() > 0 and (isalpha(f_CurrentChar) or f_CurrentChar == '_'))
 				{
 					f_Identifier += f_CurrentChar;
 					f_CurrentChar = ShiftForward(fp_SourceCode); //shift to next character
@@ -561,11 +508,11 @@ namespace BongoJam {
 
 				if (KEYWORDS.find(f_Identifier) == KEYWORDS.end())
 				{
-					f_Tokens.push_back(Token(f_Identifier, TokenType::UserIdentifier, f_CurrentLineNumber));
+					fp_Tokens.emplace_back(f_Identifier, TokenType::UserIdentifier, f_CurrentLineNumber);
 				}
 				else 
 				{
-					f_Tokens.push_back(Token(f_Identifier, KEYWORDS.at(f_Identifier), f_CurrentLineNumber));
+					fp_Tokens.emplace_back(f_Identifier, KEYWORDS.at(f_Identifier), f_CurrentLineNumber);
 				}
 
 				f_ShouldShift = false; //ensures we don't skip any crucial branch-logic for the over-stepped character
@@ -575,37 +522,37 @@ namespace BongoJam {
 			switch(f_CurrentChar)
 			{
 				case ';':
-					f_Tokens.push_back(Token(f_CurrentChar, TokenType::SemiDot, f_CurrentLineNumber));
+					fp_Tokens.emplace_back(f_CurrentChar, TokenType::SemiDot, f_CurrentLineNumber);
 					break;
 				case ':':
-					f_Tokens.push_back(Token(f_CurrentChar, TokenType::DoubleDot, f_CurrentLineNumber));
+					fp_Tokens.emplace_back(f_CurrentChar, TokenType::DoubleDot, f_CurrentLineNumber);
 					break;
 				case '.':
-					f_Tokens.push_back(Token(f_CurrentChar, TokenType::Dot, f_CurrentLineNumber));
+					fp_Tokens.emplace_back(f_CurrentChar, TokenType::Dot, f_CurrentLineNumber);
 					break;
 				case ',':
-					f_Tokens.push_back(Token(f_CurrentChar, TokenType::Comma, f_CurrentLineNumber));
+					fp_Tokens.emplace_back(f_CurrentChar, TokenType::Comma, f_CurrentLineNumber);
 					break;
 
 				case '(':
-					f_Tokens.push_back(Token(f_CurrentChar, TokenType::OpenParen, f_CurrentLineNumber));
+					fp_Tokens.emplace_back(f_CurrentChar, TokenType::OpenParen, f_CurrentLineNumber);
 					break;
 				case ')':
-					f_Tokens.push_back(Token(f_CurrentChar, TokenType::CloseParen, f_CurrentLineNumber));
+					fp_Tokens.emplace_back(f_CurrentChar, TokenType::CloseParen, f_CurrentLineNumber);
 					break;
 
 				case '{':
-					f_Tokens.push_back(Token(f_CurrentChar, TokenType::OpenBracket, f_CurrentLineNumber));
+					fp_Tokens.emplace_back(f_CurrentChar, TokenType::OpenBracket, f_CurrentLineNumber);
 					break;
 				case '}':
-					f_Tokens.push_back(Token(f_CurrentChar, TokenType::CloseBracket, f_CurrentLineNumber));
+					fp_Tokens.emplace_back(f_CurrentChar, TokenType::CloseBracket, f_CurrentLineNumber);
 					break;
 
 				case '[':
-					f_Tokens.push_back(Token(f_CurrentChar, TokenType::OpenSquareBracket, f_CurrentLineNumber));
+					fp_Tokens.emplace_back(f_CurrentChar, TokenType::OpenSquareBracket, f_CurrentLineNumber);
 					break;
 				case ']':
-					f_Tokens.push_back(Token(f_CurrentChar, TokenType::CloseSquareBracket, f_CurrentLineNumber));
+					fp_Tokens.emplace_back(f_CurrentChar, TokenType::CloseSquareBracket, f_CurrentLineNumber);
 					break;
 
 				case '"': //VERY IMPORTANT THAT WE PROCESS THIS BEFORE '/' otherwise '/' mentioned inside of strings might be ignored
@@ -659,7 +606,7 @@ namespace BongoJam {
 					if (f_CurrentChar == '"')
 					{
 						// Push the final string token without the quotes
-						f_Tokens.push_back(Token(f_CurrentStringLiteral, TokenType::StringLiteral, f_CurrentLineNumber));
+						fp_Tokens.emplace_back(f_CurrentStringLiteral, TokenType::StringLiteral, f_CurrentLineNumber);
 
 						// Shift again to move past the closing quote
 						f_CurrentChar = ShiftForward(fp_SourceCode);
@@ -668,9 +615,9 @@ namespace BongoJam {
 					else
 					{
 						// Handle error: Unterminated string literal, and exit program execution
-						LogManager::Logger().LogAndPrint("Unterminated string literal, brother! Error occured at line number: " + to_string(f_CurrentLineNumber), "Lexer", "error");
+						logger->LogAndPrint("Unterminated string literal, brother! Error occured at line number: " + to_string(f_CurrentLineNumber), "Lexer", Logger::LogLevel::Error);
 						fp_SourceCode.clear();
-						continue;
+						return false;
 					}
 
 					//IMPORTANT IF WE DONT MAKE SURE WE AVOID SHIFTING THEN EVERYTHING WILL BREAK
@@ -682,7 +629,7 @@ namespace BongoJam {
 				{
 					string f_EqualsString = "";
 
-					while (fp_SourceCode.size() > 0 && f_CurrentChar == '=')
+					while (fp_SourceCode.size() > 0 and f_CurrentChar == '=')
 					{
 						f_EqualsString += f_CurrentChar;
 						f_CurrentChar = ShiftForward(fp_SourceCode);
@@ -691,18 +638,19 @@ namespace BongoJam {
 
 					if (f_EqualsString.size() >= 2)
 					{
-						f_Tokens.push_back(Token(f_EqualsString, TokenType::StrictlyEquals, f_CurrentLineNumber));
+						fp_Tokens.emplace_back(f_EqualsString, TokenType::StrictlyEquals, f_CurrentLineNumber);
 					}
 					else if (f_EqualsString.size() == 1)
 					{
-						f_Tokens.push_back(Token(f_EqualsString, TokenType::Equals, f_CurrentLineNumber));
+						fp_Tokens.emplace_back(f_EqualsString, TokenType::Equals, f_CurrentLineNumber);
 					}
 					else
 					{
 						//THROW ERROR
-						LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(f_CurrentLineNumber), "Lexer", "error");
-						LogManager::Logger().LogAndPrint("Something bad happened involving a '=' sign brother", "Lexer", "warn");
+						logger->LogAndPrint("Error at Line Number: " + to_string(f_CurrentLineNumber), "Lexer", Logger::LogLevel::Error);
+						logger->LogAndPrint("Something bad happened involving a '=' sign brother", "Lexer", Logger::LogLevel::Warning);
 						fp_SourceCode.clear(); //dump source code so that lexical analysis ends immediately
+						return false;
 					}
 
 					f_ShouldShift = false; //as usual, skip next iteration since we end on the character right after the last '=' char
@@ -722,17 +670,17 @@ namespace BongoJam {
 					if (f_CurrentChar == '=')
 					{
 						s_DoesNotEqualsString += f_CurrentChar;
-						f_Tokens.push_back(Token(s_DoesNotEqualsString, TokenType::DoesNotEquals, f_CurrentLineNumber));
+						fp_Tokens.emplace_back(s_DoesNotEqualsString, TokenType::DoesNotEquals, f_CurrentLineNumber);
 						assert(f_ShouldShift == true);
 						continue; //just iterate as normal, and make sure the equals character isn't double counted
 					}
 					else //handles the case for when nothing valid follows a '!' in the source code
 					{
 						//THROW ERROR
-						LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(f_CurrentLineNumber), "Lexer", "error");
-						LogManager::Logger().LogAndPrint("Something bad happened involving a '!' sign brother", "Lexer", "warn");
+						logger->LogAndPrint("Error at Line Number: " + to_string(f_CurrentLineNumber), "Lexer", Logger::LogLevel::Error);
+						logger->LogAndPrint("Something bad happened involving a '!' sign brother", "Lexer", Logger::LogLevel::Warning);
 						fp_SourceCode.clear(); //dump source code so that lexical analysis ends immediately
-						continue;
+						return false;
 					}
 				}
 				break;
@@ -749,13 +697,13 @@ namespace BongoJam {
 					if (f_CurrentChar == '=')
 					{
 						f_PlusString += f_CurrentChar;
-						f_Tokens.push_back(Token(f_PlusString, TokenType::PlusEqualsOperator, f_CurrentLineNumber));
+						fp_Tokens.emplace_back(f_PlusString, TokenType::PlusEqualsOperator, f_CurrentLineNumber);
 						assert(f_ShouldShift == true);
 						continue; //just iterate as normal, and make sure the equals character isn't double counted
 					}
 					else //handles the case for when nothing valid follows a '!' in the source code
 					{
-						f_Tokens.push_back(Token(f_PlusString, TokenType::AdditionOperator, f_CurrentLineNumber));
+						fp_Tokens.emplace_back(f_PlusString, TokenType::AdditionOperator, f_CurrentLineNumber);
 						f_ShouldShift = false; // reset over-stepped character to top of lexer logical flow without shifting again to avoid missed characters
 						continue; //otherwise the continue will just move the current over-stepped character back to the top of the lexer's logical flow
 					}
@@ -774,13 +722,13 @@ namespace BongoJam {
 					if (f_CurrentChar == '=')
 					{
 						f_MultString += f_CurrentChar;
-						f_Tokens.push_back(Token(f_MultString, TokenType::MultEqualsOperator, f_CurrentLineNumber));
+						fp_Tokens.emplace_back(f_MultString, TokenType::MultEqualsOperator, f_CurrentLineNumber);
 						assert(f_ShouldShift == true);
 						continue; //just iterate as normal, and make sure the equals character isn't double counted
 					}
 					else //handles the case for when nothing valid follows a '!' in the source code
 					{
-						f_Tokens.push_back(Token(f_MultString, TokenType::MultiplicationOperator, f_CurrentLineNumber));
+						fp_Tokens.emplace_back(f_MultString, TokenType::MultiplicationOperator, f_CurrentLineNumber);
 						f_ShouldShift = false; // reset over-stepped character to top of lexer logical flow without shifting again to avoid missed characters
 						continue; //otherwise the continue will just move the current over-stepped character back to the top of the lexer's logical flow
 					}
@@ -800,31 +748,31 @@ namespace BongoJam {
 					if (f_CurrentChar == '>') //this goes first so that subtraction doesn't get confused with '->', since they both have only 1 dash
 					{
 						f_TypeArrow += f_CurrentChar;
-						f_Tokens.push_back(Token(f_TypeArrow, TokenType::TypeArrow, f_CurrentLineNumber));
+						fp_Tokens.emplace_back(f_TypeArrow, TokenType::TypeArrow, f_CurrentLineNumber);
 						assert(f_ShouldShift == true);
 						continue; //just iterate as normal, and make sure the equals character isn't double counted
 					}
 					else if (f_CurrentChar == '=')
 					{
 						f_TypeArrow += f_CurrentChar; //IDC THAT ITS NOT A TYPEARROW
-						f_Tokens.push_back(Token(f_TypeArrow, TokenType::MinusEqualsOperator, f_CurrentLineNumber));
+						fp_Tokens.emplace_back(f_TypeArrow, TokenType::MinusEqualsOperator, f_CurrentLineNumber);
 						assert(f_ShouldShift == true);
 						continue; //just iterate as normal, and make sure the equals character isn't double counted
 					}
 					else if (f_TypeArrow.size() == 1) //fuck it we ball, we deal with minus here BROTHERS
 					{
-						f_Tokens.push_back(Token(f_TypeArrow, TokenType::NegativeOperator, f_CurrentLineNumber));
+						fp_Tokens.emplace_back(f_TypeArrow, TokenType::NegativeOperator, f_CurrentLineNumber);
 						f_ShouldShift = false; // reset over-stepped character to top of lexer logical flow without shifting again to avoid missed characters
 						continue; //otherwise the continue will just move the current over-stepped character back to the top of the lexer's logical flow
 					}
 					else //if we have more than one consecutive '-', then it's a mistake regardless of what you were trying to do
 					{
 						// Handle error: Unterminated type arrow
-						LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(f_CurrentLineNumber), "Lexer", "error");
-						LogManager::Logger().LogAndPrint("Unterminated type arrow brother!, looks like you're missing an arrow head to your type arrow definition", "Lexer", "warn");
+						logger->LogAndPrint("Error at Line Number: " + to_string(f_CurrentLineNumber), "Lexer", Logger::LogLevel::Error);
+						logger->LogAndPrint("Unterminated type arrow brother!, looks like you're missing an arrow head to your type arrow definition", "Lexer", Logger::LogLevel::Warning);
 
 						fp_SourceCode.clear(); //dump the source code vector, so that the compiler will stop processing the source code
-						continue;
+						return false;
 					}
 				}
 					break;
@@ -841,7 +789,7 @@ namespace BongoJam {
 					if (f_CurrentChar == '=')
 					{
 						f_DivString += f_CurrentChar;
-						f_Tokens.push_back(Token(f_DivString, TokenType::DivEqualsOperator, f_CurrentLineNumber));
+						fp_Tokens.emplace_back(f_DivString, TokenType::DivEqualsOperator, f_CurrentLineNumber);
 						assert(f_ShouldShift == true);
 						continue; //just iterate as normal, and make sure the equals character isn't double counted
 					}
@@ -852,7 +800,7 @@ namespace BongoJam {
 					}
 					else //handles the case for when nothing valid follows a '!' in the source code
 					{
-						f_Tokens.push_back(Token(f_DivString, TokenType::DivisionOperator, f_CurrentLineNumber));
+						fp_Tokens.emplace_back(f_DivString, TokenType::DivisionOperator, f_CurrentLineNumber);
 						f_ShouldShift = false; // reset over-stepped character to top of lexer logical flow without shifting again to avoid missed characters
 						continue; //otherwise the continue will just move the current over-stepped character back to the top of the lexer's logical flow
 					}
@@ -871,13 +819,13 @@ namespace BongoJam {
 					if (f_CurrentChar == '=')
 					{
 						f_ModString += f_CurrentChar;
-						f_Tokens.push_back(Token(f_ModString, TokenType::ModuloEqualsOperator, f_CurrentLineNumber));
+						fp_Tokens.emplace_back(f_ModString, TokenType::ModuloEqualsOperator, f_CurrentLineNumber);
 						assert(f_ShouldShift == true);
 						continue; //just iterate as normal, and make sure the equals character isn't double counted
 					}
 					else //handles the case for when nothing valid follows a '!' in the source code
 					{
-						f_Tokens.push_back(Token(f_ModString, TokenType::ModulusOperator, f_CurrentLineNumber));
+						fp_Tokens.emplace_back(f_ModString, TokenType::ModulusOperator, f_CurrentLineNumber);
 						f_ShouldShift = false; // reset over-stepped character to top of lexer logical flow without shifting again to avoid missed characters
 						continue; //otherwise the continue will just move the current over-stepped character back to the top of the lexer's logical flow
 					}
@@ -897,13 +845,13 @@ namespace BongoJam {
 					if (f_CurrentChar == '=')
 					{
 						f_LesserThanString += f_CurrentChar;
-						f_Tokens.push_back(Token(f_LesserThanString, TokenType::LesserThanOrEqual, f_CurrentLineNumber));
+						fp_Tokens.emplace_back(f_LesserThanString, TokenType::LesserThanOrEqual, f_CurrentLineNumber);
 						assert(f_ShouldShift == true);
 						continue; //just iterate as normal, and make sure the equals character isn't double counted
 					}
 					else //handles the case for just '<'
 					{
-						f_Tokens.push_back(Token(f_LesserThanString, TokenType::LesserThan, f_CurrentLineNumber));
+						fp_Tokens.emplace_back(f_LesserThanString, TokenType::LesserThan, f_CurrentLineNumber);
 						f_ShouldShift = false; //iterate without shifting since we've overstepped a character
 						continue;
 					}
@@ -922,44 +870,44 @@ namespace BongoJam {
 					if (f_CurrentChar == '=')
 					{
 						f_GreaterThanString += f_CurrentChar;
-						f_Tokens.push_back(Token(f_GreaterThanString, TokenType::GreaterThanOrEqual, f_CurrentLineNumber));
+						fp_Tokens.emplace_back(f_GreaterThanString, TokenType::GreaterThanOrEqual, f_CurrentLineNumber);
 						assert(f_ShouldShift == true);
 						continue; //just iterate as normal, and make sure the equals character isn't double counted
 					}
 					else //handles the case for just '>'
 					{
-						f_Tokens.push_back(Token(f_GreaterThanString, TokenType::GreaterThan, f_CurrentLineNumber));
+						fp_Tokens.emplace_back(f_GreaterThanString, TokenType::GreaterThan, f_CurrentLineNumber);
 						f_ShouldShift = false; //iterate without shifting since we've overstepped a character
 						continue;
 					}
 				}
 				break;
 				case '$':
-					f_Tokens.push_back(Token(f_CurrentChar, TokenType::DollarSign, f_CurrentLineNumber));
+					fp_Tokens.emplace_back(f_CurrentChar, TokenType::DollarSign, f_CurrentLineNumber);
 					break;
 				case '?':
-					f_Tokens.push_back(Token(f_CurrentChar, TokenType::QuestionMark, f_CurrentLineNumber));
+					fp_Tokens.emplace_back(f_CurrentChar, TokenType::QuestionMark, f_CurrentLineNumber);
 					break;
 				case '@':
-					f_Tokens.push_back(Token(f_CurrentChar, TokenType::AtSign, f_CurrentLineNumber));
+					fp_Tokens.emplace_back(f_CurrentChar, TokenType::AtSign, f_CurrentLineNumber);
 					break;
 				case '#':
-					f_Tokens.push_back(Token(f_CurrentChar, TokenType::HashTag, f_CurrentLineNumber));
+					fp_Tokens.emplace_back(f_CurrentChar, TokenType::HashTag, f_CurrentLineNumber);
 					break;
 				case '&':
-					f_Tokens.push_back(Token(f_CurrentChar, TokenType::Ampersand, f_CurrentLineNumber));
+					fp_Tokens.emplace_back(f_CurrentChar, TokenType::Ampersand, f_CurrentLineNumber);
 					break;
 				default:
 
-					LogManager::Logger().LogAndPrint("Compiler Error: Unrecognized character found in source code at line " + to_string(f_CurrentLineNumber), "Lexer", "error");
-
+					logger->LogAndPrint("Compiler Error: Unrecognized character found in source code at line " + to_string(f_CurrentLineNumber), "Lexer", Logger::LogLevel::Error);
 					fp_SourceCode.clear(); //dump the source code vector, so that the compiler will stop processing the source code
-					break;
+					return false;
 			}
 
 		}
 
-		f_Tokens.push_back(Token("", TokenType::ENDF, f_CurrentLineNumber)); //label the end of the file i guess for some reason
-		return f_Tokens;
+		fp_Tokens.emplace_back("", TokenType::ENDF, f_CurrentLineNumber); //label the end of the file i guess for some reason
+
+		return true;
 	}
 }

@@ -13,9 +13,6 @@
 #include "../../include/compiler/Compiler.h"
 #include "../../include/runtime/Interpreter.h"
 
-#include <llvm/CodeGen/Analysis.h>
-
-using namespace std;
 using namespace BongoJam;
 
 constexpr int NO_ARGUMENT_PROVIDED = -1;
@@ -28,38 +25,31 @@ constexpr int SCRIPT_DOES_NOT_EXIST = -5;
 static void
     DisplayHelp() 
 {
-    cout << CreateColouredText("{Usage}: bongo <file> [options]...\n", "bright magenta")
+    cout << CreateColouredText("{Usage}: bongo <file> [options]...\n", Colours::BrightMagenta)
 
-            << CreateColouredText("Compiler Options:\n  ", "bright yellow") //oh it's because i put two spaces after each \n lmao
-            << CreateColouredText("  -o <filename>\t{Usage}:Set output filename\n  ", "cyan") //this needs an extra two spaces at the beginning for god knows what reason ?_? !!
-            << CreateColouredText("  -d <directory>\t{Usage}:Set output directory\n  ", "cyan")
+            << CreateColouredText("Compiler Options:\n  ", Colours::BrightYellow) //oh it's because i put two spaces after each \n lmao
+            << CreateColouredText("  -o <filename>\t{Usage}:Set output filename\n  ", Colours::Cyan) //this needs an extra two spaces at the beginning for god knows what reason ?_? !!
+            << CreateColouredText("  -d <directory>\t{Usage}:Set output directory\n  ", Colours::Cyan)
            
-            << CreateColouredText("  --compile-run\t{Usage}:If used, the script will be compiled and ran immediately\n  ", "cyan")
-            << CreateColouredText("  --debug\t{Usage}:Compile in debug mode\n  ", "cyan")
-            << CreateColouredText("  --pedantic\t{Usage}:Compile with all warnings turned on\n  ", "cyan")
+            << CreateColouredText("  --compile-run\t{Usage}:If used, the script will be compiled and ran immediately\n  ", Colours::Cyan)
+            << CreateColouredText("  --debug\t{Usage}:Compile in debug mode\n  ", Colours::Cyan)
+            << CreateColouredText("  --pedantic\t{Usage}:Compile with all warnings turned on\n  ", Colours::Cyan)
 
-            << CreateColouredText("  --clear-logs\t{Usage}: Clears Desired Log Files\n", "cyan")
-                << CreateColouredText("\t  [option 1] LOG_LEVEL_MINOR - LOG_LEVEL_MAJOR\n", "bright green")
-                << CreateColouredText("\t  [option 2] LOG_LEVEL_1, LOG_LEVEL_2 . . .\n  ", "bright green")
+            << CreateColouredText("  --clear-logs\t{Usage}: Clears Desired Log Files\n", Colours::Cyan)
+                << CreateColouredText("\t  [option 1] LOG_LEVEL_MINOR - LOG_LEVEL_MAJOR\n", Colours::BrightGreen)
+                << CreateColouredText("\t  [option 2] LOG_LEVEL_1, LOG_LEVEL_2 . . .\n  ", Colours::BrightGreen)
 
-            << CreateColouredText("  --set LOG_LEVEL_FILTER\t{Usage}: Filters Log Output\n  ", "cyan") //disable/enable internal logs, and set the min and max log level, one arg is min, two args is both
-                << CreateColouredText("\t  [option 1] LOG_LEVEL_MINOR - LOG_LEVEL_MAJOR\n", "bright green")
-                << CreateColouredText("\t  [option 2] LOG_LEVEL_1, LOG_LEVEL_2 . . .\n  ", "bright green")
+            << CreateColouredText("  --set LOG_LEVEL_FILTER\t{Usage}: Filters Log Output\n  ", Colours::Cyan) //disable/enable internal logs, and set the min and max log level, one arg is min, two args is both
+                << CreateColouredText("\t  [option 1] LOG_LEVEL_MINOR - LOG_LEVEL_MAJOR\n", Colours::BrightGreen)
+                << CreateColouredText("\t  [option 2] LOG_LEVEL_1, LOG_LEVEL_2 . . .\n  ", Colours::BrightGreen)
 
-            << CreateColouredText("  --set LOG_OUTPUT_DIRECTORY <directory>\t{Usage}:Sets Working Log Output Directory\n  ", "cyan")
-            << CreateColouredText("  --set DEFAULT_OUTPUT_DIRECTORY <directory>\t{Usage}:Sets Default Log Output Directory\n  ", "cyan")
+            << CreateColouredText("  --set LOG_OUTPUT_DIRECTORY <directory>\t{Usage}:Sets Working Log Output Directory\n  ", Colours::Cyan)
+            << CreateColouredText("  --set DEFAULT_OUTPUT_DIRECTORY <directory>\t{Usage}:Sets Default Log Output Directory\n  ", Colours::Cyan)
 
-            << CreateColouredText("  -h, --help\t{Usage}:Display this help and exit\n  ", "cyan")
-            << CreateColouredText("  --version\t{Usage}:Get the currently installed compiler version\n  ", "cyan")
+            << CreateColouredText("  -h, --help\t{Usage}:Display this help and exit\n  ", Colours::Cyan)
+            << CreateColouredText("  --version\t{Usage}:Get the currently installed compiler version\n  ", Colours::Cyan)
 
     ;
-}
-
-static bool 
-    FileExists(const string& fp_FileName) 
-{
-    filesystem::path f_FilePath(fp_FileName);
-    return filesystem::exists(f_FilePath);
 }
 
 int 
@@ -76,7 +66,7 @@ int
 
     if (fp_ArgCount < 2) 
     {
-        PrintError("No arguments provided. Use -h or --help for usage information.", "magenta");
+        PrintError("No arguments provided. Use -h or --help for usage information.", Colours::Magenta);
         return NO_ARGUMENT_PROVIDED;
     }
 
@@ -95,7 +85,7 @@ int
         } 
         else if (Compiler_Arg == "--version")
         {
-            cout << CreateColouredText("Current BongoJam Compiler Version: ", "bright magenta") << CreateColouredText(Configs.m_BongoJamVersion, "bright cyan") << "\n";
+            cout << CreateColouredText("Current BongoJam Compiler Version: ", Colours::BrightMagenta) << CreateColouredText(Configs.m_BongoJamVersion, Colours::BrightCyan) << "\n";
             return EXIT_SUCCESS;
         }
         else if (_i == 1)
@@ -105,9 +95,9 @@ int
 
             Configs.m_ScriptFilePath = "./" + f_ScriptName; // we add before hand because we want a bj here :^)
 
-            if (not FileExists(f_ScriptName))
+            if (not filesystem::exists(f_ScriptName))
             {
-                PrintError("No script with name: " + f_ScriptName + " found in top-level directory", "magenta");
+                PrintError("No script with name: " + f_ScriptName + " found in top-level directory", Colours::Magenta);
                 return SCRIPT_DOES_NOT_EXIST;
             }
 
@@ -117,7 +107,7 @@ int
             }
             else
             {
-                PrintError("Invalid script target found, please only try to compile .bj files only", "magenta");
+                PrintError("Invalid script target found, please only try to compile .bj files only", Colours::Magenta);
                 return INVALID_SCRIPT_TARGET;
             }
 
@@ -156,7 +146,7 @@ int
             }
             else
             {
-                PrintError("No valid arguments for --set were given. Use -h or --help for usage information.", "magenta");
+                PrintError("No valid arguments for --set were given. Use -h or --help for usage information.", Colours::Magenta);
                 return INVALID_SET_ARGUMENT;
             }
         }
@@ -166,41 +156,43 @@ int
         }
         else 
         {
-            PrintError("Unknown or incomplete argument provided: " + Compiler_Arg, "magenta");
+            PrintError("Unknown or incomplete argument provided: " + Compiler_Arg, Colours::Magenta);
             return UNKNOWN_OR_INCOMPLETE_ARGUMENT;
         }
     }
+
+    unique_ptr<Logger> mf_BongoLogger;
     
     //Initialize logger for the compiler
     if (Configs.m_DesiredLogs)
     {
-        LogManager::Logger().Initialize(Configs.m_LogOutputDirectory, Configs.m_DesiredLogs);
+        mf_BongoLogger->Initialize("BongoLog", Configs.m_LogOutputDirectory, *Configs.m_DesiredLogs);
     }
     else
     {
-        LogManager::Logger().Initialize(Configs.m_LogOutputDirectory, Configs.m_LogLevelMinor, Configs.m_LogLevelMajor);
+        mf_BongoLogger->Initialize("BongoLog", Configs.m_LogOutputDirectory, Configs.m_LogLevelMinor, Configs.m_LogLevelMajor);
     }
 
-    LogManager::Logger().Log("Logger successfully initialized!", "main", "info");
+    mf_BongoLogger->LogAndPrint("Logger successfully initialized!", "main", Logger::LogLevel::Info);
 
     if(Configs.m_IsDebugMode)
     {
-        cout << CreateColouredText("Output File Name: ", "bright yellow")
-            << CreateColouredText(Configs.m_OutputFileName + ".bongo", "bright cyan")
+        cout << CreateColouredText("Output File Name: ", Colours::BrightYellow)
+            << CreateColouredText(Configs.m_OutputFileName + ".bongo", Colours::BrightCyan)
             << "\n"
-            << CreateColouredText("Output Directory: ", "bright yellow")
-            << CreateColouredText(Configs.m_BongoFileOutputDirectory, "bright cyan")
+            << CreateColouredText("Output Directory: ", Colours::BrightYellow)
+            << CreateColouredText(Configs.m_BongoFileOutputDirectory, Colours::BrightCyan)
             << "\n"
-            << CreateColouredText("Log Output Directory: ", "bright yellow")
-            << CreateColouredText(Configs.m_LogOutputDirectory, "bright cyan")
+            << CreateColouredText("Log Output Directory: ", Colours::BrightYellow)
+            << CreateColouredText(Configs.m_LogOutputDirectory, Colours::BrightCyan)
             << "\n\n"
             ;
-        Print("Script File Path: " + Configs.m_ScriptFilePath, "bright green");
+        Print("Script File Path: " + Configs.m_ScriptFilePath, Colours::BrightGreen);
     }
 
     if (Configs.m_IsCompileRun and Configs.m_IsDebugMode)
     {
-        BongoJamCompiler->CompileProgram(Configs.m_ScriptFilePath, Configs.m_BongoFileOutputDirectory, Configs.m_OutputFileName, Configs.m_IsDebugMode);
+        BongoJamCompiler->CompileProgram(Configs.m_ScriptFilePath, Configs.m_BongoFileOutputDirectory, Configs.m_OutputFileName, mf_BongoLogger.get(), Configs.m_IsDebugMode);
 
         BongoJamInterpreter* BongoJamRuntime = new BongoJamInterpreter();
 
@@ -211,14 +203,14 @@ int
         auto BongoJam_Runtime_Duration = chrono::duration_cast<chrono::microseconds>(BongoJam_Timer_Stop - BongoJam_Timer_Start);
 
         // Output the time taken by bongojam
-        cout << CreateColouredText("\nTime taken by bongojam interpreter: ", "bright yellow") << BongoJam_Runtime_Duration.count() << CreateColouredText(" microseconds", "bright blue") << "\n";
+        cout << CreateColouredText("\nTime taken by bongojam interpreter: ", Colours::BrightYellow) << BongoJam_Runtime_Duration.count() << CreateColouredText(" microseconds", Colours::BrightBlue) << "\n";
         
         delete BongoJamRuntime; //probably should let the os handle cleaning up the heap alloc since its faster but w/e it feels wrong not to do this
         BongoJamRuntime = nullptr;
     }
     else if (Configs.m_IsCompileRun)
     {
-        BongoJamCompiler->CompileProgram(Configs.m_ScriptFilePath, Configs.m_BongoFileOutputDirectory, Configs.m_OutputFileName, Configs.m_IsDebugMode);
+        BongoJamCompiler->CompileProgram(Configs.m_ScriptFilePath, Configs.m_BongoFileOutputDirectory, Configs.m_OutputFileName, mf_BongoLogger.get(), Configs.m_IsDebugMode);
 
         BongoJamInterpreter* BongoJamRuntime = new BongoJamInterpreter();
 
@@ -229,7 +221,7 @@ int
     }
     else
     {
-        BongoJamCompiler->CompileProgram(Configs.m_ScriptFilePath, Configs.m_BongoFileOutputDirectory, Configs.m_OutputFileName, Configs.m_IsDebugMode);
+        BongoJamCompiler->CompileProgram(Configs.m_ScriptFilePath, Configs.m_BongoFileOutputDirectory, Configs.m_OutputFileName, mf_BongoLogger.get(), Configs.m_IsDebugMode);
     }
 
     return EXIT_SUCCESS;

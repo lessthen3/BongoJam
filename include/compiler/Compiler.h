@@ -11,15 +11,8 @@
 ********************************************************************/
 #pragma once
 
-#include <llvm/IR/IRBuilder.h>
-#include <llvm/IR/Module.h>
-
 #include "Parser.h"
 #include "../Binder.h"
-
-namespace ll = llvm;
-
-using namespace std;
 
 namespace BongoJam {
 
@@ -38,6 +31,115 @@ namespace BongoJam {
 		return false;
 	}
 
+	//////////////////////////////////////////////
+	// Opcodes Lookup for Translation
+	//////////////////////////////////////////////
+
+	enum class OPCODES_LOOKUP: uint8_t //these opcodes are flags that indicate to the interpreter what information is going to follow it in the byte stream
+	{
+		NOP = 0x00,
+
+		//////////////////// Basic Math Operations ////////////////////
+
+		ADD = 0x001,
+		SUB = 0x002,
+
+		DIV = 0x003,
+		MULT = 0x004,
+
+		POW = 0x005,
+
+		//////////////////// Primitive Types ////////////////////
+
+		INT_TYPE = 0x006,
+		FLOAT_TYPE = 0x007,
+
+		BOOL_TYPE = 0x008, //false or true follows, 0 = false, 1 = true as always
+
+		CHAR_TYPE = 0x009,
+		STRING_TYPE = 0x00A, //string literal value always follows, pattern is: str size in bytes -> encoded utf-8 str
+		STRING_LITERAL = 0x0AA, //used for detecting constant strings in the byte code for translation during runtime
+
+		//////////////////// Built-in Class Types ////////////////////
+
+		VOID_TYPE = 0x00B,
+		EXCEPTION = 0x00C,
+
+		THREAD = 0x00D,
+
+		VEC2 = 0x00E,
+		VEC3 = 0x00F,
+		VEC4 = 0x010,
+
+		MAT2 = 0x011,
+		MAT3 = 0x012,
+		MAT4 = 0x013,
+		MAT = 0x014,
+
+		//////////////////// Boolean Comparison Operations ////////////////////
+
+		LOGICAL_AND = 0x015,
+		LOGICAL_OR = 0x016,
+		LOGICAL_NOT = 0x017,
+
+		LINE_NUMBER = 0xFF, //Used for tracking the exact line of code that threw a runtime error
+
+		JUMP = 0x018,
+		JUMP_IF = 0x019,
+
+		VARIABLE_REASSIGNMENT = 0x01A,
+
+		//////////////////// Function/Method Operations ////////////////////
+
+		FUNCTION_DEFINITION = 0x01B,
+		METHOD_DEFINITION = 0x01C,
+
+		FUCTION_CALL = 0x01D,
+		METHOD_CALL = 0x01E,
+
+		FUNCTION_RETURN = 0x01F,
+
+		//////////////////// Class/Struct Operations ////////////////////
+
+		CLASS_DEFINITION = 0x020,
+		STRUCT_DEFINITION = 0x021,
+
+		CLASS_CONSTRUCTOR = 0x022,
+		STRUCT_CONSTRUCTOR = 0x023,
+
+		// Follows a Variable Assignment flag
+
+		LOAD = 0x024, //stack allocates a var
+		UNLOAD = 0x025, //dereferences stack alloc'd var in interpreter
+		MOVE = 0x026, //move() semantic
+		COPY = 0x027, //used for copying vars
+		HEAP_ALLOC = 0x028, //used for heap allocations
+		HEAP_DE_ALLOC = 0x029, //delete baby
+
+		PRINT = 0x02A,
+		CLOCK = 0x02B,
+		SLEEP = 0x02C,
+		INPUT = 0x02D,
+		COLOURIZE = 0x0CE,
+
+		ROUND_UP = 0x02E,
+		ROUND_DOWN = 0x02F,
+
+		SQUARE_ROOT = 0x030,
+		POWER = 0x031,
+		EXP = 0x032,
+
+		SIN = 0x033,
+		COS = 0x034,
+		SINH = 0x035,
+		COSH = 0x036,
+		ARCSIN = 0x037,
+		ARCCOS = 0x038,
+
+		LOG = 0x039,
+		FACTORIAL = 0x03A
+	};
+
 	struct BongoCompiler
 	{
 		~BongoCompiler() {}
@@ -47,53 +149,6 @@ namespace BongoJam {
 		//////////////////////////////////////////////
 		// Class Members
 		//////////////////////////////////////////////
-
-		map
-		<
-			string,
-			ll::Value*
-		>
-			pm_NamedValues;
-
-		unique_ptr
-		<
-			ll::LLVMContext
-		> 
-			pm_Context;
-
-		unique_ptr
-		<
-			ll::IRBuilder<>
-		>
-			pm_Builder;
-
-		unique_ptr
-		<
-			ll::Module
-		>
-			pm_Module;
-
-		template<typename Statement>
-		ll::Value* 
-			GenerateLowLevelInstructions
-			(
-				Statement* fp_Statement
-			)
-			const
-		{
-
-			switch (fp_Statement->m_Domain)
-			{
-
-			case SyntaxNodeType::IntLiteral:
-				return ll::ConstantFP::get(*pm_Context, ll::APFloat(fp_Statement->m_Value));
-			case SyntaxNodeType::StringLiteral:
-				return fp_Statement->uwu;
-			default:
-				break;
-			}
-
-		}
 
 		//////////////////////////////////////////////
 		// Utility Functions
@@ -114,13 +169,19 @@ namespace BongoJam {
 		}
 
 		void
-			WriteBytecodeToFile(const string & fp_DesiredOutputDirectory, const string & fp_DesiredName, const vector<uint8_t>&fp_ByteCode)
+			WriteBytecodeToFile
+			(
+				const string & fp_DesiredOutputDirectory, 
+				const string & fp_DesiredName, 
+				const vector<uint8_t>&fp_ByteCode,
+				Logger* logger
+			)
 		{
 			//LogManager::Logger().LogAndPrint("Bytecode size: " + to_string(fp_ByteCode.size()), "Compiler", "info", "cyan");
 
 			if (fp_ByteCode.empty())
 			{
-				LogManager::Logger().LogAndPrint("Compiler Error: Failed to write " + fp_DesiredName + " for writing.\nNo bytecode to write.", "Compiler", "error");
+				logger->LogAndPrint("Compiler Error: Failed to write " + fp_DesiredName + " for writing.\nNo bytecode to write.", "Compiler", Logger::LogLevel::Error);
 			}
 
 			string f_BongoFileName;
@@ -136,9 +197,9 @@ namespace BongoJam {
 
 			ofstream file(f_BongoFileName, ios::binary);  // Open in binary mode
 
-			if (!file)
+			if (not file)
 			{
-				LogManager::Logger().LogAndPrint("Compiler Error: Failed to open " + f_BongoFileName + " for writing.", "Compiler", "error");
+				logger->LogAndPrint("Compiler Error: Failed to open " + f_BongoFileName + " for writing.", "Compiler", Logger::LogLevel::Error);
 				return;
 			}
 
@@ -149,14 +210,19 @@ namespace BongoJam {
 		}
 
 		bool
-			ReadFileIntoString(const string & fp_ScriptFilePath, string * fp_SourceCode)
+			ReadFileIntoString
+			(
+				string* fp_SourceCode,
+				const string & fp_ScriptFilePath, 
+				Logger* logger
+			)
 		{
 			// Extract file extension assuming format "filename.ext"
 			size_t lastDotIndex = fp_ScriptFilePath.rfind('.');
 
 			if (lastDotIndex == string::npos)
 			{
-				LogManager::Logger().LogAndPrint("Compiler Error: No file extension found", "Compiler", "error");
+				logger->LogAndPrint("Compiler Error: No file extension found", "Compiler", Logger::LogLevel::Error);
 				return false;
 			}
 
@@ -164,7 +230,7 @@ namespace BongoJam {
 
 			if (f_FileExtension != ".bj")
 			{
-				LogManager::Logger().LogAndPrint("Compiler Error: Please only try to compile .bj files", "Compiler", "error");
+				logger->LogAndPrint("Compiler Error: Please only try to compile .bj files", "Compiler", Logger::LogLevel::Error);
 				return false;
 			}
 
@@ -172,7 +238,7 @@ namespace BongoJam {
 
 			if (!f_FileStream)
 			{
-				LogManager::Logger().LogAndPrint("Compiler Error: Failed to open bongojam script for reading.", "Compiler", "error");
+				logger->LogAndPrint("Compiler Error: Failed to open bongojam script for reading.", "Compiler", Logger::LogLevel::Error);
 				return false;
 			}
 
@@ -255,21 +321,31 @@ namespace BongoJam {
 		//////////////////////////////////////////////
 
 		bool //doesn't return anything because the compiler writes the output to a .bongo file
-			CompileProgram(const string & fp_DesiredBongoScriptFilePath, const string & fp_DesiredOutputDirectory, const string & fp_DesiredOutputFileName, const bool fp_IsDebug = false)
+			CompileProgram
+			(
+				const string & fp_DesiredBongoScriptFilePath, 
+				const string & fp_DesiredOutputDirectory, 
+				const string & fp_DesiredOutputFileName, 
+				Logger* logger,
+				const bool fp_IsDebug = false
+			)
 		{
 			//////////////////// Read .bj file, Tokenize and Parse it ////////////////////
 
 			Parser f_BongoParser = Parser(); //needa make this a class since that's the only way cpp will let me do mutual recursion for some reason lmao
 
 			string f_SourceCode;
-			if (!ReadFileIntoString(fp_DesiredBongoScriptFilePath, &f_SourceCode))
+			if (not ReadFileIntoString(&f_SourceCode, fp_DesiredBongoScriptFilePath, logger))
 			{
 				//stop compilation immediately
-				LogManager::Logger().LogAndPrint("Compiler was not able to read a valid source file, compilation will not proceed any further. nothing was done.", "Compiler", "warn");
+				logger->LogAndPrint("Compiler was not able to read a valid source file, compilation will not proceed any further. nothing was done.", "Compiler", Logger::LogLevel::Fatal);
 				return false;
 			}
 
-			Program* f_BongoProgram = f_BongoParser.ConstructAST(Tokenize(f_SourceCode));
+			vector<Token> f_ProgramTokens;
+			Tokenize(f_SourceCode, f_ProgramTokens, logger);
+
+			Program* f_BongoProgram = f_BongoParser.ConstructAST(f_ProgramTokens);
 
 			//////////////////// Check for Main Func ////////////////////
 
@@ -279,8 +355,8 @@ namespace BongoJam {
 			if (f_MainFunc->m_FuncName.m_Value != "main")
 			{
 				//THROW ERROR
-				LogManager::Logger().LogAndPrint("Compiler Error: main function is not defined as the last function in the program", "Compiler", "error");
-				LogManager::Logger().LogAndPrint("Please take a look at your program structure and re-organize it such that main() is defined last", "Compiler", "warn");
+				logger->LogAndPrint("Compiler Error: main function is not defined as the last function in the program", "Compiler", Logger::LogLevel::Error);
+				logger->LogAndPrint("Please take a look at your program structure and re-organize it such that main() is defined last", "Compiler", Logger::LogLevel::Warning);
 				return false;
 			}
 
@@ -328,7 +404,7 @@ namespace BongoJam {
 							CreateColouredText
 							(
 								(dynamic_cast<StringLiteral*>(_pf->m_FuncArgs[0][_i].get()))->m_StringValue.m_Value,
-								s_TextColour
+								Colours::BrightMagenta
 							)
 						);
 					}
@@ -344,11 +420,13 @@ namespace BongoJam {
 
 			//////////////////// Write the Compiled Byte Code to a File ////////////////////
 
-			WriteBytecodeToFile(fp_DesiredOutputDirectory, fp_DesiredOutputFileName, f_CompiledByteCode);
+			WriteBytecodeToFile(fp_DesiredOutputDirectory, fp_DesiredOutputFileName, f_CompiledByteCode, logger);
 			f_CompiledByteCode.clear(); //dump the vector since the code has been written to a file hopefully >w<
 
 			delete f_BongoProgram;
 			f_BongoProgram = nullptr;
+
+			return true;
 		}
 	};
 }

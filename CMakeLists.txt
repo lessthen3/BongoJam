@@ -7,10 +7,29 @@ project(BongoJam_Script VERSION 1.0 DESCRIPTION "BongoJam Script" LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-####################################### Conan Setup
+####################################### Check For No Config Set
 
-# Include the conan toolchain
-include (build/build/generators/conan_toolchain.cmake)
+if(NOT CMAKE_CONFIGURATION_TYPES AND NOT CMAKE_BUILD_TYPE)
+    message(FATAL_ERROR "No build type specified, ending build. CMAKE WILL NOW EXIT")
+endif()
+
+####################################### Enforce 64-bit Requirement
+
+if(NOT ${CMAKE_SIZEOF_VOID_P} EQUAL 8)
+    message(FATAL_ERROR "Peach-E only supports 64-bit platforms.")
+endif()
+
+####################################### Conan Toolchain Setup
+
+# Try to find `conan_toolchain.cmake` inside the build directory automatically
+file(GLOB_RECURSE CONAN_TOOLCHAIN_FILE "${CMAKE_BINARY_DIR}/**/conan_toolchain.cmake")
+
+if(EXISTS "${CONAN_TOOLCHAIN_FILE}")
+    message(STATUS "Using Conan toolchain: ${CONAN_TOOLCHAIN_FILE}")
+    include(${CONAN_TOOLCHAIN_FILE})
+else()
+    message(FATAL_ERROR "Error: conan_toolchain.cmake not found. Run `conan install` first.")
+endif()
 
 ####################################### Compiler Project
 
@@ -21,25 +40,25 @@ file(
     CONFIGURE_DEPENDS 
     "src/compiler/*.cpp" 
     "include/compiler/*.h"
-    "include/LogManager.h"
+    "include/Logger.h"
     "include/Binder.h"
+)
+
+# Remove main from bongoC for embedding the compiler into C++
+list(REMOVE_ITEM COMPILER_SOURCES 
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/compiler/main.cpp"
 )
 
 #### Library Target
 
 # Create a static library
-add_library(bongoC STATIC ${COMPILER_SOURCES})
+add_library(bongoC STATIC 
+
+    ${COMPILER_SOURCES}
+)
 
 # Specify include directories for the library
 target_include_directories(bongoC PUBLIC include/compiler)
-
-#### Executable Target
-
-# Add executable based on source files
-add_executable(bongo src/compiler/main.cpp)
-
-# Link the library with the executable
-target_link_libraries(bongo PRIVATE bongoC)
 
 ####################################### Interpreter Project
 
@@ -50,51 +69,41 @@ file(
     CONFIGURE_DEPENDS 
     "src/runtime/*.cpp" 
     "include/runtime/*.h" 
-    "include/LogManager.h"
+    "include/Logger.h"
     "include/Binder.h"
 )
 
 #### Library Target
 
 # Create a static library
-add_library(bongojam STATIC ${INTERPRETER_SOURCES})
+add_library(bongo_runtime STATIC ${INTERPRETER_SOURCES})
 
 # Specify include directories for the library
-target_include_directories(bongojam PUBLIC include/runtime)
+target_include_directories(bongo_runtime PUBLIC include/runtime)
 
-#### Executable Target
+#### Executable Target for CLI
 
 # Add executable based on source files
-add_executable(jam src/runtime/main.cpp)
+add_executable(bongo 
+
+    src/compiler/main.cpp
+)
 
 # Link the library with the executable
-target_link_libraries(jam PRIVATE bongojam)
+target_link_libraries(bongo PRIVATE 
+    bongoC
+    bongo_runtime
+)
 
 ####################################### Dependency Linking
 
 find_package(ZLIB REQUIRED)
-find_package(LLVM REQUIRED CONFIG)
-
-message(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
-message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
-
-include_directories(${LLVM_INCLUDE_DIRS})
-separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
-add_definitions(${LLVM_DEFINITIONS_LIST})
-
-llvm_map_components_to_libnames(llvm_libs support core irreader)
-
-set_target_properties(${llvm_libs} PROPERTIES
-    INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/static_libs/llvm/include"
-)
 
 target_link_libraries(bongoC PUBLIC
     ZLIB::ZLIB
-    ${llvm_libs}
 )
-target_link_libraries(bongojam PUBLIC
+target_link_libraries(bongo_runtime PUBLIC
     ZLIB::ZLIB
-    ${llvm_libs}
 )
 
 #READ THE ANNOTATED TURING UWU

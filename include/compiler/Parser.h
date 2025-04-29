@@ -16,12 +16,22 @@
 
 #include "AST.h"
 
-using namespace std;
-
 namespace BongoJam {
 	
 	class Parser
 	{
+		unique_ptr<Logger> parser_logger = nullptr;
+	public:
+		Parser()
+		{
+			parser_logger = make_unique<Logger>();
+			parser_logger->Initialize("ParsingLogger", "../logs");
+
+			parser_logger->LogAndPrint("UWUWUWUWUWUWUWUW", "Parser", Logger::LogLevel::Info);
+		}
+
+		~Parser() = default;
+	private:
 		//////////////////////////////////////////////
 		// Utility Functions
 		//////////////////////////////////////////////
@@ -138,8 +148,8 @@ namespace BongoJam {
 				if (fp_CurrentToken.m_Type != TokenType::UserIdentifier)
 				{
 					//THROW ERROR
-					LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error");
-					LogManager::Logger().LogAndPrint("Something bad happened while calling a class method! Make sure you're calling the proper method name", "Parser", "warn");
+					parser_logger->LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
+					parser_logger->LogAndPrint("Something bad happened while calling a class method! Make sure you're calling the proper method name", "Parser", Logger::LogLevel::Warning);
 					return false;
 				}
 
@@ -224,7 +234,16 @@ namespace BongoJam {
 		//////////////////////////////////////////////
 
 		bool
-			ParseIfBlock(uint32_t & fp_CurrentScopeDepth, bool fp_IsInLoop, Token & fp_CurrentToken, vector<Token>&fp_ProgramTokens, size_t &fp_ProgramCounter, unique_ptr<IfDeclaration>* fp_IfStatement, unique_ptr<IfDeclaration>* fp_ElseIfStatement = nullptr)
+			ParseIfBlock
+			(
+				uint32_t & fp_CurrentScopeDepth, 
+				bool fp_IsInLoop, 
+				Token & fp_CurrentToken,
+				vector<Token>&fp_ProgramTokens, 
+				size_t &fp_ProgramCounter, 
+				unique_ptr<IfDeclaration>* fp_IfStatement, 
+				unique_ptr<IfDeclaration>* fp_ElseIfStatement = nullptr
+			)
 		{
 			unsigned int f_BracketDepthTracker = 0; //tracks the bracket level, we add as we find open parens, and subtract as we find closed parens
 			unique_ptr<IfDeclaration>* f_CurrentStatement = nullptr; //either an if or else-if statement
@@ -244,8 +263,8 @@ namespace BongoJam {
 			if (fp_CurrentToken.m_Type != TokenType::OpenParen)
 			{
 				//THROW ERROR
-				LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error");
-				LogManager::Logger().LogAndPrint("Something bad happened while declaring your if statement brother! Try looking at your brackets on the if-statement", "Parser", "warn");
+				parser_logger->LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
+				parser_logger->LogAndPrint("Something bad happened while declaring your if statement brother! Try looking at your brackets on the if-statement", "Parser", Logger::LogLevel::Warning);
 				return false;
 			}
 			else //if it"s an open paren then we"re clear to move forward and read the condition inside
@@ -311,8 +330,8 @@ namespace BongoJam {
 					break;
 				default:
 					//THROW ERROR
-					LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error");
-					LogManager::Logger().LogAndPrint("Unrecognized expression found while declaring your function brother! Try taking a look at your function parameter(s) definition", "Parser", "warn");
+					parser_logger->LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
+					parser_logger->LogAndPrint("Unrecognized expression found while declaring your function brother! Try taking a look at your function parameter(s) definition", "Parser", Logger::LogLevel::Warning);
 					return false;
 					break;
 				}
@@ -328,8 +347,8 @@ namespace BongoJam {
 			if (fp_CurrentToken.m_Type != TokenType::OpenBracket)
 			{
 				//THROW ERROR
-				LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error");
-				LogManager::Logger().LogAndPrint("Unrecognized expression found while declaring your function brother! Try taking a look at your function parameter(s) definition", "Parser", "warn");
+				parser_logger->LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
+				parser_logger->LogAndPrint("Unrecognized expression found while declaring your function brother! Try taking a look at your function parameter(s) definition", "Parser", Logger::LogLevel::Warning);
 				return false;
 			}
 
@@ -348,11 +367,11 @@ namespace BongoJam {
 				break;
 				case TokenType::Break:
 				{
-					if (!fp_IsInLoop)
+					if (not fp_IsInLoop)
 					{
 						//THROW ERROR
-						LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error");
-						LogManager::Logger().LogAndPrint("You are not allowed to use a break statement outside of a loop brother!", "Parser", "warn");
+						parser_logger->LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
+						parser_logger->LogAndPrint("You are not allowed to use a break statement outside of a loop brother!", "Parser", Logger::LogLevel::Warning);
 						return false;
 					}
 					(*f_CurrentStatement)->m_CodeBody.push_back(make_unique<BreakSubStatement>());
@@ -362,7 +381,7 @@ namespace BongoJam {
 				{
 					unique_ptr<IfDeclaration> s_NestedIfStatement = make_unique<IfDeclaration>();
 
-					if (!ParseIfBlock(fp_CurrentScopeDepth, fp_IsInLoop, fp_CurrentToken, fp_ProgramTokens, fp_ProgramCounter, &s_NestedIfStatement))
+					if (not ParseIfBlock(fp_CurrentScopeDepth, fp_IsInLoop, fp_CurrentToken, fp_ProgramTokens, fp_ProgramCounter, &s_NestedIfStatement))
 					{
 						fp_ProgramTokens.clear();
 						return false;
@@ -382,8 +401,8 @@ namespace BongoJam {
 			if (fp_CurrentToken.m_Type != TokenType::CloseBracket)
 			{
 				//THROW ERROR
-				LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error");
-				LogManager::Logger().LogAndPrint("Unrecognized expression found while declaring your function brother! Try taking a look at your function parameter(s) definition", "Parser", "warn");
+				parser_logger->LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
+				parser_logger->LogAndPrint("Unrecognized expression found while declaring your function brother! Try taking a look at your function parameter(s) definition", "Parser", Logger::LogLevel::Warning);
 				return false;
 			}
 
@@ -398,7 +417,7 @@ namespace BongoJam {
 			{
 				unique_ptr<IfDeclaration> f_FallThroughCondition = make_unique<IfDeclaration>();
 
-				if (!ParseIfBlock(fp_CurrentScopeDepth, fp_IsInLoop, fp_CurrentToken, fp_ProgramTokens, fp_ProgramCounter, (fp_IfStatement), &(f_FallThroughCondition)))
+				if (not ParseIfBlock(fp_CurrentScopeDepth, fp_IsInLoop, fp_CurrentToken, fp_ProgramTokens, fp_ProgramCounter, (fp_IfStatement), &(f_FallThroughCondition)))
 				{
 					fp_ProgramTokens.clear();
 					return false;
@@ -412,7 +431,7 @@ namespace BongoJam {
 			{
 				unique_ptr<IfDeclaration> f_FallThroughCondition = make_unique<IfDeclaration>();
 
-				if (!ParseIfBlock(fp_CurrentScopeDepth, fp_IsInLoop, fp_CurrentToken, fp_ProgramTokens, fp_ProgramCounter, (f_CurrentStatement), &(f_FallThroughCondition)))
+				if (not ParseIfBlock(fp_CurrentScopeDepth, fp_IsInLoop, fp_CurrentToken, fp_ProgramTokens, fp_ProgramCounter, (f_CurrentStatement), &(f_FallThroughCondition)))
 				{
 					fp_ProgramTokens.clear();
 					return false;
@@ -426,7 +445,7 @@ namespace BongoJam {
 			{
 				unique_ptr<ElseDeclaration> f_ElseStatement = make_unique<ElseDeclaration>();
 
-				if (!ParseElseBlock(fp_CurrentScopeDepth, fp_IsInLoop, fp_CurrentToken, fp_ProgramTokens, fp_ProgramCounter, (f_CurrentStatement), &(f_ElseStatement)))
+				if (not ParseElseBlock(fp_CurrentScopeDepth, fp_IsInLoop, fp_CurrentToken, fp_ProgramTokens, fp_ProgramCounter, (f_CurrentStatement), &(f_ElseStatement)))
 				{
 					fp_ProgramTokens.clear();
 					return false;
@@ -441,7 +460,16 @@ namespace BongoJam {
 		}
 
 		bool
-			ParseElseBlock(uint32_t & fp_CurrentScopeDepth, bool fp_IsInLoop, Token & fp_CurrentToken, vector<Token>&fp_ProgramTokens, size_t & fp_ProgramCounter, unique_ptr<IfDeclaration>* fp_IfStatement, unique_ptr<ElseDeclaration>* fp_ElseBlock)
+			ParseElseBlock
+			(
+				uint32_t & fp_CurrentScopeDepth, 
+				bool fp_IsInLoop, 
+				Token & fp_CurrentToken, 
+				vector<Token>&fp_ProgramTokens, 
+				size_t & fp_ProgramCounter, 
+				unique_ptr<IfDeclaration>* fp_IfStatement, 
+				unique_ptr<ElseDeclaration>* fp_ElseBlock
+			)
 		{
 			unsigned int f_BracketDepthTracker = 0; //tracks the bracket level, we add as we find open parens, and subtract as we find closed parens
 
@@ -451,8 +479,8 @@ namespace BongoJam {
 			if (fp_CurrentToken.m_Type != TokenType::OpenBracket)
 			{
 				//THROW ERROR
-				LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error");
-				LogManager::Logger().LogAndPrint("Unrecognized symbol found in your else-block brother! Try taking a look at your '{ }' code-body wrappers", "Parser", "warn");
+				parser_logger->LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
+				parser_logger->LogAndPrint("Unrecognized symbol found in your else-block brother! Try taking a look at your '{ }' code-body wrappers", "Parser", Logger::LogLevel::Warning);
 				return false;
 			}
 
@@ -471,11 +499,11 @@ namespace BongoJam {
 				break;
 				case TokenType::Break:
 				{
-					if (!fp_IsInLoop)
+					if (not fp_IsInLoop)
 					{
 						//THROW ERROR
-						LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error");
-						LogManager::Logger().LogAndPrint("You are not allowed to use a break statement outside of a loop brother!", "Parser", "warn");
+						parser_logger->LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
+						parser_logger->LogAndPrint("You are not allowed to use a break statement outside of a loop brother!", "Parser", Logger::LogLevel::Warning);
 						return false;
 					}
 					//(*fp_IfStatement)->m_CodeBody.push_back(make_unique<BreakSubStatement>());
@@ -485,7 +513,7 @@ namespace BongoJam {
 				{
 					unique_ptr<IfDeclaration> s_NestedIfStatement = make_unique<IfDeclaration>();
 
-					if (!ParseIfBlock(fp_CurrentScopeDepth, fp_IsInLoop, fp_CurrentToken, fp_ProgramTokens, fp_ProgramCounter, &(s_NestedIfStatement)))
+					if (not ParseIfBlock(fp_CurrentScopeDepth, fp_IsInLoop, fp_CurrentToken, fp_ProgramTokens, fp_ProgramCounter, &(s_NestedIfStatement)))
 					{
 						fp_ProgramTokens.clear();
 						return false;
@@ -505,8 +533,8 @@ namespace BongoJam {
 			if (fp_CurrentToken.m_Type != TokenType::CloseBracket)
 			{
 				//THROW ERROR
-				LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error");
-				LogManager::Logger().LogAndPrint("Unrecognized expression found while declaring your function brother! Try taking a look at your function parameter(s) definition", "Parser", "warn");
+				parser_logger->LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
+				parser_logger->LogAndPrint("Unrecognized expression found while declaring your function brother! Try taking a look at your function parameter(s) definition", "Parser", Logger::LogLevel::Warning);
 				return false;
 			}
 
@@ -526,7 +554,15 @@ namespace BongoJam {
 		}
 
 		bool
-			ParseFuncDeclaration(uint32_t& fp_CurrentScopeDepth, Token& fp_CurrentToken, vector<Token>& fp_ProgramTokens, Program* fp_Program, size_t& fp_ProgramCounter, unique_ptr<FuncDeclaration>* fp_FuncBlock)
+			ParseFuncDeclaration
+			(
+				uint32_t& fp_CurrentScopeDepth, 
+				Token& fp_CurrentToken, 
+				vector<Token>& fp_ProgramTokens, 
+				Program* fp_Program, 
+				size_t& fp_ProgramCounter, 
+				unique_ptr<FuncDeclaration>* fp_FuncBlock
+			)
 		{
 			unsigned int f_BracketDepthTracker = 0; //tracks the bracket level, we add as we find open parens, and subtract as we find closed parens
 
@@ -536,8 +572,8 @@ namespace BongoJam {
 			if (fp_CurrentToken.m_Type != TokenType::UserIdentifier)
 			{
 				//THROW ERROR
-				LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error");
-				LogManager::Logger().LogAndPrint("Something bad happened while declaring your function brother! Try taking a look at your function name definition", "Parser", "warn");
+				parser_logger->LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
+				parser_logger->LogAndPrint("Something bad happened while declaring your function brother! Try taking a look at your function name definition", "Parser", Logger::LogLevel::Warning);
 				return false;
 			}
 			else //if it"s a proper name defintion then we can now proceed forwards
@@ -550,8 +586,8 @@ namespace BongoJam {
 			if (fp_CurrentToken.m_Type != TokenType::OpenParen)
 			{
 				//THROW ERROR
-				LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error");
-				LogManager::Logger().LogAndPrint("Something bad happened while declaring your function brother! Try taking a look at how you've placed your parenthesis", "Parser", "warn");
+				parser_logger->LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
+				parser_logger->LogAndPrint("Something bad happened while declaring your function brother! Try taking a look at how you've placed your parenthesis", "Parser", Logger::LogLevel::Warning);
 				return false;
 			}
 			else //if it"s an open paren then we"re clear to move forward and read the condition inside
@@ -572,8 +608,8 @@ namespace BongoJam {
 				if (fp_CurrentToken.m_Type != TokenType::UserIdentifier) //handles variables, function, and class instance names being passed as a single argument, could use this for some semi-dynamic typing xdxd
 				{
 					//THROW ERROR
-					LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error");
-					LogManager::Logger().LogAndPrint("Unrecognized symbol following an open parenthesis while declaring: " + (*fp_FuncBlock)->m_FuncName.m_Value + "'s arguments brother! Try taking a look at your function argument(s) defintion", "Parser", "warn");
+					parser_logger->LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
+					parser_logger->LogAndPrint("Unrecognized symbol following an open parenthesis while declaring: " + (*fp_FuncBlock)->m_FuncName.m_Value + "'s arguments brother! Try taking a look at your function argument(s) defintion", "Parser", Logger::LogLevel::Warning);
 					return false;
 				}
 
@@ -585,8 +621,8 @@ namespace BongoJam {
 				if (fp_CurrentToken.m_Type != TokenType::TypeArrow)
 				{
 					//THROW ERROR
-					LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error");
-					LogManager::Logger().LogAndPrint("Unrecognized symbol following a name definition while declaring: " + (*fp_FuncBlock)->m_FuncName.m_Value + "'s arguments brother! Try taking a look at your type-arrows", "Parser", "warn");
+					parser_logger->LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
+					parser_logger->LogAndPrint("Unrecognized symbol following a name definition while declaring: " + (*fp_FuncBlock)->m_FuncName.m_Value + "'s arguments brother! Try taking a look at your type-arrows", "Parser", Logger::LogLevel::Warning);
 					return false;
 				}
 
@@ -602,8 +638,8 @@ namespace BongoJam {
 					)
 				{
 					//THROW ERROR
-					LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error");
-					LogManager::Logger().LogAndPrint("Unrecognized type found while declaring: " + (*fp_FuncBlock)->m_FuncName.m_Value + "'s brother! Are you sure you've entered a valid type in " + (*fp_FuncBlock)->m_FuncName.m_Value + "'s argument definition?", "Parser", "warn");
+					parser_logger->LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
+					parser_logger->LogAndPrint("Unrecognized type found while declaring: " + (*fp_FuncBlock)->m_FuncName.m_Value + "'s brother! Are you sure you've entered a valid type in " + (*fp_FuncBlock)->m_FuncName.m_Value + "'s argument definition?", "Parser", Logger::LogLevel::Warning);
 					return false;
 				}
 
@@ -621,16 +657,16 @@ namespace BongoJam {
 					else
 					{
 						//THROW ERROR
-						LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error");
-						LogManager::Logger().LogAndPrint("Unexpected symbol found in: " + (*fp_FuncBlock)->m_FuncName.m_Value + "'s argument defintion! \n Try taking a look at your comma separation between function parameters", "Parser", "warn");
+						parser_logger->LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
+						parser_logger->LogAndPrint("Unexpected symbol found in: " + (*fp_FuncBlock)->m_FuncName.m_Value + "'s argument defintion! \n Try taking a look at your comma separation between function parameters", "Parser", Logger::LogLevel::Warning);
 						return false;
 					}
 				} //end of scope
 				else if (fp_CurrentToken.m_Type == TokenType::ENDF)
 				{
 					//THROW ERROR
-					LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error");
-					LogManager::Logger().LogAndPrint("End of file found instead of a closed parenthesis inside: " + (*fp_FuncBlock)->m_FuncName.m_Value + "'s definition! \n Make sure you end your function parameter definition with a ')'", "Parser", "warn");
+					parser_logger->LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
+					parser_logger->LogAndPrint("End of file found instead of a closed parenthesis inside: " + (*fp_FuncBlock)->m_FuncName.m_Value + "'s definition! \n Make sure you end your function parameter definition with a ')'", "Parser", Logger::LogLevel::Warning);
 					return false;
 				}
 			}
@@ -642,8 +678,8 @@ namespace BongoJam {
 			if (fp_CurrentToken.m_Type != TokenType::TypeArrow)
 			{
 				//THROW ERROR
-				LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error");
-				LogManager::Logger().LogAndPrint("Unexpected symbol found in: " + (*fp_FuncBlock)->m_FuncName.m_Value + "'s return type defintion! \n Try taking a look at your type-arrow definition", "Parser", "warn");
+				parser_logger->LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
+				parser_logger->LogAndPrint("Unexpected symbol found in: " + (*fp_FuncBlock)->m_FuncName.m_Value + "'s return type defintion! \n Try taking a look at your type-arrow definition", "Parser", Logger::LogLevel::Warning);
 				return false;
 			}
 			else
@@ -653,16 +689,16 @@ namespace BongoJam {
 			}
 
 			if (
-				fp_CurrentToken.m_Type != TokenType::Int &&
-				fp_CurrentToken.m_Type != TokenType::Float &&
-				fp_CurrentToken.m_Type != TokenType::Bool &&
-				fp_CurrentToken.m_Type != TokenType::String &&
+				fp_CurrentToken.m_Type != TokenType::Int and
+				fp_CurrentToken.m_Type != TokenType::Float and
+				fp_CurrentToken.m_Type != TokenType::Bool and
+				fp_CurrentToken.m_Type != TokenType::String and
 				fp_CurrentToken.m_Type != TokenType::UserIdentifier
-				)
+			   )
 			{
 				//THROW ERROR
-				LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error");
-				LogManager::Logger().LogAndPrint("Invalid type found in: " + (*fp_FuncBlock)->m_FuncName.m_Value + "'s return type defintion! \n Try taking a look at your type-arrow definition", "Parser", "warn");
+				parser_logger->LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
+				parser_logger->LogAndPrint("Invalid type found in: " + (*fp_FuncBlock)->m_FuncName.m_Value + "'s return type defintion! \n Try taking a look at your type-arrow definition", "Parser", Logger::LogLevel::Warning);
 				return false;
 			}
 			else
@@ -675,8 +711,8 @@ namespace BongoJam {
 			if (fp_CurrentToken.m_Type != TokenType::OpenBracket)
 			{
 				//THROW ERROR
-				LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error");
-				LogManager::Logger().LogAndPrint("Unrecognized symbol following " + (*fp_FuncBlock)->m_FuncName.m_Value + "'s function parameter definition! Try taking a look at your function body definition", "Parser", "warn");
+				parser_logger->LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
+				parser_logger->LogAndPrint("Unrecognized symbol following " + (*fp_FuncBlock)->m_FuncName.m_Value + "'s function parameter definition! Try taking a look at your function body definition", "Parser", Logger::LogLevel::Warning);
 				return false;
 			}
 			else
@@ -686,7 +722,7 @@ namespace BongoJam {
 			}
 
 			//parse function body definition
-			while (fp_CurrentToken.m_Type != TokenType::CloseBracket && fp_ProgramTokens.size() > 0)
+			while (fp_CurrentToken.m_Type != TokenType::CloseBracket and fp_ProgramTokens.size() > 0)
 			{
 				fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift forward to start parsing the function body
 				fp_ProgramCounter++;
@@ -714,7 +750,7 @@ namespace BongoJam {
 				{
 					Expr s_UserDefinedAction; //used for var reassignment, class method access
 
-					if (!ParseUserIdentifier(fp_CurrentScopeDepth, fp_CurrentToken, fp_ProgramTokens, fp_ProgramCounter, &s_UserDefinedAction))
+					if (not ParseUserIdentifier(fp_CurrentScopeDepth, fp_CurrentToken, fp_ProgramTokens, fp_ProgramCounter, &s_UserDefinedAction))
 					{
 						fp_ProgramTokens.clear(); //dump source code so that parsing ends immediately
 						return false;
@@ -730,7 +766,7 @@ namespace BongoJam {
 				{
 					ScopeDeclaration s_ScopeBlock;
 
-					if (!ParseScopeDeclaration(fp_CurrentScopeDepth, fp_CurrentToken, fp_ProgramTokens, fp_ProgramCounter, s_ScopeBlock))
+					if (not ParseScopeDeclaration(fp_CurrentScopeDepth, fp_CurrentToken, fp_ProgramTokens, fp_ProgramCounter, s_ScopeBlock))
 					{
 						fp_ProgramTokens.clear(); //dump source code so that parsing ends immediately
 						return false;
@@ -746,7 +782,7 @@ namespace BongoJam {
 				{
 					LetDeclaration s_VariableDefinition;
 
-					if (!ParseLetDeclaration(fp_CurrentScopeDepth, fp_CurrentToken, fp_ProgramTokens, fp_ProgramCounter, fp_Program, &s_VariableDefinition))
+					if (not ParseLetDeclaration(fp_CurrentScopeDepth, fp_CurrentToken, fp_ProgramTokens, fp_ProgramCounter, fp_Program, &s_VariableDefinition))
 					{
 						fp_ProgramTokens.clear(); //dump source code so that parsing ends immediately
 						return false;
@@ -762,7 +798,7 @@ namespace BongoJam {
 				{
 					unique_ptr<IfDeclaration> s_IfStatement = make_unique<IfDeclaration>();
 
-					if (!ParseIfBlock(fp_CurrentScopeDepth, false, fp_CurrentToken, fp_ProgramTokens, fp_ProgramCounter, &(s_IfStatement)))
+					if (not ParseIfBlock(fp_CurrentScopeDepth, false, fp_CurrentToken, fp_ProgramTokens, fp_ProgramCounter, &(s_IfStatement)))
 					{
 						fp_ProgramTokens.clear(); //dump source code so that parsing ends immediately
 						continue;
@@ -793,7 +829,14 @@ namespace BongoJam {
 		}
 
 		bool
-			ParseFunctionCall(uint32_t & fp_CurrentScopeDepth, Token & fp_CurrentToken, vector<Token>&fp_ProgramTokens, size_t & fp_ProgramCounter, FunctionCallExpr * fp_FuncCall)
+			ParseFunctionCall
+			(
+				uint32_t & fp_CurrentScopeDepth, 
+				Token & fp_CurrentToken, 
+				vector<Token>&fp_ProgramTokens, 
+				size_t & fp_ProgramCounter,
+				FunctionCallExpr * fp_FuncCall
+			)
 		{
 			unsigned int f_BracketDepthTracker = 0; //tracks the bracket level, we add as we find open parens, and subtract as we find closed parens
 
@@ -803,8 +846,8 @@ namespace BongoJam {
 			if (fp_CurrentToken.m_Type != TokenType::UserIdentifier)
 			{
 				//THROW ERROR
-				LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error");
-				LogManager::Logger().LogAndPrint("Something bad happened while declaring your function brother! Try taking a look at your function name definition", "Parser", "warn");
+				parser_logger->LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
+				parser_logger->LogAndPrint("Something bad happened while declaring your function brother! Try taking a look at your function name definition", "Parser", Logger::LogLevel::Warning);
 				return false;
 			}
 			else //if it"s a proper name defintion then we can now proceed forwards
@@ -817,8 +860,8 @@ namespace BongoJam {
 			if (fp_CurrentToken.m_Type != TokenType::OpenParen)
 			{
 				//THROW ERROR
-				LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error");
-				LogManager::Logger().LogAndPrint("Something bad happened while declaring your function brother! Try taking a look at how you've placed your parenthesis", "Parser", "warn");
+				parser_logger->LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
+				parser_logger->LogAndPrint("Something bad happened while declaring your function brother! Try taking a look at how you've placed your parenthesis", "Parser", Logger::LogLevel::Warning);
 				return false;
 			}
 			else //if it"s an open paren then we"re clear to move forward and read the condition inside
@@ -891,8 +934,8 @@ namespace BongoJam {
 				default:
 				{
 					//THROW ERROR
-					LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error");
-					LogManager::Logger().LogAndPrint("Something bad happened while calling a class method! Make sure you're calling the proper method name", "Parser", "warn");
+					parser_logger->LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
+					parser_logger->LogAndPrint("Something bad happened while calling a class method! Make sure you're calling the proper method name", "Parser", Logger::LogLevel::Warning);
 					return false;
 				}
 				break;
@@ -902,7 +945,15 @@ namespace BongoJam {
 		}
 
 		bool
-			ParseClassDeclaration(uint32_t & fp_CurrentScopeDepth, Token & fp_CurrentToken, vector<Token>&fp_ProgramTokens, size_t & fp_ProgramCounter, ClassDeclaration & fp_ClassBlock, bool fp_IsSingle)
+			ParseClassDeclaration
+			(
+				uint32_t & fp_CurrentScopeDepth, 
+				Token & fp_CurrentToken, 
+				vector<Token>&fp_ProgramTokens, 
+				size_t & fp_ProgramCounter, 
+				ClassDeclaration & fp_ClassBlock, 
+				bool fp_IsSingle
+			)
 		{
 			fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift forward to look for an user defined identifier eg. "class MyClass"
 			fp_ProgramCounter++;
@@ -915,8 +966,8 @@ namespace BongoJam {
 				if (fp_CurrentToken.m_Type != TokenType::OpenBracket)
 				{
 					//THROW ERROR
-					LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error");
-					LogManager::Logger().LogAndPrint("Something bad happened while declaring your class brother! Did you remember an open bracket?", "Parser", "warn");
+					parser_logger->LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
+					parser_logger->LogAndPrint("Something bad happened while declaring your class brother! Did you remember an open bracket?", "Parser", Logger::LogLevel::Warning);
 					return false;
 				}
 
@@ -929,8 +980,8 @@ namespace BongoJam {
 			else
 			{
 				//THROW ERROR
-				LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error");
-				LogManager::Logger().LogAndPrint("Something bad happened while declaring your class brother! Did you remember an open bracket?", "Parser", "warn");
+				parser_logger->LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
+				parser_logger->LogAndPrint("Something bad happened while declaring your class brother! Did you remember an open bracket?", "Parser", Logger::LogLevel::Warning);
 				return false;
 			}
 
@@ -938,7 +989,14 @@ namespace BongoJam {
 		}
 
 		bool
-			ParseStructDeclaration(uint32_t& fp_CurrentScopeDepth, Token& fp_CurrentToken, vector<Token>& fp_ProgramTokens, size_t& fp_ProgramCounter, StructDeclaration& fp_StructBlock)
+			ParseStructDeclaration
+			(
+				uint32_t& fp_CurrentScopeDepth, 
+				Token& fp_CurrentToken, 
+				vector<Token>& fp_ProgramTokens, 
+				size_t& fp_ProgramCounter, 
+				StructDeclaration& fp_StructBlock
+			)
 		{
 			fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift forward to look for an user defined identifier eg. "class MyClass"
 			fp_ProgramCounter++;
@@ -951,8 +1009,8 @@ namespace BongoJam {
 				if (fp_CurrentToken.m_Type != TokenType::OpenBracket)
 				{
 					//THROW ERROR
-					LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error");
-					LogManager::Logger().LogAndPrint("Something bad happened while declaring your class brother! Did you remember an open bracket?", "Parser", "warn");
+					parser_logger->LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
+					parser_logger->LogAndPrint("Something bad happened while declaring your class brother! Did you remember an open bracket?", "Parser", Logger::LogLevel::Warning);
 					return false;
 				}
 
@@ -965,8 +1023,8 @@ namespace BongoJam {
 			else
 			{
 				//THROW ERROR
-				LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error");
-				LogManager::Logger().LogAndPrint("Something bad happened while declaring your class brother! Did you remember an open bracket?", "Parser", "warn");
+				parser_logger->LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
+				parser_logger->LogAndPrint("Something bad happened while declaring your class brother! Did you remember an open bracket?", "Parser", Logger::LogLevel::Warning);
 				return false;
 			}
 
@@ -1008,8 +1066,8 @@ namespace BongoJam {
 			if (fp_CurrentToken.m_Type != TokenType::UserIdentifier)
 			{
 				//THROW ERROR
-				LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error");
-				LogManager::Logger().LogAndPrint("Something bad happened while declaring a variable brother! Try taking a look at the variable name definition", "Parser", "warn");
+				parser_logger->LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
+				parser_logger->LogAndPrint("Something bad happened while declaring a variable brother! Try taking a look at the variable name definition", "Parser", Logger::LogLevel::Warning);
 				return false;
 			}
 			else
@@ -1022,8 +1080,8 @@ namespace BongoJam {
 			if (fp_CurrentToken.m_Type != TokenType::TypeArrow)
 			{
 				//THROW ERROR
-				LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error");
-				LogManager::Logger().LogAndPrint("Invalid symbol found after name-definition while declaring a variable brother! Try taking a look at the variable type-arrow definition", "Parser", "warn");
+				parser_logger->LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
+				parser_logger->LogAndPrint("Invalid symbol found after name-definition while declaring a variable brother! Try taking a look at the variable type-arrow definition", "Parser", Logger::LogLevel::Warning);
 				return false;
 			}
 			else
@@ -1032,22 +1090,22 @@ namespace BongoJam {
 				fp_ProgramCounter++;
 			}
 
-			if (fp_CurrentToken.m_Type == TokenType::Public || fp_CurrentToken.m_Type == TokenType::Protected)
+			if (fp_CurrentToken.m_Type == TokenType::Public or fp_CurrentToken.m_Type == TokenType::Protected)
 			{
 
 			}
 
 			if (
-				fp_CurrentToken.m_Type != TokenType::UserIdentifier && //used for user defined types, if this isn"t a type we"ll catch it as a runtime error
-				fp_CurrentToken.m_Type != TokenType::Int && //actually refering to the type itself and not the literal value
-				fp_CurrentToken.m_Type != TokenType::Float &&
-				fp_CurrentToken.m_Type != TokenType::String &&
+				fp_CurrentToken.m_Type != TokenType::UserIdentifier and //used for user defined types, if this isn"t a type we"ll catch it as a runtime error
+				fp_CurrentToken.m_Type != TokenType::Int and //actually refering to the type itself and not the literal value
+				fp_CurrentToken.m_Type != TokenType::Float and
+				fp_CurrentToken.m_Type != TokenType::String and
 				fp_CurrentToken.m_Type != TokenType::Bool
 				)
 			{
 				//THROW ERROR
-				LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error");
-				LogManager::Logger().LogAndPrint("Something bad happened while declaring a variable brother! Try taking a look at the variable type definition", "Parser", "warn");
+				parser_logger->LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
+				parser_logger->LogAndPrint("Something bad happened while declaring a variable brother! Try taking a look at the variable type definition", "Parser", Logger::LogLevel::Warning);
 				return false;
 			}
 			else
@@ -1060,8 +1118,8 @@ namespace BongoJam {
 			if (fp_CurrentToken.m_Type != TokenType::Equals)
 			{
 				//THROW ERROR
-				LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error");
-				LogManager::Logger().LogAndPrint("Unexpected symbol found after type-indicator while declaring a variable brother! Try taking a look at the variable type definition", "Parser", "warn");
+				parser_logger->LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
+				parser_logger->LogAndPrint("Unexpected symbol found after type-indicator while declaring a variable brother! Try taking a look at the variable type definition", "Parser", Logger::LogLevel::Warning);
 				return false;
 			}
 			else
@@ -1070,7 +1128,7 @@ namespace BongoJam {
 				fp_ProgramCounter++;
 			}
 
-			while (fp_ProgramTokens.size() > 0 && fp_CurrentToken.m_Type != TokenType::SemiDot) //parse equality expression
+			while (fp_ProgramTokens.size() > 0 and fp_CurrentToken.m_Type != TokenType::SemiDot) //parse equality expression
 			{
 				switch (fp_CurrentToken.m_Type)
 				{
@@ -1099,16 +1157,16 @@ namespace BongoJam {
 					if (!FindStringInVector(fp_Program->m_ListClassNames, fp_CurrentToken.m_Value))
 					{
 						//THROW ERROR
-						LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error");
-						LogManager::Logger().LogAndPrint("Undefined class type found while declaring a variable brother! Are you defining this variable before your class definition?", "Parser", "warn");
+						parser_logger->LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
+						parser_logger->LogAndPrint("Undefined class type found while declaring a variable brother! Are you defining this variable before your class definition?", "Parser", Logger::LogLevel::Warning);
 						return false;
 					}
 				}
 				break;
 				default:
 					//THROW ERROR
-					LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error");
-					LogManager::Logger().LogAndPrint("Invalid value found while declaring a variable brother! Try taking a look at the variable value definition", "Parser", "warn");
+					parser_logger->LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
+					parser_logger->LogAndPrint("Invalid value found while declaring a variable brother! Try taking a look at the variable value definition", "Parser", Logger::LogLevel::Warning);
 					return false;
 					break;
 				}
@@ -1137,8 +1195,8 @@ namespace BongoJam {
 			if (fp_CurrentToken.m_Type != TokenType::OpenParen)
 			{
 				//THROW ERROR
-				LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error");
-				LogManager::Logger().LogAndPrint("Unexpected symbol found when '(' was expected during a print() call!", "Parser", "warn");
+				parser_logger->LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
+				parser_logger->LogAndPrint("Unexpected symbol found when '(' was expected during a print() call!", "Parser", Logger::LogLevel::Warning);
 				return false;
 			}
 			else
@@ -1150,8 +1208,8 @@ namespace BongoJam {
 			if (fp_CurrentToken.m_Type != TokenType::StringLiteral)
 			{
 				//THROW ERROR
-				LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error");
-				LogManager::Logger().LogAndPrint("Tried to pass a non-text data type when text was expected! Try taking a look at your print() call argument", "Parser", "warn");
+				parser_logger->LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
+				parser_logger->LogAndPrint("Tried to pass a non-text data type when text was expected! Try taking a look at your print() call argument", "Parser", Logger::LogLevel::Warning);
 				return false;
 			}
 			else
@@ -1170,8 +1228,8 @@ namespace BongoJam {
 				if (fp_CurrentToken.m_Type != TokenType::StringLiteral)
 				{
 					//THROW ERROR
-					LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error");
-					LogManager::Logger().LogAndPrint("Tried to pass a non-text data type when text was expected! Try taking a look at your print() call colour argument", "Parser", "warn");
+					parser_logger->LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
+					parser_logger->LogAndPrint("Tried to pass a non-text data type when text was expected! Try taking a look at your print() call colour argument", "Parser", Logger::LogLevel::Warning);
 					return false;
 				}
 				else
@@ -1187,8 +1245,8 @@ namespace BongoJam {
 			if (fp_CurrentToken.m_Type != TokenType::CloseParen)
 			{
 				//THROW ERROR
-				LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error");
-				LogManager::Logger().LogAndPrint("Unexpected symbol found when ')' was expected during a print() call!", "Parser", "warn");
+				parser_logger->LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
+				parser_logger->LogAndPrint("Unexpected symbol found when ')' was expected during a print() call!", "Parser", Logger::LogLevel::Warning);
 				return false;
 			}
 			else
@@ -1200,8 +1258,8 @@ namespace BongoJam {
 			if (fp_CurrentToken.m_Type != TokenType::SemiDot)
 			{
 				//THROW ERROR
-				LogManager::Logger().LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", "error");
-				LogManager::Logger().LogAndPrint("Unexpected symbol found when ';' was expected after a call to print()", "Parser", "warn");
+				parser_logger->LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
+				parser_logger->LogAndPrint("Unexpected symbol found when ';' was expected after a call to print()", "Parser", Logger::LogLevel::Warning);
 				return false;
 			}
 			//we let the main while loop ShiftForward() off of the ';'
@@ -1310,7 +1368,7 @@ namespace BongoJam {
 					break;
 				default:
 				{
-					LogManager::Logger().LogAndPrint("Compiler Error: Improper grammar found in source code at line " + to_string(f_CurrentToken.m_SourceCodeLineNumber), "Parser", "error");
+					parser_logger->LogAndPrint("Compiler Error: Improper grammar found in source code at line " + to_string(f_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
 					f_ProgramTokens.clear(); //dump all tokens, so that the compiler will stop processing the source code
 				}
 				break; //OwO
