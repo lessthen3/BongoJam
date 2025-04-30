@@ -9,7 +9,7 @@
  *  BongoJam is an open-source scripting language compiler and interpreter
  *              primarily intended for embedding within game engines.
 ********************************************************************/
-#include "../../include/compiler/ConfigManager.h"
+#include "../../include/ConfigManager.h"
 #include "../../include/compiler/Compiler.h"
 #include "../../include/runtime/Interpreter.h"
 
@@ -55,11 +55,6 @@ static void
 int 
     main(int fp_ArgCount, char* fp_ArgVector[])
 {
-    //Enable ANSI colour codes for windows console grumble grumble
-    #if defined(_WIN32) || defined(_WIN64)
-        EnableColors();
-    #endif
-
     ConfigManager Configs; //initializes with default settings
 
     BongoCompiler* BongoJamCompiler = new BongoCompiler();

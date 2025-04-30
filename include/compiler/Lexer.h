@@ -140,6 +140,8 @@ namespace BongoJam {
 		//////////////////// Error Handling ////////////////////
 
 		Panic,
+		StaticAssert,
+		Assert,
 
 		//////////////////// Types ////////////////////
 
@@ -155,7 +157,6 @@ namespace BongoJam {
 		False,
 		String,
 		StringLiteral,
-		Any,
 
 		List,
 		Dictionary,
@@ -309,6 +310,8 @@ namespace BongoJam {
 		//////////////////// Error Handling ////////////////////
 		
 		{"panic", TokenType::Panic}, //stops program execution and prints a message
+		{"static_assert", TokenType::StaticAssert}, //runtime assert
+		{"assert", TokenType::Assert}, //compile time assert
 
 		//////////////////// Types ////////////////////
 
@@ -322,7 +325,6 @@ namespace BongoJam {
 		{"true", TokenType::True},
 		{"false", TokenType::False},
 		{"text", TokenType::String},
-		{"any", TokenType::Any},
 
 		{"List", TokenType::List},
 		{"Dictionary", TokenType::Dictionary},
@@ -354,8 +356,8 @@ namespace BongoJam {
 		{"clock", TokenType::Clock},
 		{"typeof", TokenType::TypeOf},
 
-		{"up_cast", TokenType::UpCast},
-		{"down_cast", TokenType::DownCast},
+		{"up_cast", TokenType::UpCast}, //used for dynamically casting to a parent type
+		{"down_cast", TokenType::DownCast}, //used for dynamically casting to a child type
 		{"static_cast", TokenType::StaticCast},
 
 		{"len", TokenType::Length},
@@ -443,7 +445,7 @@ namespace BongoJam {
 				f_CurrentLineNumber++;
 				continue; //we can shift forwards confidently since we're currently on the newline character
 			}
-			else if (f_IsCurrentlyInsideComment || isspace(f_CurrentChar))
+			else if (f_IsCurrentlyInsideComment or isspace(f_CurrentChar))
 			{
 				continue;
 			}
@@ -454,7 +456,7 @@ namespace BongoJam {
 			{
 				string f_Number = ""; // >w<
 
-				while (fp_SourceCode.size() > 0 && isdigit(f_CurrentChar))
+				while (fp_SourceCode.size() > 0 and isdigit(f_CurrentChar))
 				{
 					f_Number += f_CurrentChar;
 					f_CurrentChar = ShiftForward(fp_SourceCode); //shift to next character
@@ -495,7 +497,7 @@ namespace BongoJam {
 				continue; //move to next iteration
 			}
 
-			else if (isalpha(f_CurrentChar) or f_CurrentChar == '_')
+			else if (isalpha(f_CurrentChar) or f_CurrentChar == '_') //used for keywords, and user identifiers like enum, class or var names
 			{
 				string f_Identifier = ""; //start with NOTHING
 
@@ -506,7 +508,7 @@ namespace BongoJam {
 					f_ProgramCounter++;
 				}
 
-				if (KEYWORDS.find(f_Identifier) == KEYWORDS.end())
+				if (KEYWORDS.find(f_Identifier) == KEYWORDS.end()) //if identifier is not a keyword then its just tokenized assuming its a var name or smth
 				{
 					fp_Tokens.emplace_back(f_Identifier, TokenType::UserIdentifier, f_CurrentLineNumber);
 				}
@@ -738,7 +740,7 @@ namespace BongoJam {
 				{
 					string f_TypeArrow = ""; //ik whats coming next, but for conventions sake
 
-					while (fp_SourceCode.size() > 0 && f_CurrentChar == '-')
+					while (fp_SourceCode.size() > 0 and f_CurrentChar == '-')
 					{
 						f_TypeArrow += f_CurrentChar;
 						f_CurrentChar = ShiftForward(fp_SourceCode);

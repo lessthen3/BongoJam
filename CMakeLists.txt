@@ -83,13 +83,12 @@ target_include_directories(bongo_runtime PUBLIC include/runtime)
 
 #### Executable Target for CLI
 
-# Add executable based on source files
 add_executable(bongo 
 
     src/compiler/main.cpp
 )
 
-# Link the library with the executable
+# Link the libraries with bongo CLI
 target_link_libraries(bongo PRIVATE 
     bongoC
     bongo_runtime
@@ -106,4 +105,19 @@ target_link_libraries(bongo_runtime PUBLIC
     ZLIB::ZLIB
 )
 
-#READ THE ANNOTATED TURING UWU
+####################################### Set Startup Project (Visual Studio & Xcode)
+
+# Set bongo CLI as the default scheme in Xcode
+
+if(CMAKE_GENERATOR MATCHES "Xcode")
+    set(CMAKE_XCODE_GENERATE_SCHEME TRUE)
+    set(CMAKE_XCODE_SCHEME_EXECUTABLE bongo)
+    message(STATUS "Setting bongo as the default startup project for Xcode")
+endif()
+
+# Set bongo CLI as the startup project for Visual Studio
+
+if(CMAKE_GENERATOR MATCHES "Visual Studio")
+    set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT bongo)
+    message(STATUS "Setting bongo as the default startup project for VS2022")
+endif()

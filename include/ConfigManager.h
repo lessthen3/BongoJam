@@ -13,8 +13,6 @@
 
 #include "../Logger.h"
 
-using namespace std;
-
 namespace BongoJam {
 
     struct ConfigManager

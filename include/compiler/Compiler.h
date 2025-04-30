@@ -35,7 +35,7 @@ namespace BongoJam {
 	// Opcodes Lookup for Translation
 	//////////////////////////////////////////////
 
-	enum class OPCODES_LOOKUP: uint8_t //these opcodes are flags that indicate to the interpreter what information is going to follow it in the byte stream
+	enum class OPCODES: uint16_t //these opcodes are flags that indicate to the interpreter what information is going to follow it in the byte stream
 	{
 		NOP = 0x00,
 
@@ -110,11 +110,11 @@ namespace BongoJam {
 		// Follows a Variable Assignment flag
 
 		LOAD = 0x024, //stack allocates a var
-		UNLOAD = 0x025, //dereferences stack alloc'd var in interpreter
+		FREE = 0x025, //dereferences stack alloc'd var in interpreter
 		MOVE = 0x026, //move() semantic
 		COPY = 0x027, //used for copying vars
 		HEAP_ALLOC = 0x028, //used for heap allocations
-		HEAP_DE_ALLOC = 0x029, //delete baby
+		HEAP_FREE = 0x029, //delete baby
 
 		PRINT = 0x02A,
 		CLOCK = 0x02B,
@@ -137,7 +137,9 @@ namespace BongoJam {
 		ARCCOS = 0x038,
 
 		LOG = 0x039,
-		FACTORIAL = 0x03A
+		FACTORIAL = 0x03A,
+
+		HALT = 0xFFFF
 	};
 
 	struct BongoCompiler
@@ -168,25 +170,37 @@ namespace BongoJam {
 			return move(f_FirstElement);
 		}
 
-		void
+		bool
 			WriteBytecodeToFile
 			(
-				const string & fp_DesiredOutputDirectory, 
-				const string & fp_DesiredName, 
-				const vector<uint8_t>&fp_ByteCode,
+				const vector<uint8_t>& fp_ByteCode,
+				const string& fp_DesiredOutputDirectory, 
+				const string& fp_DesiredName, 
 				Logger* logger
 			)
 		{
-			//LogManager::Logger().LogAndPrint("Bytecode size: " + to_string(fp_ByteCode.size()), "Compiler", "info", "cyan");
-
-			if (fp_ByteCode.empty())
+			if (not logger)
 			{
-				logger->LogAndPrint("Compiler Error: Failed to write " + fp_DesiredName + " for writing.\nNo bytecode to write.", "Compiler", Logger::LogLevel::Error);
+				PrintError("Compiler Error: Tried to pass nullptr reference to logger during WriteBytecodeToFile()");
+				return false;
 			}
+			// Ensure directory exists
+			else if (not filesystem::exists(fp_DesiredOutputDirectory))
+			{
+				logger->LogAndPrint(format("Tried to pass invalid write directory: '{}' to WriteBytecodeToFile()", fp_DesiredOutputDirectory), "Compiler", Logger::LogLevel::Error);
+				return false;
+			}
+			else if (fp_ByteCode.empty())
+			{
+				logger->LogAndPrint("Failed to write " + fp_DesiredName + " for writing. No bytecode found to write.", "Compiler", Logger::LogLevel::Error);
+				return false;
+			}
+
+			//LogManager::Logger().LogAndPrint("Bytecode size: " + to_string(fp_ByteCode.size()), "Compiler", "info", "cyan");
 
 			string f_BongoFileName;
 
-			if (fp_DesiredOutputDirectory == "./")
+			if (fp_DesiredOutputDirectory == "./")// ????????
 			{
 				f_BongoFileName = "./" + fp_DesiredName + ".bongo";
 			}
@@ -200,13 +214,15 @@ namespace BongoJam {
 			if (not file)
 			{
 				logger->LogAndPrint("Compiler Error: Failed to open " + f_BongoFileName + " for writing.", "Compiler", Logger::LogLevel::Error);
-				return;
+				return false;
 			}
 
 			// Write the entire contents of the vector to the file
 			file.write(reinterpret_cast<const char*>(fp_ByteCode.data()), fp_ByteCode.size());
 
 			file.close();  // Close the file
+
+			return true;
 		}
 
 		bool
@@ -217,6 +233,24 @@ namespace BongoJam {
 				Logger* logger
 			)
 		{
+			if (not logger)
+			{
+				PrintError("Compiler Error: Tried to pass nullptr reference to logger during ReadFileIntoString()");
+				return false;
+			}
+			//check for nullptr
+			else if (not fp_SourceCode)
+			{
+				logger->LogAndPrint("Nullptr reference passed to ReadFileIntoString()", "Compiler", Logger::LogLevel::Error);
+				return false;
+			}
+			// Ensure directory exists
+			else if (not filesystem::exists(fp_ScriptFilePath))
+			{
+				logger->LogAndPrint("Tried to pass invalid filepath to ReadFileIntoString()", "Compiler", Logger::LogLevel::Error);
+				return false;
+			}
+
 			// Extract file extension assuming format "filename.ext"
 			size_t lastDotIndex = fp_ScriptFilePath.rfind('.');
 
@@ -236,7 +270,7 @@ namespace BongoJam {
 
 			ifstream f_FileStream(fp_ScriptFilePath);
 
-			if (!f_FileStream)
+			if (not f_FileStream)
 			{
 				logger->LogAndPrint("Compiler Error: Failed to open bongojam script for reading.", "Compiler", Logger::LogLevel::Error);
 				return false;
@@ -245,6 +279,7 @@ namespace BongoJam {
 			stringstream f_Buffer;
 			f_Buffer << f_FileStream.rdbuf();
 			*fp_SourceCode = f_Buffer.str();
+
 			return true;
 		}
 
@@ -420,7 +455,7 @@ namespace BongoJam {
 
 			//////////////////// Write the Compiled Byte Code to a File ////////////////////
 
-			WriteBytecodeToFile(fp_DesiredOutputDirectory, fp_DesiredOutputFileName, f_CompiledByteCode, logger);
+			WriteBytecodeToFile(f_CompiledByteCode, fp_DesiredOutputDirectory, fp_DesiredOutputFileName, logger);
 			f_CompiledByteCode.clear(); //dump the vector since the code has been written to a file hopefully >w<
 
 			delete f_BongoProgram;
