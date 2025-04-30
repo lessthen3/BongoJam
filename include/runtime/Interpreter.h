@@ -33,7 +33,9 @@ namespace BongoJam {
 			runtime_logger = make_unique<Logger>();
 			runtime_logger->Initialize("RuntimeLogger", "../logs");
 
-			runtime_logger->LogAndPrint("UWUWUWUWUWUWUWUW", "Parser", Logger::LogLevel::Info);
+			#ifdef _DEBUG
+				runtime_logger->LogAndPrint("BongoJamInterpreter Logger intialized properly!", "BongoJamInterpreter", Logger::LogLevel::Info);
+			#endif
 		}
 
 		~BongoJamInterpreter() = default;
@@ -390,10 +392,10 @@ namespace BongoJam {
 		uint32_t
 			RunBongoScript(const string& fp_BongoScriptName)
 		{
-			//Enable ANSI colour codes for windows console grumble grumble
-			#if defined(_WIN32) || defined(_WIN64)
-				EnableColors();
-			#endif
+			////Enable ANSI colour codes for windows console grumble grumble
+			//#if defined(_WIN32) || defined(_WIN64)
+			//	EnableColors();
+			//#endif
 
 			vector<uint8_t> f_ByteCode;
 
@@ -469,7 +471,9 @@ namespace BongoJam {
 				}
 			}
 
-			runtime_logger->LogAndPrint("BongoJam program exited with code 0", "Interpreter", Logger::LogLevel::Debug);
+			cout << "\n\n"; //XXX: padding for exit msg and last print msg from user script
+
+			runtime_logger->Log("BongoJam program exited with code 0", "Interpreter", Logger::LogLevel::Debug);
 			Print("\nBongoJam program exited with code 0", Colours::BrightCyan);
 
 			return EXIT_SUCCESS;

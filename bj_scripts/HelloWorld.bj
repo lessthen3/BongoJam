@@ -1,0 +1,7 @@
+//This is how you would print hello world in bongojam!
+
+func main() -> int
+{
+    print("Hello World", "magenta");
+    //return 0;
+}

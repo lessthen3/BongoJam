@@ -27,7 +27,9 @@ namespace BongoJam {
 			parser_logger = make_unique<Logger>();
 			parser_logger->Initialize("ParsingLogger", "../logs");
 
-			parser_logger->LogAndPrint("UWUWUWUWUWUWUWUW", "Parser", Logger::LogLevel::Info);
+			#ifdef _DEBUG
+				parser_logger->LogAndPrint("Parser Logger intialized properly!", "Parser", Logger::LogLevel::Info);
+			#endif
 		}
 
 		~Parser() = default;

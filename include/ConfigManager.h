@@ -36,12 +36,33 @@ namespace BongoJam {
         vector<string>* m_DesiredLogs = nullptr; //ptr so i can do a bool check
 
         void
+            PrintConfigsToConsole()
+            const
+        {
+            cout
+                << "\n\n" //XXX: used for spacing messages from CLI call
+                << CreateColouredText("Script File Path: ", Colours::BrightYellow)
+                << CreateColouredText(m_ScriptFilePath, Colours::BrightCyan)
+                << "\n"
+                << CreateColouredText("Output File Name: ", Colours::BrightYellow)
+                << CreateColouredText(m_OutputFileName + ".bongo", Colours::BrightCyan)
+                << "\n"
+                << CreateColouredText("Output Directory: ", Colours::BrightYellow)
+                << CreateColouredText(m_BongoFileOutputDirectory, Colours::BrightCyan)
+                << "\n"
+                << CreateColouredText("Log Output Directory: ", Colours::BrightYellow)
+                << CreateColouredText(m_LogOutputDirectory, Colours::BrightCyan)
+                << "\n\n"
+                ;
+        }
+
+        void
             CreateDefaultConfigs()
             const
         {
             ofstream f_Configs("configs.ini");
 
-            if (!f_Configs)
+            if (not f_Configs)
             {
                 PrintError("Failed to create default settings file.");
                 return;
@@ -64,7 +85,7 @@ namespace BongoJam {
         {
             ofstream f_Configs("configs.ini");
 
-            if (!f_Configs)
+            if (not f_Configs)
             {
                 PrintError("Failed to open config file for writing.");
                 return;
