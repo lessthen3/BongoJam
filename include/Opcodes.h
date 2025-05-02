@@ -1,3 +1,14 @@
+﻿/*******************************************************************
+ *                                        BongoJam Script v0.0.3
+ *                           Created by Ranyodh Mandur - 🔥 2024
+ *
+ *                         Licensed under the MIT License (MIT).
+ *                  For more details, see the LICENSE file or visit:
+ *                        https://opensource.org/licenses/MIT
+ *
+ * BongoJam is a free open source scripting language, compiler and interpreter
+ *              primarily intended for embedding within game engines.
+********************************************************************/
 #pragma once
 
 #include <stdint.h>
@@ -6,9 +17,9 @@
 // Opcodes Lookup for Translation
 //////////////////////////////////////////////
 
-enum class OPCODES : uint16_t //these opcodes are flags that indicate to the interpreter what information is going to follow it in the byte stream
+enum OPCODES : uint8_t //these opcodes are flags that indicate to the interpreter what information is going to follow it in the byte stream
 {
-	NOP = 0x0000,
+	NOP = 0x00,
 
 	//////////////////// Basic Math Operations ////////////////////
 
@@ -20,34 +31,57 @@ enum class OPCODES : uint16_t //these opcodes are flags that indicate to the int
 
 	POW,
 	SQRT,
+	MOD,
+
+	CEIL,
+	FLOOR,
 
 	//////////////////// Memory Operations ////////////////////
 
-	LOAD_VAL,
-	LOAD_CONST,
+	///Stack
+	PUSH, //stack allocates a var
+	POP, //frees stack alloc'd var in interpreter
+	STORE_LOCAL,
+	LOAD_LOCAL,
+	/// Heap
+	HEAP_ALLOC, //used for creating heap allocations
+	HEAP_FREE, //delete baby, frees a heap alloc
+	STORE_GLOBAL, //stores a value at heap address
+	LOAD_GLOBAL, //loads a global heap value
 
-	STACK_ALLOC, //stack allocates a var
-	STACK_FREE, //dereferences stack alloc'd var in interpreter
-	MOVE, //move() semantic
-	COPY, //used for copying vars
-	HEAP_ALLOC, //used for heap allocations
-	HEAP_FREE, //delete baby
+	COPY,
+	MOVE,
 
 	//////////////////// Control Flow Operations ////////////////////
 
 	JUMP,
 	JUMP_IF,
+	JUMP_NZ,
+	JUMP_NE,
 
-	CMP,
+	CMP_SIGNED,
+	CMP_UNSIGNED, //unsigned integer compar
+	CMP_EQ, //==
+	CMP_NE,  //!=
+	CMP_LT, // <
+	CMP_GT, // >
+	CMP_LE, // <=
+	CMP_GE, // >=
+
+	RET,
+	LABEL,
+	CALL,
 
 	//////////////////// Extern Call for C/C++ ////////////////////
 
-	NATIVE_CALL,
+	NATIVE_CALL, //call into native code baked into runtime
+	EXTERN_CALL, //call to dynamically loaded C/C++
 
-	//////////////////// OS Access Codes ////////////////////
+	//////////////////// Syscalls ////////////////////
 
 	STDOUT,
 	STDERR,
+	STDIN,
 
 	CLOCK_START,
 	CLOCK_END,
@@ -55,12 +89,31 @@ enum class OPCODES : uint16_t //these opcodes are flags that indicate to the int
 	SLEEP,
 	THREAD,
 
-	INPUT,
+	//////////////////// Internal VM Tracking Codes ////////////////////
+
+	///Debugging
+	LINE_NUMBER, //Used for tracking the exact line of code that threw a runtime error
+	DEBUG_LINE,
+	BREAKPOINT, 
+	///Reflection
+	TYPE_TAG,
+	THREAD_ID,
+
+	//////////////////// Error Handling ////////////////////
+
+	THROW,
+	TRY,
+	CATCH,
+	EXCEPTION,
 
 	//////////////////// Primitive Types ////////////////////
 
 	INT_VALUE,
+	UNSIGNED_INT_VALUE,
+
 	FLOAT_VALUE,
+	DOUBLE_VALUE,
+
 	BOOL_VALUE, //false or true follows, 0 = false, 1 = true as always
 
 	CHAR_VALUE,
@@ -68,65 +121,21 @@ enum class OPCODES : uint16_t //these opcodes are flags that indicate to the int
 
 	VOID_VALUE,
 
-	//////////////////// Unsure ////////////////////
-
-	COLOURIZE,
-	STRING_LITERAL, //used for detecting constant strings in the byte code for translation during runtime
-	EXCEPTION,
-	ROUND_UP,
-	ROUND_DOWN,
-
-	POWER,
-	EXP,
-
-	SIN,
-	COS,
-	SINH,
-	COSH,
-	ARCSIN,
-	ARCCOS,
-
-	LOG,
-	FACTORIAL,
-
-	//////////////////// Built-in Class Types ////////////////////
-
-	VEC2,
-	VEC3,
-	VEC4,
-
-	MAT2,
-	MAT3,
-	MAT4,
-	MAT,
-
 	//////////////////// Boolean Comparison Operations ////////////////////
 
 	LOGICAL_AND,
 	LOGICAL_OR,
 	LOGICAL_NOT,
 
-	LINE_NUMBER, //Used for tracking the exact line of code that threw a runtime error
-
-	VARIABLE_REASSIGNMENT,
-
 	//////////////////// Function/Method Operations ////////////////////
 
-	FUNCTION_DEFINITION,
-	METHOD_DEFINITION,
+	FUNC_ENTER,
+	FUNC_LEAVE,
 
-	FUCTION_CALL,
-	METHOD_CALL,
+	LOAD_ARG,
+	STORE_ARG,
 
-	FUNCTION_RETURN,
+	//////////////////// Stop op UwU ////////////////////
 
-	//////////////////// Class/Struct Operations ////////////////////
-
-	CLASS_DEFINITION,
-	STRUCT_DEFINITION,
-
-	CLASS_CONSTRUCTOR,
-	STRUCT_CONSTRUCTOR,
-
-	HALT = 0xFFFF
+	HALT = 0xFF //>O<
 };

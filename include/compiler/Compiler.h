@@ -270,12 +270,12 @@ namespace BongoJam {
 			vector<Token> f_ProgramTokens;
 			Tokenize(f_SourceCode, f_ProgramTokens, logger);
 
-			Program* f_BongoProgram = f_BongoParser.ConstructAST(f_ProgramTokens);
+			Program f_BongoProgram = f_BongoParser.ConstructAST(f_ProgramTokens); //doesnt need to be heap alloc'd since its just a bunch of vectors and maps
 
 			//////////////////// Check for Main Func ////////////////////
 
 			vector<uint8_t> f_CompiledByteCode;
-			unique_ptr<FuncDeclaration> f_MainFunc = move(f_BongoProgram->m_ProgramFunctions.back());
+			unique_ptr<FuncDeclaration> f_MainFunc = move(f_BongoProgram.m_ProgramFunctions.back());
 
 			if (f_MainFunc->m_FuncName.m_Value != "main")
 			{
@@ -306,8 +306,8 @@ namespace BongoJam {
 				{
 				case SyntaxNodeType::PrintFunction:
 				{
-					f_CompiledByteCode.push_back(0x02A); //print function opcode
-					f_CompiledByteCode.push_back(0x0AA); //STRING_LITERAL
+					f_CompiledByteCode.push_back(STDOUT); //print function opcode
+					f_CompiledByteCode.push_back(STRING_VALUE); //STRING_LITERAL
 
 					PrintFunction* _pf = dynamic_cast<PrintFunction*>(f_CurrentProgramStatement.get());
 					string s_TextColour = "white";
@@ -347,9 +347,6 @@ namespace BongoJam {
 
 			WriteBytecodeToFile(f_CompiledByteCode, fp_DesiredOutputDirectory, fp_DesiredOutputFileName, logger);
 			f_CompiledByteCode.clear(); //dump the vector since the code has been written to a file hopefully >w<
-
-			delete f_BongoProgram;
-			f_BongoProgram = nullptr;
 
 			return true;
 		}

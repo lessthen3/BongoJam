@@ -1393,14 +1393,14 @@ namespace BongoJam {
 		// Main Processing Function
 		//////////////////////////////////////////////
 
-		Program*
+		Program
 			ConstructAST(vector<Token>& fp_ProgramTokens)
 		{
 			vector<StatementNode> f_ProgramStatements;
 
 			map<string, uint32_t> f_VariableToScopeMap;
 
-			Program* f_Program = new Program();
+			Program f_Program;
 
 			size_t f_ProgramCounter = 0;
 			uint32_t f_CurrentScopeDepth = 0; //0 indicates global scope, everytime a nested if or while or for is called, we increase the scopedepth by 1
@@ -1427,14 +1427,14 @@ namespace BongoJam {
 				{
 					unique_ptr<FuncDeclaration> s_FunctionDefintion = make_unique<FuncDeclaration>();
 
-					if (not ParseFuncDeclaration(f_CurrentScopeDepth, f_CurrentToken, fp_ProgramTokens, f_Program, f_ProgramCounter, &s_FunctionDefintion))
+					if (not ParseFuncDeclaration(f_CurrentScopeDepth, f_CurrentToken, fp_ProgramTokens, &f_Program, f_ProgramCounter, &s_FunctionDefintion))
 					{
 						fp_ProgramTokens.clear(); //dump source code so that parsing ends immediately
 						continue;
 					}
 					else
 					{
-						(f_Program)->m_ProgramFunctions.push_back(move(s_FunctionDefintion));
+						f_Program.m_ProgramFunctions.push_back(move(s_FunctionDefintion));
 						//at the end of the top-level conditional flow, we will have overstepped a single token since our algorithm involves checking the next token after '}' to look for an else/else-if
 						f_ShouldShift = true;
 

@@ -15,11 +15,11 @@
 
 using namespace BongoJam;
 
-constexpr int NO_ARGUMENT_PROVIDED = -1;
-constexpr int UNKNOWN_OR_INCOMPLETE_ARGUMENT = -2;
-constexpr int INVALID_SET_ARGUMENT = -3;
-constexpr int INVALID_SCRIPT_TARGET = -4;
-constexpr int SCRIPT_DOES_NOT_EXIST = -5;
+constexpr int NO_ARGUMENT_PROVIDED = -1001;
+constexpr int UNKNOWN_OR_INCOMPLETE_ARGUMENT = -1002;
+constexpr int INVALID_SET_ARGUMENT = -1003;
+constexpr int INVALID_SCRIPT_TARGET = -1004;
+constexpr int SCRIPT_DOES_NOT_EXIST = -1005;
 
 
 static void

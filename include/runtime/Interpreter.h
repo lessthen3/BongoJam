@@ -19,14 +19,20 @@
 
 constexpr const uint32_t MAX_STACK_SIZE = 8192;
 
-constexpr const uint32_t FAILED_TO_READ_BYTECODE = -6901;
+constexpr const uint32_t FAILED_TO_READ_BYTECODE = -9999;
+
+/// Error Codes
+constexpr const uint32_t INDEX_OUT_OF_BOUNDS = -6900;
+constexpr const uint32_t HEAP_READ_VIOLATION = -6901;
+constexpr const uint32_t HEAP_WRITE_VIOLATION = -6902;
+
+constexpr const uint32_t STACK_OVERFLOW = -6969; // :^)
 
 namespace BongoJam {
 
 	class
 		BongoJamInterpreter
 	{
-
 		unique_ptr<Logger> runtime_logger = nullptr;
 	public:
 		BongoJamInterpreter()
@@ -40,6 +46,16 @@ namespace BongoJam {
 		}
 
 		~BongoJamInterpreter() = default;
+
+		//Enable ANSI colour codes for windows console grumble grumble
+		#if (defined(_WIN32) or defined(_WIN64))
+			bool
+				EnableWindowsANSIColourCodes()
+			{
+				EnableColors();
+				runtime_logger->LogAndPrint("Colours codes for Windows activated", "Interpreter", Logger::LogLevel::Info);
+			}
+		#endif
 	private:
 		//////////////////////////////////////////////
 		// Read Bongo Code
@@ -215,7 +231,7 @@ namespace BongoJam {
 
 			for (_p; _p < fp_ByteCode->size(); _p++)
 			{
-				if ((*fp_ByteCode)[_p] == 0x0AA) //bongo-code for a String literal
+				if ((*fp_ByteCode)[_p] == STRING_VALUE) //bongo-code for a String literal
 				{
 					_p++; //advance one to look for string size
 
@@ -224,13 +240,7 @@ namespace BongoJam {
 					size_t f_InitialIndex = _p; //start index of actual string index bytes
 
 					//push the actual string put together into a vector
-					ListOfDecodedStrings.push_back
-					(
-						make_unique<string>
-						(
-							DecodeUTF8String((fp_ByteCode), &_p)
-						)
-					);
+					ListOfDecodedStrings.push_back(DecodeUTF8String((fp_ByteCode), &_p));
 
 					//encode the uint32_t that represents the index of the string
 					vector<uint8_t> f_IndexBytes;
@@ -254,150 +264,57 @@ namespace BongoJam {
 		// Class Members
 		//////////////////////////////////////////////
 
-		vector<unique_ptr<string>> ListOfDecodedStrings;
-
-		//variable suffix legend:
-		//_n indicates the scope its defined in
-		//__classname indicates that this belongs to a class with name classname
+		vector<string> ListOfDecodedStrings;
 
 		//////////////////// Actual Variable Containers ////////////////////
 
-		//we use shared_ptr's here so we can free the memory occupied by the variable, without shifting the vector if its removed or if its conditionally allocated
-		//so at most, we are wasting 8-bytes of memory on a 64-bit system for any conditionally defined variables that didn't hit their branch
-		//all vars are encoded from the compiler statically
-		//std::option might work better, but im go the shared_ptr route for now, since i think it'll help with reference counting.
-		//also we use shared_ptr over unique_ptr because we wanna allow variable referencing
-		//
-		//we use stacks to manage scopes, each new scope currently gets another vector added on top each depth, however we should optimize to only add needed types, but whatever
-		// adding a scope is as simple as pushing a vector onto the vector, where removing a scope is just popping a vector off the vector
-		// 
-		//variables are encoded using a uint32_t, where the high byte indicates the scope number depth, and the other 24-bits are the var-id as a uint24 essentially
-		//the goal with this setup is to avoid hash maps for lookups, and name each variable according to their (scope-depth, vector-position) 
-		// so that calling a variable is as simple as passing its var-id as the vector index on the correct variable-vector
-		//essentially, 0 is the index for variables defined on a global scale
-		//
-		//as an added benefit of using shared_ptr, it greatly decreases the complexity of referencing and copying for primitive types
-		//since adding a reference is simply just inlining the bytecode var-id for the variable being referenced
+		vector<int8_t> INT8_HEAP;
+		vector<int16_t> INT16_HEAP;
+		vector<int32_t> INT32_HEAP;
+		vector<int64_t> INT64_HEAP;
 
-		vector<
-			vector<
-				shared_ptr<int32_t>
+		vector<uint8_t> UNSIGNED_INT8_HEAP;
+		vector<uint16_t> UNSIGNED_INT16_HEAP;
+		vector<uint32_t> UNSIGNED_INT32_HEAP;
+		vector<uint64_t> UNSIGNED_INT64_HEAP;
 
-			>> m_ListOfCurrentlyScopedIntegers;
+		vector<float> FLOAT_HEAP;
+		vector<double> DOUBLE_HEAP;
 
-		vector<
-			vector<
-				shared_ptr<uint32_t>
+		vector<bool> BOOL_HEAP; //XXX: probably could just use the uint heap
 
-			>> m_ListOfCurrentlyScopedUnsignedIntegers;
+		vector<string> STRING_HEAP;
 
-		vector<
-			vector<
-				shared_ptr<float>
+		vector<char> CHARACTER_HEAP;
 
-			>> m_ListOfCurrentlyScopedFloats;
-
-		vector<
-			vector<
-				shared_ptr<bool>
-
-			>> m_ListOfCurrentlyScopedBools;
-
-		vector<
-			vector<
-				shared_ptr<string>
-
-			>> m_ListOfCurrentlyScopeStrings;
-
-		vector<
-			vector<
-				shared_ptr<char>
-			
-			>> m_ListOfCurrentlyScopedCharacters;
-
-		//used for user defined types, references are used for primitive types outta the box by using shared_ptr
-		vector<
-			vector<
-				unique_ptr<void*> //idk what these will be because idk how im dealing with class/struct types defined by the user
-
-			>> m_ListOfCurrentlyScopedLeashes;
-
-		vector<
-			vector<
-				unique_ptr<void*>
-
-			>> m_ListOfCurrentlyScopedBorrowers;
-
-		//TODO: we need a way to deal with how recursive functions scope their vars, since if we auto scope every func call, then recursive functions will allocate WAYYYY too many vectors
+		vector<void*> VOID_STAR_HEAP;
 
 		//////////////////////////////////////////////
 		// Utility Functions
 		//////////////////////////////////////////////
 
-		//TODO: find a way to optimize scope creation for required variables only, it's not a big deal, but if theres a way that'd be cool
 		void
 			AddNewScope()
 		{
-			m_ListOfCurrentlyScopedIntegers.push_back(vector<shared_ptr<int32_t>>());
-			m_ListOfCurrentlyScopedUnsignedIntegers.push_back(vector<shared_ptr<uint32_t>>());
-			m_ListOfCurrentlyScopedFloats.push_back(vector<shared_ptr<float>>());
-
-			m_ListOfCurrentlyScopedBools.push_back(vector<shared_ptr<bool>>());
-
-			m_ListOfCurrentlyScopeStrings.push_back(vector<shared_ptr<string>>());
-			m_ListOfCurrentlyScopedCharacters.push_back(vector<shared_ptr<char>>());
-
-			m_ListOfCurrentlyScopedLeashes.push_back(vector<unique_ptr<void*>>());
-			m_ListOfCurrentlyScopedBorrowers.push_back(vector<unique_ptr<void*>>());
 
 		}
 
 		void 
 			RemoveCurrentScope()
 		{
-			m_ListOfCurrentlyScopedIntegers.pop_back(); //removes current scope because the last entry of the vector is the most recent scope
-			m_ListOfCurrentlyScopedUnsignedIntegers.pop_back();
-			m_ListOfCurrentlyScopedFloats.pop_back();
-
-			m_ListOfCurrentlyScopedBools.pop_back();
-
-			m_ListOfCurrentlyScopeStrings.pop_back();
-			m_ListOfCurrentlyScopedCharacters.pop_back();
-
-			m_ListOfCurrentlyScopedLeashes.pop_back();
-			m_ListOfCurrentlyScopedBorrowers.pop_back();
+			
 		}
 
-		//class Class // :^)
-		//{
-		//public:
-		//	string m_ClassName;
+		void
+			CreateNewStackFrame()
+		{
 
-		//	Class()
-		//	{
-
-		//	}
-		//};
-
-		//struct Struct
-		//{
-		//	string m_StructName;
-
-		//	Struct()
-		//	{
-
-		//	}
-		//};
+		}
 
 	public:
 		uint32_t
 			RunBongoScript(const string& fp_BongoScriptName)
 		{
-			////Enable ANSI colour codes for windows console grumble grumble
-			//#if defined(_WIN32) || defined(_WIN64)
-			//	EnableColors();
-			//#endif
-
 			vector<uint8_t> f_ByteCode;
 
 			if (not ReadBytecodeFromFile(fp_BongoScriptName, f_ByteCode)) //stop execution immediately if the file was not able to be read
@@ -414,24 +331,41 @@ namespace BongoJam {
 
 			size_t _l = 0; //line counter
 
+			uint32_t STACK_POINTER = 0;
+
 			for (size_t _p = 0; _p < f_Size; _p++)
 			{
 				//cout << _p << "\n";
 				
 				switch (f_ByteCode[_p])
 				{
-				case 0xFF: //new-line bongo-code
+				case PUSH:
+
+					break;
+				case POP:
+
+					break;
+				case LINE_NUMBER: //new-line bongo-code
 				{
 					_l++;
 					continue;
 				}
 				break;
-				case 0x01:
+				case ADD:
 				{
 
 				}
 				break;
-				case 0x02: //function call
+				case SUB:
+
+				break;
+				case MULT:
+
+					break;
+				case DIV:
+
+					break;
+				case FUNC_ENTER: //function call
 				{
 					_p++;
 
@@ -449,23 +383,33 @@ namespace BongoJam {
 
 				}
 				break;
-				case 0x02A: //print function
+				case STDOUT: //print function
 				{
 					_p++; //shift program pointer to the next byte so that we can read the string
 
 					//we're going to decode the utf8 string directly from the bytecode, however we should do a once-over and decode all function names for the lib versions of the compiled bytecode
-					if (f_ByteCode[_p] == 0x0AA)
+					if (f_ByteCode[_p] == STRING_VALUE)
 					{
 						_p++; //shift forward for the string vector index
 
-						cout << *ListOfDecodedStrings[Decode32BitInt(&f_ByteCode, &_p)];
+						cout << ListOfDecodedStrings[Decode32BitInt(&f_ByteCode, &_p)];
 					}
 					continue;
 				}
 				break;
+				//XXX: Compiler should always pad a halt call w a exit code after
+				case HALT: //XXX: used for exit() or abort() calls
+				{
+					_p++; //shift stack pointer ahead once to check for exit code
+					uint32_t f_ExitCode = f_ByteCode[_p];
+					cout << "\n\n"; //XXX: padding for exit msg and last print msg from user script
+					Print(format("\nBongoJam program exited with code {}", f_ExitCode), Colours::BrightCyan);
+					return f_ExitCode; //SHOULD return number returned by bj script main func
+				}
+				break;
 				default:
 					//THROW ERROR
-					runtime_logger->LogAndPrint("INTERNAL RUNTIME ERROR: Error at Line Number: "+to_string(_l)+", Error at BYTE-CODE: "+to_string(f_ByteCode[_p]), "Interpreter", Logger::LogLevel::Fatal);
+					runtime_logger->LogAndPrint(format("INTERNAL RUNTIME ERROR: Error at Line Number: {}, Error at BYTE-CODE: {}", _l, f_ByteCode[_p]), "Interpreter", Logger::LogLevel::Fatal);
 					runtime_logger->LogAndPrint("Something terrible happened while running the code, invalid bytecode was generated by the compiler (sorry not your fault I think LOL)", "Interpreter", Logger::LogLevel::Error);
 					runtime_logger->LogAndPrint("BongoJam program exited with code -1", "Interpreter", Logger::LogLevel::Debug);
 					return EXIT_FAILURE;
@@ -481,56 +425,77 @@ namespace BongoJam {
 		}
 
 
-		string
-			Add(const string& fp_First, const string& fp_Second)
-			const
+		template<typename Tx, typename Ty, typename RetType>
+		inline RetType 
+			Add(Tx __Tx, Ty __Ty)
+			noexcept
 		{
-			return fp_First + fp_Second;
+			return static_cast<RetType>(__Tx + __Ty);
 		}
 
-		string
-			Add(const int fp_First, const string& fp_Second)
-			const
+		template<typename Tx, typename Ty, typename RetType>
+		inline RetType
+			Subtract(Tx __Tx, Ty __Ty)
+			noexcept
 		{
-			return to_string(fp_First) + fp_Second;
+			return static_cast<RetType>(__Tx - __Ty);
 		}
 
-		string
-			Add(const float fp_First, const string& fp_Second)
-			const
+		template<typename Tx, typename Ty, typename RetType>
+		inline RetType
+			Multiply(Tx __Tx, Ty __Ty)
+			noexcept
 		{
-			return to_string(fp_First) + fp_Second;
+			return static_cast<RetType>(__Tx * __Ty);
 		}
 
-		string
-			const
-			Add(const bool fp_First, const string& fp_Second)
-			const
+		template<typename Tx, typename Ty, typename RetType>
+		inline RetType
+			Divide(Tx __Tx, Ty __Ty)
+			noexcept
 		{
-			return to_string(fp_First) + fp_Second;
+			return static_cast<RetType>(__Tx / __Ty);
 		}
 
-		string
-			Add(const string& fp_First, const int fp_Second)
-			const
+		template<typename Tx, typename Ty>
+		inline bool
+			CompareLessThan(Tx __Left, Ty __Right)
+			noexcept
 		{
-			return to_string(fp_Second) + fp_First;
+			return __Left < __Right;
 		}
 
-		string
-			Add(const string& fp_First, const float fp_Second)
-			const
+		template<typename Tx, typename Ty>
+		inline bool
+			CompareLessThanEquals(Tx __Left, Ty __Right)
+			noexcept
 		{
-			return to_string(fp_Second) + fp_First;
+			return __Left <= __Right;
 		}
 
-		string
-			Add(const string& fp_First, const bool fp_Second)
-			const
+		template<typename Tx, typename Ty>
+		inline bool
+			CompareGreaterThan(Tx __Left, Ty __Right)
+			noexcept
 		{
-			return fp_First + to_string(fp_Second);
+			return __Left > __Right;
 		}
 
+		template<typename Tx, typename Ty>
+		inline bool
+			CompareGreaterThanEquals(Tx __Left, Ty __Right)
+			noexcept
+		{
+			return __Left >= __Right;
+		}
+
+		template<typename Tx, typename Ty>
+		inline bool
+			CompareEquals(Tx __Left, Ty __Right)
+			noexcept
+		{
+			return __Left == __Right;
+		}
 	};
 
 
