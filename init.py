@@ -86,14 +86,14 @@ def run_cmake(fp_BuildType: str, fp_Generator: str) -> bool:
     #Determine if we need `--config`
     f_IsMultiConfig = fp_Generator in ["vs2022", "vs2019", "vs2017", "vs2015", "xcode", "ninja-mc"]
 
-    f_CMakeConfigCommand = ['cmake', '-S', '.', '-B', 'build', '-G', f_GeneratorMap[fp_Generator]]
-
-    if not f_IsMultiConfig:
-        if fp_BuildType == "both":
-            print(CreateColouredText("[ERROR]: Invalid build type selected: YOU CANNOT USE BOTH WHEN GENERATING FOR A SINGLE CONFIG GENERATOR", "red"))
-            return False
-        else:
-            f_CMakeConfigCommand += ['-DCMAKE_BUILD_TYPE=' + fp_BuildType.capitalize()]
+    f_CMakeConfigCommand = ['cmake', '-S', '.', '-B', './build', '-G', f_GeneratorMap[fp_Generator]]
+                            
+    if (not f_IsMultiConfig) and fp_BuildType == "both":
+        print(CreateColouredText("[ERROR]: Invalid build type selected: YOU CANNOT USE BOTH WHEN GENERATING FOR A SINGLE CONFIG GENERATOR", "red"))
+        return False
+    
+    elif not f_IsMultiConfig:
+        f_CMakeConfigCommand += [f'-DCMAKE_BUILD_TYPE={fp_BuildType.capitalize()}']
 
     #Step 1: CMake Project Generation
     try:
@@ -120,7 +120,7 @@ def run_cmake(fp_BuildType: str, fp_Generator: str) -> bool:
             print(CreateColouredText(f"[INFO]: Running CMake single config build for {fp_BuildType}...", "green"))
 
             subprocess.run(
-                ['cmake', '--build', 'build'],
+                ['cmake', '--build', './build'],
                 check=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE
@@ -141,7 +141,7 @@ def run_cmake(fp_BuildType: str, fp_Generator: str) -> bool:
             print(CreateColouredText("[INFO]: Running CMake build for Debug...", "green"))
 
             subprocess.run(
-                ['cmake', '--build', 'build', '--config', 'Debug'],
+                ['cmake', '--build', './build', '--config', 'Debug'],
                 check=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE
@@ -160,7 +160,7 @@ def run_cmake(fp_BuildType: str, fp_Generator: str) -> bool:
             print(CreateColouredText("[INFO]: Running CMake build for Release...", "green"))
 
             subprocess.run(
-                ['cmake', '--build', 'build', '--config', 'Release'],
+                ['cmake', '--build', './build', '--config', 'Release'],
                 check=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE

@@ -15,6 +15,7 @@
 #include <memory>
 
 #include "../Binder.h"
+#include "../Opcodes.h"
 
 constexpr const uint32_t MAX_STACK_SIZE = 8192;
 

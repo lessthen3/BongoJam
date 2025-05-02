@@ -1,6 +1,6 @@
 /*******************************************************************
- *                                        BongoJam Script v0.3                                        
- *                           Created by Ranyodh Mandur - � 2024                            
+ *                                        BongoJam Script v0.0.3                                        
+ *                           Created by Ranyodh Mandur - 🔥 2024                            
  *                                                                                                                  
  *                         Licensed under the MIT License (MIT).                           
  *                  For more details, see the LICENSE file or visit:                     
@@ -166,7 +166,6 @@ namespace BongoJam {
 	{
 		SyntaxNodeType m_Domain = SyntaxNodeType::None;
 		virtual ~StatementNode() {}
-		//virtual llvm::Value* codegen() = 0;
 	};
 
 	struct Expr : public StatementNode
@@ -637,10 +636,8 @@ namespace BongoJam {
 	};
 
 
-	struct Program : public StatementNode
+	struct Program
 	{
-		Program() { m_Domain = SyntaxNodeType::Program; }
-
 		vector<ClassDeclaration> m_ProgramClasses; //contains all statements held inside the main func
 		vector<StructDeclaration> m_ProgramStructs;
 

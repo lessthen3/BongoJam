@@ -95,7 +95,13 @@ namespace BongoJam {
 
 		//this method will find the smallest possible expression formed by the tokens following the number token, and return it
 		bool
-			ParseNumber(Token & fp_CurrentToken, vector<Token>&fp_ProgramTokens, size_t & fp_ProgramCounter, Expr * fp_NumberExpr)
+			ParseNumber
+			(
+				Token& fp_CurrentToken, 
+				vector<Token>& fp_ProgramTokens, 
+				size_t& fp_ProgramCounter, 
+				Expr* fp_NumberExpr
+			)
 		{
 
 
@@ -107,34 +113,141 @@ namespace BongoJam {
 		//////////////////////////////////////////////
 
 		Expr
-			ParseAdditionExpr(Token & fp_CurrentToken, vector<Token>&fp_Tokens)
+			ParseAdditionExpr
+			(
+				Token& fp_CurrentToken, 
+				Expr& fp_Expression, 
+				vector<Token>&fp_Tokens
+			)
 		{
+			switch (fp_CurrentToken.m_Type)
+			{
+				case TokenType::AdditionOperator:
 
+					break;
+				case TokenType::MultiplicationOperator:
+
+					break;
+				case TokenType::NegativeOperator:
+
+					break;
+				case TokenType::DivisionOperator:
+
+					break;
+				case TokenType::UserIdentifier: //XXX: used for function calls
+
+					break;
+				default:
+					parser_logger->LogAndPrint(format("found : '{}', when mathematical expression was expected", fp_CurrentToken.m_Value), "Parser", Logger::LogLevel::Error);
+					fp_Tokens.clear(); //XXX: probaly should keep parsing after finding an error for intellisense and to list ALL errors not just one at a time so multiple compile attempts arent required
+				}
 		}
 
 		Expr
-			ParseSubtractionExpr()
+			ParseSubtractionExpr
+			(
+				Token& fp_CurrentToken, 
+				Expr& fp_Expression, 
+				vector<Token>& fp_Tokens
+			)
 		{
+			switch (fp_CurrentToken.m_Type)
+			{
+				case TokenType::AdditionOperator:
 
+					break;
+				case TokenType::MultiplicationOperator:
+
+					break;
+				case TokenType::NegativeOperator:
+
+					break;
+				case TokenType::DivisionOperator:
+
+					break;
+				case TokenType::UserIdentifier: //XXX: used for function calls
+
+					break;
+				default:
+					parser_logger->LogAndPrint(format("found : '{}', when mathematical expression was expected", fp_CurrentToken.m_Value), "Parser", Logger::LogLevel::Error);
+					fp_Tokens.clear(); //XXX: probaly should keep parsing after finding an error for intellisense and to list ALL errors not just one at a time so multiple compile attempts arent required
+				}
 		}
 
 		Expr
-			ParseMultiplicationExpr()
+			ParseMultiplicationExpr
+			(
+				Token& fp_CurrentToken, 
+				Expr& fp_Expression, 
+				vector<Token>& fp_Tokens
+			)
 		{
+			switch (fp_CurrentToken.m_Type)
+			{
+				case TokenType::AdditionOperator:
 
+					break;
+				case TokenType::MultiplicationOperator:
+
+					break;
+				case TokenType::NegativeOperator:
+
+					break;
+				case TokenType::DivisionOperator:
+
+					break;
+				case TokenType::UserIdentifier: //XXX: used for function calls
+
+					break;
+				default:
+					parser_logger->LogAndPrint(format("found : '{}', when mathematical expression was expected", fp_CurrentToken.m_Value), "Parser", Logger::LogLevel::Error);
+					fp_Tokens.clear(); //XXX: probaly should keep parsing after finding an error for intellisense and to list ALL errors not just one at a time so multiple compile attempts arent required
+				}
 		}
 
 		Expr
-			ParseDivisionExpr()
+			ParseDivisionExpr
+			(
+				Token& fp_CurrentToken, 
+				Expr& fp_Expression, 
+				vector<Token>& fp_Tokens
+			)
 		{
+			switch (fp_CurrentToken.m_Type)
+			{
+				case TokenType::AdditionOperator:
 
+					break;
+				case TokenType::MultiplicationOperator:
+
+					break;
+				case TokenType::NegativeOperator:
+
+					break;
+				case TokenType::DivisionOperator:
+
+					break;
+				case TokenType::UserIdentifier: //XXX: used for function calls
+
+					break;
+				default:
+					parser_logger->LogAndPrint(format("found : '{}', when mathematical expression was expected", fp_CurrentToken.m_Value), "Parser", Logger::LogLevel::Error);
+					fp_Tokens.clear(); //XXX: probaly should keep parsing after finding an error for intellisense and to list ALL errors not just one at a time so multiple compile attempts arent required
+				}
 		}
 
 		//this function is used to deal with user defined tokens relating to lines of code like "myVar = newVal;" or "myClass.myFunc();" or "myFunc();"		    handled by ParseNumber()
 		//we also deal with expressions formed within method or function calls, so this method will return an expression ending with ';' or ',' eg. myFunc(1, 3 + otherFunc(), otherFunc() * 2);
 		//																																					called					      called
 		bool
-			ParseUserIdentifier(uint32_t & fp_CurrentScopeDepth, Token & fp_CurrentToken, vector<Token>&fp_ProgramTokens, size_t & fp_ProgramCounter, Expr * fp_UserIdentifier)
+			ParseUserIdentifier
+			(
+				uint32_t& fp_CurrentScopeDepth, 
+				Token& fp_CurrentToken, 
+				vector<Token>& fp_ProgramTokens, 
+				size_t& fp_ProgramCounter, 
+				Expr* fp_UserIdentifier
+			)
 		{
 			fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift forward one token to check for any accessor symbols
 			fp_ProgramCounter++;
@@ -156,7 +269,7 @@ namespace BongoJam {
 				}
 
 				//TODO: figure out how to differentiate between nested classes and methods
-				while (fp_ProgramTokens.size() > 0 && fp_CurrentToken.m_Type != TokenType::SemiDot)
+				while (fp_ProgramTokens.size() > 0 and fp_CurrentToken.m_Type != TokenType::SemiDot)
 				{
 
 				}
@@ -238,11 +351,11 @@ namespace BongoJam {
 		bool
 			ParseIfBlock
 			(
-				uint32_t & fp_CurrentScopeDepth, 
+				uint32_t& fp_CurrentScopeDepth, 
 				bool fp_IsInLoop, 
-				Token & fp_CurrentToken,
-				vector<Token>&fp_ProgramTokens, 
-				size_t &fp_ProgramCounter, 
+				Token& fp_CurrentToken,
+				vector<Token>& fp_ProgramTokens, 
+				size_t& fp_ProgramCounter, 
 				unique_ptr<IfDeclaration>* fp_IfStatement, 
 				unique_ptr<IfDeclaration>* fp_ElseIfStatement = nullptr
 			)
@@ -277,7 +390,7 @@ namespace BongoJam {
 			//if fp_IsElse is true, then this will skip over the condition section uwu
 
 			//parse through the condition "( cond )"
-			while (fp_ProgramTokens.size() > 0 && f_BracketDepthTracker > 0)
+			while (fp_ProgramTokens.size() > 0 and f_BracketDepthTracker > 0)
 			{
 				fp_CurrentToken = ShiftForward(fp_ProgramTokens); //we can shift now since we"re sitting on "(" right now, and have handled it"s logic
 				fp_ProgramCounter++;
@@ -301,7 +414,7 @@ namespace BongoJam {
 				{
 					Expr s_NumberExpr;
 
-					if (!ParseNumber(fp_CurrentToken, fp_ProgramTokens, fp_ProgramCounter, &s_NumberExpr))
+					if (not ParseNumber(fp_CurrentToken, fp_ProgramTokens, fp_ProgramCounter, &s_NumberExpr))
 					{
 						return false;
 					}
@@ -355,7 +468,7 @@ namespace BongoJam {
 			}
 
 			//parse the if-statement code body
-			while (fp_ProgramTokens.size() > 0 && f_BracketDepthTracker > 0)
+			while (fp_ProgramTokens.size() > 0 and f_BracketDepthTracker > 0)
 			{
 
 				fp_CurrentToken = ShiftForward(fp_ProgramTokens); //we can shift now since we"re sitting on "(" right now, and have handled it"s logic
@@ -415,7 +528,7 @@ namespace BongoJam {
 			// 
 			//this top call is for else-if chains longer than 1, this logic flow ensures that the second if, starts an else-if chain, and the first if maintains the if statement as the primary list holder
 			//opposed to each else-if statement chaining to each other like a tree, making iteration a nightmare, needing a traversal across pointer de-referencing across n-layers of the tree oof
-			if (fp_CurrentToken.m_Type == TokenType::Elif && fp_ElseIfStatement)
+			if (fp_CurrentToken.m_Type == TokenType::Elif and fp_ElseIfStatement)
 			{
 				unique_ptr<IfDeclaration> f_FallThroughCondition = make_unique<IfDeclaration>();
 
@@ -487,7 +600,7 @@ namespace BongoJam {
 			}
 
 			//parse the else code body
-			while (fp_ProgramTokens.size() > 0 && f_BracketDepthTracker > 0)
+			while (fp_ProgramTokens.size() > 0 and f_BracketDepthTracker > 0)
 			{
 
 				fp_CurrentToken = ShiftForward(fp_ProgramTokens); //we can shift now since we"re sitting on "(" right now, and have handled it"s logic
@@ -735,7 +848,7 @@ namespace BongoJam {
 				{
 					unique_ptr<PrintFunction> s_PrintFunctionCall = make_unique<PrintFunction>();
 
-					if (!ParsePrintFunction(fp_CurrentScopeDepth, fp_CurrentToken, fp_ProgramTokens, fp_ProgramCounter, &s_PrintFunctionCall))
+					if (not ParsePrintFunction(fp_CurrentScopeDepth, fp_CurrentToken, fp_ProgramTokens, fp_ProgramCounter, &s_PrintFunctionCall))
 					{
 						fp_ProgramTokens.clear(); //dump source code so that parsing ends immediately
 						return false;
@@ -780,7 +893,7 @@ namespace BongoJam {
 					}
 				}
 				break;
-				case TokenType::Let:
+				case TokenType::Var:
 				{
 					LetDeclaration s_VariableDefinition;
 
@@ -833,11 +946,11 @@ namespace BongoJam {
 		bool
 			ParseFunctionCall
 			(
-				uint32_t & fp_CurrentScopeDepth, 
-				Token & fp_CurrentToken, 
-				vector<Token>&fp_ProgramTokens, 
-				size_t & fp_ProgramCounter,
-				FunctionCallExpr * fp_FuncCall
+				uint32_t& fp_CurrentScopeDepth, 
+				Token& fp_CurrentToken, 
+				vector<Token>& fp_ProgramTokens, 
+				size_t& fp_ProgramCounter,
+				FunctionCallExpr* fp_FuncCall
 			)
 		{
 			unsigned int f_BracketDepthTracker = 0; //tracks the bracket level, we add as we find open parens, and subtract as we find closed parens
@@ -874,7 +987,7 @@ namespace BongoJam {
 			bool f_ShouldShiftFuncArgs = false;
 
 			//FUNCTION ARGUMENTS
-			while (fp_ProgramTokens.size() > 0 && f_BracketDepthTracker > 0)
+			while (fp_ProgramTokens.size() > 0 and f_BracketDepthTracker > 0)
 			{
 				if (f_ShouldShiftFuncArgs) //used for accounting for over stepped tokens in the while loop logic
 				{
@@ -898,7 +1011,7 @@ namespace BongoJam {
 				{
 					Expr s_UserDefinedAction; //used for var reassignment, class method access
 
-					if (!ParseUserIdentifier(fp_CurrentScopeDepth, fp_CurrentToken, fp_ProgramTokens, fp_ProgramCounter, &s_UserDefinedAction))
+					if (not ParseUserIdentifier(fp_CurrentScopeDepth, fp_CurrentToken, fp_ProgramTokens, fp_ProgramCounter, &s_UserDefinedAction))
 					{
 						return false;
 					}
@@ -949,11 +1062,11 @@ namespace BongoJam {
 		bool
 			ParseClassDeclaration
 			(
-				uint32_t & fp_CurrentScopeDepth, 
-				Token & fp_CurrentToken, 
-				vector<Token>&fp_ProgramTokens, 
-				size_t & fp_ProgramCounter, 
-				ClassDeclaration & fp_ClassBlock, 
+				uint32_t& fp_CurrentScopeDepth, 
+				Token& fp_CurrentToken, 
+				vector<Token>& fp_ProgramTokens, 
+				size_t& fp_ProgramCounter, 
+				ClassDeclaration& fp_ClassBlock, 
 				bool fp_IsSingle
 			)
 		{
@@ -1054,10 +1167,10 @@ namespace BongoJam {
 		bool //returns true if it worked, false if it failed
 			ParseLetDeclaration
 			(
-				uint32_t & fp_CurrentScopeDepth, 
-				Token & fp_CurrentToken, 
-				vector<Token>&fp_ProgramTokens, 
-				size_t & fp_ProgramCounter, 
+				uint32_t& fp_CurrentScopeDepth, 
+				Token& fp_CurrentToken, 
+				vector<Token>& fp_ProgramTokens, 
+				size_t& fp_ProgramCounter, 
 				Program* fp_Program, 
 				LetDeclaration* fp_VariableDefinition
 			)
@@ -1156,7 +1269,7 @@ namespace BongoJam {
 				break;
 				case TokenType::UserIdentifier: //used for: var x -> Car: new Car();, var x -> Car = new Car();
 				{
-					if (!FindStringInVector(fp_Program->m_ListClassNames, fp_CurrentToken.m_Value))
+					if (not FindStringInVector(fp_Program->m_ListClassNames, fp_CurrentToken.m_Value))
 					{
 						//THROW ERROR
 						parser_logger->LogAndPrint("Error at Line Number: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
@@ -1281,7 +1394,7 @@ namespace BongoJam {
 		//////////////////////////////////////////////
 
 		Program*
-			ConstructAST(vector<Token> f_ProgramTokens)
+			ConstructAST(vector<Token>& fp_ProgramTokens)
 		{
 			vector<StatementNode> f_ProgramStatements;
 
@@ -1297,15 +1410,15 @@ namespace BongoJam {
 			bool f_IsSingle = false; //used for tracking whether the class defintion we're in is a singleton or not
 			bool f_ShouldShift = true;
 
-			while (!IsENDF(f_CurrentToken) && f_ProgramTokens.size() > 0) //this loop operates on every statement that lives on scope-depth = 0, everything else is branched like a tree from the 0th level
+			while (not IsENDF(f_CurrentToken) and fp_ProgramTokens.size() > 0) //this loop operates on every statement that lives on scope-depth = 0, everything else is branched like a tree from the 0th level
 			{
-				if (!f_ShouldShift)
+				if (not f_ShouldShift)
 				{
 					f_ShouldShift = true;
 				}
 				else
 				{
-					f_CurrentToken = ShiftForward(f_ProgramTokens);
+					f_CurrentToken = ShiftForward(fp_ProgramTokens);
 					f_ProgramCounter++;
 				}
 				switch (f_CurrentToken.m_Type)
@@ -1314,9 +1427,9 @@ namespace BongoJam {
 				{
 					unique_ptr<FuncDeclaration> s_FunctionDefintion = make_unique<FuncDeclaration>();
 
-					if (!ParseFuncDeclaration(f_CurrentScopeDepth, f_CurrentToken, f_ProgramTokens, f_Program, f_ProgramCounter, &s_FunctionDefintion))
+					if (not ParseFuncDeclaration(f_CurrentScopeDepth, f_CurrentToken, fp_ProgramTokens, f_Program, f_ProgramCounter, &s_FunctionDefintion))
 					{
-						f_ProgramTokens.clear(); //dump source code so that parsing ends immediately
+						fp_ProgramTokens.clear(); //dump source code so that parsing ends immediately
 						continue;
 					}
 					else
@@ -1341,7 +1454,7 @@ namespace BongoJam {
 				{
 					//ClassDeclaration s_ClassBlock; //used for func args, var reassignment, class method access
 
-					//if (!ParseClassDeclaration(f_CurrentScopeDepth, f_CurrentToken, f_ProgramTokens, f_ProgramCounter, s_ClassBlock, f_IsSingle))
+					//if (not ParseClassDeclaration(f_CurrentScopeDepth, f_CurrentToken, f_ProgramTokens, f_ProgramCounter, s_ClassBlock, f_IsSingle))
 					//{
 					//	continue;
 					//}
@@ -1356,7 +1469,7 @@ namespace BongoJam {
 				{
 					//StructDeclaration s_StructBlock; //used for func args, var reassignment, class method access
 
-					//if (!ParseStructDeclaration(f_CurrentScopeDepth, f_CurrentToken, f_ProgramTokens, f_ProgramCounter, s_StructBlock))
+					//if (not ParseStructDeclaration(f_CurrentScopeDepth, f_CurrentToken, f_ProgramTokens, f_ProgramCounter, s_StructBlock))
 					//{
 					//	continue;
 					//}
@@ -1371,7 +1484,7 @@ namespace BongoJam {
 				default:
 				{
 					parser_logger->LogAndPrint("Compiler Error: Improper grammar found in source code at line " + to_string(f_CurrentToken.m_SourceCodeLineNumber), "Parser", Logger::LogLevel::Error);
-					f_ProgramTokens.clear(); //dump all tokens, so that the compiler will stop processing the source code
+					fp_ProgramTokens.clear(); //dump all tokens, so that the compiler will stop processing the source code
 				}
 				break; //OwO
 				}

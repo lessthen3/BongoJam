@@ -42,6 +42,7 @@ file(
     "include/compiler/*.h"
     "include/Logger.h"
     "include/Binder.h"
+    "include/Opcodes.h"
 )
 
 # Remove main from bongoC for embedding the compiler into C++
@@ -71,6 +72,7 @@ file(
     "include/runtime/*.h" 
     "include/Logger.h"
     "include/Binder.h"
+    "include/Opcodes.h"
 )
 
 #### Library Target
@@ -84,7 +86,8 @@ target_include_directories(bongo_runtime PUBLIC include/runtime)
 #### Executable Target for CLI
 
 add_executable(bongo 
-
+    
+    include/ConfigManager.h
     src/compiler/main.cpp
 )
 

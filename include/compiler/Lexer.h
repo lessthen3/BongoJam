@@ -29,9 +29,10 @@ namespace BongoJam {
 
 		IntNumber,
 		FloatNumber,
+		StringLiteral, //just plain text
 		UserIdentifier,
 		Import,
-		Name,
+		NameSpace,
 
 		//////////////////// Operators ////////////////////
 
@@ -86,7 +87,7 @@ namespace BongoJam {
 
 		//////////////////// Declaratives ////////////////////
 
-		Let,
+		Var,
 		Func,
 		Return,
 		Class,
@@ -146,7 +147,6 @@ namespace BongoJam {
 		//////////////////// Types ////////////////////
 
 		TypeArrow,
-		Null,
 		Void,
 		Exception,
 
@@ -155,8 +155,7 @@ namespace BongoJam {
 		Bool,
 		True,
 		False,
-		String,
-		StringLiteral,
+		String, //string type decl
 
 		List,
 		Dictionary,
@@ -183,6 +182,7 @@ namespace BongoJam {
 
 		//////////////////// Included Functions ////////////////////
 
+		SizeOf,
 		Print,
 		Input,
 		Colourize,
@@ -252,11 +252,11 @@ namespace BongoJam {
 		//////////////////// GOAT ////////////////////
 
 		{"import", TokenType::Import}, //PLEASE I LOVE USING OTHER PEOPLE'S CODE
-		{"name", TokenType::Name}, //used for namespaces, name identifier {}
+		{"namespace", TokenType::NameSpace}, //used for namespaces, name identifier {}
 
 		//////////////////// Declaratives ////////////////////
 
-		{"let", TokenType::Let},
+		{"var", TokenType::Var},
 		{"func", TokenType::Func},
 		{"return", TokenType::Return},
 		{"class", TokenType::Class},
@@ -310,12 +310,11 @@ namespace BongoJam {
 		//////////////////// Error Handling ////////////////////
 		
 		{"panic", TokenType::Panic}, //stops program execution and prints a message
-		{"static_assert", TokenType::StaticAssert}, //runtime assert
-		{"assert", TokenType::Assert}, //compile time assert
+		{"static_assert", TokenType::StaticAssert}, //compile time assert, gest thrown out after compilation
+		{"assert", TokenType::Assert}, //runtime assert, bundled into bytecode
 
 		//////////////////// Types ////////////////////
 
-		{"null", TokenType::Null},
 		{"void", TokenType::Void},
 		{"exception", TokenType::Exception},
 
@@ -332,7 +331,7 @@ namespace BongoJam {
 		{"Thread", TokenType::Thread},
 
 		{"event", TokenType::Event},
-		{"leash", TokenType::Leash}, //unique_ptr, ref counted and automatically de alloc'd when references are 0
+		{"leash", TokenType::Leash}, //unique_ptr, however no get(), and no default initializer to nullptr, because null doesnt exist uwu
 		{"reader", TokenType::Watcher}, //readonly ptr
 		{"move", TokenType::Move}, //regular move semantic
 		{"bounce", TokenType::Bounce}, //used to move a leash A to leash B but the semantic is that when leash B leaves a scope it returns the value back to leash A
@@ -349,6 +348,7 @@ namespace BongoJam {
 
 		//////////////////// Included Functions ////////////////////
 
+		{"sizeof", TokenType::SizeOf}, //needed for allocs
 		{"print", TokenType::Print},
 		{"input", TokenType::Input},
 		{"colourize", TokenType::Colourize},

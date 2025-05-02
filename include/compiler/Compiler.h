@@ -13,6 +13,7 @@
 
 #include "Parser.h"
 #include "../Binder.h"
+#include "../Opcodes.h"
 
 namespace BongoJam {
 
@@ -30,117 +31,6 @@ namespace BongoJam {
 	{
 		return false;
 	}
-
-	//////////////////////////////////////////////
-	// Opcodes Lookup for Translation
-	//////////////////////////////////////////////
-
-	enum class OPCODES: uint16_t //these opcodes are flags that indicate to the interpreter what information is going to follow it in the byte stream
-	{
-		NOP = 0x00,
-
-		//////////////////// Basic Math Operations ////////////////////
-
-		ADD = 0x001,
-		SUB = 0x002,
-
-		DIV = 0x003,
-		MULT = 0x004,
-
-		POW = 0x005,
-
-		//////////////////// Primitive Types ////////////////////
-
-		INT_TYPE = 0x006,
-		FLOAT_TYPE = 0x007,
-
-		BOOL_TYPE = 0x008, //false or true follows, 0 = false, 1 = true as always
-
-		CHAR_TYPE = 0x009,
-		STRING_TYPE = 0x00A, //string literal value always follows, pattern is: str size in bytes -> encoded utf-8 str
-		STRING_LITERAL = 0x0AA, //used for detecting constant strings in the byte code for translation during runtime
-
-		//////////////////// Built-in Class Types ////////////////////
-
-		VOID_TYPE = 0x00B,
-		EXCEPTION = 0x00C,
-
-		THREAD = 0x00D,
-
-		VEC2 = 0x00E,
-		VEC3 = 0x00F,
-		VEC4 = 0x010,
-
-		MAT2 = 0x011,
-		MAT3 = 0x012,
-		MAT4 = 0x013,
-		MAT = 0x014,
-
-		//////////////////// Boolean Comparison Operations ////////////////////
-
-		LOGICAL_AND = 0x015,
-		LOGICAL_OR = 0x016,
-		LOGICAL_NOT = 0x017,
-
-		LINE_NUMBER = 0xFF, //Used for tracking the exact line of code that threw a runtime error
-
-		JUMP = 0x018,
-		JUMP_IF = 0x019,
-
-		VARIABLE_REASSIGNMENT = 0x01A,
-
-		//////////////////// Function/Method Operations ////////////////////
-
-		FUNCTION_DEFINITION = 0x01B,
-		METHOD_DEFINITION = 0x01C,
-
-		FUCTION_CALL = 0x01D,
-		METHOD_CALL = 0x01E,
-
-		FUNCTION_RETURN = 0x01F,
-
-		//////////////////// Class/Struct Operations ////////////////////
-
-		CLASS_DEFINITION = 0x020,
-		STRUCT_DEFINITION = 0x021,
-
-		CLASS_CONSTRUCTOR = 0x022,
-		STRUCT_CONSTRUCTOR = 0x023,
-
-		// Follows a Variable Assignment flag
-
-		LOAD = 0x024, //stack allocates a var
-		FREE = 0x025, //dereferences stack alloc'd var in interpreter
-		MOVE = 0x026, //move() semantic
-		COPY = 0x027, //used for copying vars
-		HEAP_ALLOC = 0x028, //used for heap allocations
-		HEAP_FREE = 0x029, //delete baby
-
-		PRINT = 0x02A,
-		CLOCK = 0x02B,
-		SLEEP = 0x02C,
-		INPUT = 0x02D,
-		COLOURIZE = 0x0CE,
-
-		ROUND_UP = 0x02E,
-		ROUND_DOWN = 0x02F,
-
-		SQUARE_ROOT = 0x030,
-		POWER = 0x031,
-		EXP = 0x032,
-
-		SIN = 0x033,
-		COS = 0x034,
-		SINH = 0x035,
-		COSH = 0x036,
-		ARCSIN = 0x037,
-		ARCCOS = 0x038,
-
-		LOG = 0x039,
-		FACTORIAL = 0x03A,
-
-		HALT = 0xFFFF
-	};
 
 	struct BongoCompiler
 	{
