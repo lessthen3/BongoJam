@@ -8,9 +8,7 @@ Some might say BongoJam is severely unoptimized, however here at BongoJam we pre
 
 ## Overall Design and Features
 
-BongoJam is statically typed, and uses manual memory management (no GC, sorry not sorry). The syntax is an unholy amalgamation of C++ and Python
-
-
+BongoJam is statically typed, and uses a GC. The syntax is an unholy amalgamation of C++ and Python
 
 ## Philosophy
 
@@ -18,13 +16,9 @@ BongoJam is statically typed, and uses manual memory management (no GC, sorry no
 
 My primary concern when it comes to writing code is always stability. I've rarely come across situations where performance was absolutely critical, and for those cases there is already a healthy amount of language choices.
 
-I want low level access to computer resources, not for speed but because I enjoy explicit control over what my program is doing. When functions become black boxes that obscure their inner workings, I find debugging and coding in general far more difficult.
+I want low level access to computer resources, not for speed but because I enjoy explicit control over what my program is doing. When functions become black boxes that obscure their inner workings, I find debugging and coding in general far more difficult. The Bongo Standard Library is written with this philosophy in mind.
 
-The Bongo Standard Library is written with this philosophy in mind.
-
-I'm also comfortable compiling source -> native code, but catching runtime errors becomes far more involved, linker errors are the worst thing I've ever seen in my entire life, and the prospect of write once, run anywhere is nice.
-
-Any runtime or compile time error will always have an associated line number. So you will always know which statement or bytecode instruction caused the error, and the line of code that halted execution in the stack trace.
+I'm also comfortable compiling source -> native code, but catching runtime errors becomes far more involved and linker errors are the worst thing I've ever seen in my entire life.
 
 I'm planning on adding a profiler.
 
@@ -32,42 +26,31 @@ I'm planning on adding a profiler.
 
 If you want to build the compiler + runtime for yourself:
 
-0. This project is built using __C++20__, and you will need __CMake 3.20+__ and __conan2__ (scroll down to the resources section for links if you are unfamiliar)
+0. This project is built using __C++20__, and you will need [__CMake 3.20+__](https://cmake.org/download/)
 
 1. Clone the repo
 
-2. Run: __python init.py [--debug or --release or --both] -G [desired_generator] -P [conan_profile]__ in your terminal and your done!
+2. Run: __python init.py [--debug | --release | --both] -G [desired_generator]__ in your terminal and your done!
 
 >[!TIP]
->For the complete list of generators run __python init.py [-h or --help]__. Also -P isn't required, if no profile is specified init.py will use the default profile
+>For the complete list of generators and commands run __python init.py [-h | --help]__
 
 > [!NOTE]
->BongoJam can only print hello world at the moment, however I am adding more functionality in the hopes of embedding this scripting language into Peach-E
-
->[!IMPORTANT] 
->When ran from shell, bongojam will auto-populate the working directory with a logs folder and bytecode .bongo file. (I'm going to make the flags more robust however im tired and i wanna work on the game engine)
+>Build output:
+> * bongoC (static lib)— BongoJam compiler
+> * bongo_runtime (static lib)— BongoJam Interpreter/Runtime
+> * bongo (executable)— BongoJam CLI
 
 ## Why Another Scripting Language
 
-BongoJam isn't trying to replace any language in particular. BongoJam is just supposed to be a nice language to use, and if it's the right tool for your use case then all the better.
+BongoJam isn't trying to replace any language in particular. BongoJam is just supposed to be a nice language to use, it isn't supposed to be a one size fits all solution. BongoJam was born out of my desire to have a statically typed python. BongoJam is designed for embedding within C++ programs, but it also works just fine standalone.
 
-I'm a big advocate for using the right tool for the job, and BongoJam isn't supposed to be a one size fits all solution. BongoJam was born out of my desire to have a statically typed interpreted language that allows me the same fine grain control C++ offers. BongoJam is designed for embedding within C++ programs, but it also works just fine standalone.
-
-## Conan Profile Settings Successfully Tested
+## Platforms Successfully Tested
 
 ```ini
-[settings]
-arch=x86_64
-build_type=Release
-compiler=msvc
-compiler.cppstd=20
-compiler.runtime=dynamic
-compiler.version=193
 os=Windows
+arch=x86_64
+compiler=msvc
+compiler.runtime=static
+compiler.version=193
 ```
-
-## Resources
-
-[Latest CMake Download](https://cmake.org/download/)
-
-[Latest Conan Download](https://conan.io/downloads)

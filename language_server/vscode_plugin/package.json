@@ -1,0 +1,49 @@
+{
+    "name": "bongojam",
+    "displayName": "BongoJam Language Support",
+    "description": "Provides language support for BongoJam",
+    "version": "0.1.0",
+    "publisher": "lessthen3",
+    "engines": {
+        "vscode": "^1.50.0"
+    },
+    "categories": [
+        "Programming Languages"
+    ],
+    "activationEvents": [
+        "onCommand:bongojam.activate"
+    ],
+    "main": "BongoLangSupportVSC.cjs",
+    "contributes": {
+        "languages": [
+            {
+                "id": "bongojam",
+                "aliases": [
+                    "BongoJam"
+                ],
+                "extensions": [
+                    ".bj"
+                ],
+                "configuration": "./language-configuration.json"
+            }
+        ],
+        "languageServer": {
+            "path": "python",
+            "args": [
+                "bongo_language_server.py",
+                "--stdio"
+            ]
+        }
+    },
+    "scripts": {
+        "postinstall": "node ./node_modules/vscode/bin/install"
+    },
+    "devDependencies": {
+        "vscode": "^1.1.34",
+        "vscode-languageclient": "^7.0.0"
+    },
+    "dependencies": {
+        "vscode-languageserver": "^9.0.1",
+        "vscode-languageserver-textdocument": "^1.0.12"
+    }
+}
