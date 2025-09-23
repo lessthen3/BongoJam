@@ -37,9 +37,9 @@ If you want to build the compiler + runtime for yourself:
 
 > [!NOTE]
 >Build output:
-> * bongoC (static lib)— BongoJam compiler
-> * bongo_runtime (static lib)— BongoJam Interpreter/Runtime
-> * bongo (executable)— BongoJam CLI
+> * bongo_core (default: static lib)— BongoJam Compiler and Interpreter/Runtime
+> * bongo_server (default: static lib)— BongoJam language support server
+> * bongo (default: executable)— BongoJam CLI
 
 ## Why Another Scripting Language
 
