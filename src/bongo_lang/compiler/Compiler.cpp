@@ -16,7 +16,7 @@ namespace BongoJam{
     BongoCompiler::BongoCompiler()
     {
         compiler_logger = make_unique<Logger>();
-        compiler_logger->Initialize("./logs", "BongoCompilerLogger", DEFAULT_LOG_LEVEL_FILTER);
+        compiler_logger->Initialize(DEFAULT_LOG_OUTPUT_DIRECTORY, "BongoCompilerLogger", DEFAULT_LOG_LEVEL_FILTER);
 
         compiler_logger->Debug(format("Successfully initialized for Compiler with ID : {}", pm_CompilerID), "Compiler");
 
@@ -190,6 +190,13 @@ void
         )
     );
 }
+
+void
+    BongoCompiler::UpdateThreadOwner()
+{
+    compiler_logger->UpdateThreadOwner();
+}
+
 //////////////////////////////////////////////
 // MAIN COMPILING FUNCTION
 //////////////////////////////////////////////

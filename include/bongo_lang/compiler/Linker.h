@@ -17,14 +17,11 @@ namespace BongoJam {
 
     struct BongoLinker //links together compilation units and validates symbols exist and function properly
     {
-    private:
-        unique_ptr<Logger> linker_logger = nullptr;
-
     public:
         BongoLinker() 
         {
             linker_logger = make_unique<Logger>();
-            linker_logger->Initialize("./logs", "BongoLinker", Logger::LogLevel::ALL_LOGS);
+            linker_logger->Initialize(DEFAULT_LOG_OUTPUT_DIRECTORY, "BongoLinker", DEFAULT_LOG_LEVEL_FILTER);
 
         }
 
@@ -39,8 +36,10 @@ namespace BongoJam {
                 const string& fp_DesiredName
             );
 
-    private:
-        map<string, CompilationUnit> pm_CompilationUnits; // file name : corresponding compiled code
+        int
+            LinkCompilationUnits(vector<BongoScriptUnit>&& fp_CompiledUnits, vector<uint8_t>& fp_FinalByteCode);
 
+    private:
+        unique_ptr<Logger> linker_logger = nullptr;
     };
 }

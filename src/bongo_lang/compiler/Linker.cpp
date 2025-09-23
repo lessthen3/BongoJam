@@ -61,4 +61,11 @@ namespace BongoJam{
 
         return true;
     }
+
+    int
+        BongoLinker::LinkCompilationUnits(vector<BongoScriptUnit >&& fp_CompiledUnits, vector<uint8_t>& fp_FinalByteCode)
+    {
+
+        return BONGO_OK;
+    }
 }

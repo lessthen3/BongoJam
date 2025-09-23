@@ -11,6 +11,7 @@
 **************************************************************************/
 #pragma once
 
+///BongoJam
 #include "Parser.h"
 #include "../Opcodes.h"
 
@@ -58,6 +59,12 @@ namespace BongoJam {
 
         vector<BONGO_WORD> CompiledCode;
         map<uint64_t, string> NameTable; // symbol ID : name characters
+    };
+
+    struct BongoScriptUnit
+    {
+        filesystem::path FilePath;
+        unique_ptr<CompilationUnit> CompiledUnit = make_unique<CompilationUnit>();
     };
 
     struct BongoCompiler
@@ -130,11 +137,16 @@ namespace BongoJam {
 
             );
 
+        void
+            UpdateThreadOwner();
+
         template<typename T>
-        std::unique_ptr<T> unique_dynamic_cast(std::unique_ptr<StatementNode>&& base) {
+        unique_ptr<T> unique_dynamic_cast(unique_ptr<StatementNode>&& base) 
+        {
             T* derived = dynamic_cast<T*>(base.release());
-            return std::unique_ptr<T>(derived);
+            return unique_ptr<T>(derived);
         }
+
         //auto f_FuncDec = unique_dynamic_cast<FuncDeclaration>(move(f_CurrentProgramStatement));
 
     };

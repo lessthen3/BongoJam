@@ -15,7 +15,7 @@
 #include "runtime/Interpreter.h"
 #include "compiler/Linker.h"
 #include "Serializer.h"
-#include "ThreadPool.h"
+#include "compiler/CompilerThreadPool.h"
 
 ///STL
 #include <array>
@@ -246,21 +246,13 @@ namespace BongoJam {
         BongoManager()
         {
             bongo_logger = make_unique<Logger>();
-            bongo_logger->Initialize("./logs", "BongoManager", DEFAULT_LOG_LEVEL_FILTER);
+            bongo_logger->Initialize(DEFAULT_LOG_OUTPUT_DIRECTORY, "BongoManager", DEFAULT_LOG_LEVEL_FILTER);
             bongo_logger->Debug("uwu", "BongoManager");
 
             pm_Linker = make_unique<BongoLinker>();
             pm_Interpreter = make_unique<BongoJamInterpreter>();
 
-            for (int i = 0; i < pm_MaximumAllowedThreads; ++i)
-            {
-                pm_CompilerThreads[i] = make_unique<BongoCompiler>();
-            }
-
-            pm_CompilerThreadPool.Initialize(pm_MaximumAllowedThreads);
-
             pm_BongoRuntimeVersion = pm_Interpreter->BONGO_VERSION;
-            pm_BongoCompilerVersion = pm_CompilerThreads[0]->BONGO_VERSION;
         }
 
         ~BongoManager() = default;
@@ -276,12 +268,11 @@ namespace BongoJam {
     private:
         unique_ptr<Logger> bongo_logger = nullptr;
 
-        array<unique_ptr<BongoCompiler>, pm_MaximumAllowedThreads> pm_CompilerThreads;
         unique_ptr<BongoLinker> pm_Linker = nullptr;
         unique_ptr<BongoJamInterpreter> pm_Interpreter = nullptr;
 
-        vector<filesystem::path> pm_CurrentProjectSources;
-        vector<filesystem::path> pm_FoundMains;
+        vector<BongoScriptUnit> pm_CurrentProjectSources;
+        vector<BongoScriptUnit> pm_FoundMains;
 
         string pm_BongoRuntimeVersion;
         string pm_BongoCompilerVersion;
@@ -290,7 +281,7 @@ namespace BongoJam {
 
         BongoProject pm_CurrentBongoProject;
 
-        ThreadPool pm_CompilerThreadPool;
+        CompilerThreadPool<pm_MaximumAllowedThreads> pm_CompilerThreadPool;
 
     public:
 
@@ -567,26 +558,9 @@ namespace BongoJam {
         }
 
         int
-            RunCommands(CompilerConfigs& fp_CompilerConfigs, bool fp_IsCompileRun)
+            RunCommands(const CompilerConfigs& fp_CompilerConfigs, bool fp_IsCompileRun)
         {
-            if (fp_CompilerConfigs.CompilerFlags & BongoCompilerFlags::BUILD_EXECUTABLE)
-            {
-                unique_ptr<CompilationUnit> f_CompilationUnit = make_unique<CompilationUnit>();
-                pm_CompilerThreads[0]->CompileUnit(pm_FoundMains[0].string(), f_CompilationUnit.get(), fp_CompilerConfigs.CompilerFlags & BongoCompilerFlags::DEBUG);
-
-                pm_Linker->WriteBytecodeToFile(f_CompilationUnit->CompiledByteCode, fp_CompilerConfigs.OutputDirectory, fp_CompilerConfigs.OutputFileName);
-
-            }
-            else if (fp_CompilerConfigs.CompilerFlags & BongoCompilerFlags::BUILD_STATIC_LIBRARY)
-            {
-                //unique_ptr<CompilationUnit> f_CompilationUnit = make_unique<CompilationUnit>();
-                //pm_CompilerThreads[0]->CompileUnit("", f_CompilationUnit.get(), fp_CompilerConfigs.CompilerFlags & BongoCompilerFlags::DEBUG);
-            }
-            else //dynamic assumed by elimination
-            {
-                //unique_ptr<CompilationUnit> f_CompilationUnit = make_unique<CompilationUnit>();
-                //pm_CompilerThreads[0]->CompileUnit("", f_CompilationUnit.get(), fp_CompilerConfigs.CompilerFlags & BongoCompilerFlags::DEBUG);
-            }
+            StartCompilationOfProject(fp_CompilerConfigs);
 
             if (fp_IsCompileRun)
             {
@@ -650,11 +624,11 @@ namespace BongoJam {
                     if(f_FileName == "main.bj")
                     {
                         bongo_logger->Debug(format("main.bj found at : '{}'", entry.path().string()), "BongoManager");
-                        pm_FoundMains.push_back(entry.path());
+                        pm_FoundMains.emplace_back(entry.path());
                     }
                     else if (f_FileName.substr(f_Dot) == ".bj")
                     {
-                        pm_CurrentProjectSources.push_back(entry.path());
+                        pm_CurrentProjectSources.emplace_back(entry.path());
                     }
                 }
             }
@@ -669,9 +643,9 @@ namespace BongoJam {
             {
                 bongo_logger->Fatal("Multiple main.bj scripts found! Please make sure only one exists.", "BongoManager");
 
-                for (const auto& path : pm_FoundMains)
+                for (const auto& lv_ScriptUnit : pm_FoundMains)
                 {
-                    bongo_logger->Error(format(" ---  {}", path.string()), "BongoManager");
+                    bongo_logger->Error(format(" ---  {}", lv_ScriptUnit.FilePath.string()), "BongoManager");
                 }
 
                 return BONGO_MULTIPLE_MAINS_FOUND;
@@ -681,35 +655,48 @@ namespace BongoJam {
         }
 
         int
-            StartCompilationOfProject
-            (
-                vector<string>& fp_Script,
-                const bool fp_IsDebug = false
-            )
+            StartCompilationOfProject(const CompilerConfigs& fp_CompilerConfigs)
         {
-
-
+            //compile main separately and idk if before or after is smart
             //read file paths into a job queue
 
-            //dispatch compiler threads to load and compile each file into a compilation unit, and if it fails return errors
+            //uint32_t f_CurrentPriorityLevel = 0;
+            //used to track when each compiler has been assigned, so that each priority group is guaranteed to be processed first, so if
+            //one compiler gets one source file per priority group it ensures that the same compiler isnt being used by multiple threads
+            //this is needed since each compiler has its own state due to the presence a logger, flags are the same across projects so state information like that doesn't matter
+            //and doing this is worth it if the alternative is losing logging and compilation info since those error strings still gotta be put somewhere idk maybe theres a better way
+            //with mt threaded queuing but that has its own downsides idk, logging is fine as is maybe i can even just pass a handle to a logger, however if that logger is used multiple times
+            //its string buffer probably wont like that idk each log file is hashed as well so that's not gonna go over well but its static so readonly ops should be fine idk
 
-            //(pm_CompilerThreads[0])->Com
-            //(
-            //    Configs.m_ScriptFilePath,
-            //    Configs.m_BongoFileOutputDirectory,
-            //    Configs.m_OutputFileName,
-            //    Configs.m_IsDebugMode
-            //);
+            pm_CompilerThreadPool.EnqueueTask({ pm_FoundMains[0].FilePath.string() , pm_FoundMains[0].CompiledUnit.get() });
+
+            for (int _i = 0; _i < pm_CurrentProjectSources.size(); ++_i)
+            {
+                const string f_SourcePath = pm_CurrentProjectSources[_i].FilePath.string();
+                CompilationUnit* f_CompilationUnit = pm_CurrentProjectSources[_i].CompiledUnit.get();
+
+                pm_CompilerThreadPool.EnqueueTask({ f_SourcePath , f_CompilationUnit });
+            }
+
+            pm_CompilerThreadPool.WaitUntilAllTasksComplete();
+
+            /////// THIS IS ONLY FOR TESTING UWU
+            pm_Linker->WriteBytecodeToFile(pm_FoundMains[0].CompiledUnit->CompiledByteCode, fp_CompilerConfigs.OutputDirectory, fp_CompilerConfigs.OutputFileName);
+            return BONGO_OK;
 
             //////////////////// every script was validated and compiled into a CompilationUnit, Linker time baby ////////////////////
-            //find files from relative paths, or find precompiled CompilationUnits via configs for external deps
-            
-            vector<BONGO_WORD> f_FullBongoProgram;
-
-            //run linker to resolve symbols, and return error if found fingys cwossed >w<  
+            // also need to find precompiled CompilationUnits via configs for external deps
+            //link together compilationunits, assuming everything was checked properly, every script unit should have a corresponding compilationunit attached to it uwu
+                        //run linker to resolve symbols, and return error if found fingys cwossed >w<  
+            vector<uint8_t> f_FullBongoProgram;
+            pm_Linker->LinkCompilationUnits(move(pm_CurrentProjectSources), f_FullBongoProgram);
             
             //////////////////// Write fully assembled BongoJam program that is ready to be run >O< ////////////////////
-            
+            if (not pm_Linker->WriteBytecodeToFile(f_FullBongoProgram, fp_CompilerConfigs.OutputDirectory, fp_CompilerConfigs.OutputFileName))
+            {
+
+                return EXIT_FAILURE;
+            }
 
             //after successfully writing bytecode to a file return BONGO_OK
             return BONGO_OK;
