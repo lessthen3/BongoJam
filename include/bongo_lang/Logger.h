@@ -10,8 +10,8 @@
  *        primarily intended for embedding within game engines.
 **************************************************************************/
 #pragma once
-
-#define DEFAULT_LOG_LEVEL_FILTER Logger::LogLevel::INFO_LOG | Logger::LogLevel::WARNING_LOG | Logger::LogLevel::ERROR_LOG | Logger::LogLevel::FATAL_LOG 
+//Logger::LogLevel::INFO_LOG | 
+#define DEFAULT_LOG_LEVEL_FILTER Logger::LogLevel::WARNING_LOG | Logger::LogLevel::ERROR_LOG | Logger::LogLevel::FATAL_LOG 
 
 #define DEFAULT_LOG_OUTPUT_DIRECTORY "./logs"
 
@@ -409,14 +409,10 @@ namespace BongoJam {
         {
             //return early without logging if loglevel isnt active or hasnt been initialized or if accessed from the wrong thread
             #ifdef BONGO_DEBUG
-                if ((pm_ActiveLogMask & fp_LogLevel) and pm_HasBeenInitialized and AssertThreadAccess("Log"))
-                    return true;
+            return(pm_ActiveLogMask & fp_LogLevel) and pm_HasBeenInitialized and AssertThreadAccess("Log");
             #else
-                if (pm_ActiveLogMask & fp_LogLevel)
-                    return true;
+            return (pm_ActiveLogMask & fp_LogLevel);
             #endif
-
-            return false;
         }
 
         void

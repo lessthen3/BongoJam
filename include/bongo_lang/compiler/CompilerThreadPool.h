@@ -122,9 +122,10 @@ namespace BongoJam {
 
     private:
         void
-            Worker()
+            Worker() //maybe have a worker ID idk for tracking might as well w the logger name right
         {
             thread_local BongoCompiler f_Compiler;
+            Logger* f_CompilerLogger = f_Compiler.compiler_logger.get();
 
             while (true)
             {
@@ -146,17 +147,29 @@ namespace BongoJam {
                         return;
                     }
 
-                    //cout << "Worker taking task" << endl;
+                    f_CompilerLogger->Debug("Worker taking compilation task using this compiler", "Worker");
                     f_Task = move(m_Tasks.front());
                     m_Tasks.pop();
                 }
 
-                //cout << "Worker compiling unit" << endl;
+                f_CompilerLogger->Debug("Worker compiling unit with this compiler you scoundrel!", "Worker");
                 
-                int result = f_Compiler.CompileUnit(f_Task.FilePath, f_Task.Output);
-                if (result != BONGO_OK)
+                try
                 {
-                    //UwU
+                    int result = f_Compiler.CompileUnit(f_Task.FilePath, f_Task.Output);
+
+                    if (result != BONGO_OK)
+                    {
+                        f_CompilerLogger->Error(format("Failed to compile : '{}', with compiler exit code : '{}' ", f_Task.FilePath, result), "Worker");
+                    }
+                    else
+                    {
+                        f_CompilerLogger->Info(format("Worker successfully compiled: '{}'!", f_Task.FilePath), "Worker");
+                    }
+                }
+                catch (const exception& Exception) ///Try to ensure all destructors are called especially close() on LogManager
+                {
+                    f_CompilerLogger->Error(format("Unhandled exception: {}, while compiling : '{}' " , Exception.what(), f_Task.FilePath), "Worker");
                 }
 
                 {

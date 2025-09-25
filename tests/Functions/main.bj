@@ -1,0 +1,12 @@
+//Functions UwU
+
+func MyFunction(x->int, y->int) -> int
+{
+    return x + y;
+}
+
+func main() ---> int
+{
+    print(MyFunction(3, 5), "bright magenta");
+    return 0;
+}

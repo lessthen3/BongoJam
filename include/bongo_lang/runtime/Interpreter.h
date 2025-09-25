@@ -11,20 +11,51 @@
 **************************************************************************/
 #pragma once
 
+///BongoJam
 #include "DynamicLoader.h"
-#include "../Opcodes.h"
+#include "../BongoGlue.h"
 
-#include <memory>
+#include "BumpAllocator.h"
+#include "MemoryArena.h"
+
+#include "GarbageCollector.h"
+
+///STL
+#include <unordered_map>
+#include <functional>
 
 constexpr const uint32_t MAX_STACK_SIZE = 8192;
 
 namespace BongoJam {
 
+    struct RuntimeSymbol 
+    {
+        string Name;
+        ValueType Type;
+        size_t StackOffset;
+    };
+
     class
         BongoJamInterpreter
     {
+    public:
+        typedef function<Value(BongoJamInterpreter&)> NATIVE_FUNCTION;
+
     private:
+        unordered_map<string, RuntimeSymbol> LocalSymbols;
+
         unique_ptr<Logger> runtime_logger = nullptr;
+
+        BumpAllocator Stack = BumpAllocator(MAX_STACK_SIZE * sizeof(Value));
+        vector<CallFrame> CallStack;
+
+        DynamicMemoryArena<HeapObject> HeapStorage;
+
+        Value* m_StackStart = static_cast<Value*>(Stack.Allocate(MAX_STACK_SIZE * sizeof(Value), alignof(Value)));
+        size_t m_StackTop = 0;
+
+
+        unordered_map<string, NATIVE_FUNCTION> NativeFunctions;
 
     public:
         const string BONGO_VERSION = "0.0.1";
@@ -87,117 +118,31 @@ namespace BongoJam {
 
         vector<string> ListOfDecodedStrings;
 
-        //////////////////// Actual Variable Containers ////////////////////
-
-        vector<int8_t> INT8_HEAP;
-        vector<int16_t> INT16_HEAP;
-        vector<int32_t> INT32_HEAP;
-        vector<int64_t> INT64_HEAP;
-
-        vector<uint8_t> UNSIGNED_INT8_HEAP;
-        vector<uint16_t> UNSIGNED_INT16_HEAP;
-        vector<uint32_t> UNSIGNED_INT32_HEAP;
-        vector<uint64_t> UNSIGNED_INT64_HEAP;
-
-        vector<float> FLOAT_HEAP;
-        vector<double> DOUBLE_HEAP;
-
-        vector<bool> BOOL_HEAP; //XXX: probably could just use the uint heap
-
-        vector<string> STRING_HEAP;
-
-        vector<char> CHARACTER_HEAP;
-
-        vector<void*> VOID_STAR_HEAP;
-
         //////////////////////////////////////////////
         // Utility Functions
         //////////////////////////////////////////////
 
         void
-            AddNewScope();
+            PushNewStackFrame();
 
         void
             PopCurrentStack();
 
         void
-            PushNewStackFrame();
+            Push(Value fp_Value);
+
+        Value
+            Pop();
+
+        void 
+            PushFrame(size_t returnIP, size_t localCount);
+
+        void 
+            PopFrame();
+
 
     public:
         uint32_t
             RunBongoScript(const string& fp_BongoScriptName);
-
-
-        template<typename Tx, typename Ty, typename RetType>
-        inline RetType 
-            Add(Tx __Tx, Ty __Ty)
-            noexcept
-        {
-            return static_cast<RetType>(__Tx + __Ty);
-        }
-
-        template<typename Tx, typename Ty, typename RetType>
-        inline RetType
-            Subtract(Tx __Tx, Ty __Ty)
-            noexcept
-        {
-            return static_cast<RetType>(__Tx - __Ty);
-        }
-
-        template<typename Tx, typename Ty, typename RetType>
-        inline RetType
-            Multiply(Tx __Tx, Ty __Ty)
-            noexcept
-        {
-            return static_cast<RetType>(__Tx * __Ty);
-        }
-
-        template<typename Tx, typename Ty, typename RetType>
-        inline RetType
-            Divide(Tx __Tx, Ty __Ty)
-            noexcept
-        {
-            return static_cast<RetType>(__Tx / __Ty);
-        }
-
-        template<typename Tx, typename Ty>
-        inline bool
-            CompareLessThan(Tx __Left, Ty __Right)
-            noexcept
-        {
-            return __Left < __Right;
-        }
-
-        template<typename Tx, typename Ty>
-        inline bool
-            CompareLessThanEquals(Tx __Left, Ty __Right)
-            noexcept
-        {
-            return __Left <= __Right;
-        }
-
-        template<typename Tx, typename Ty>
-        inline bool
-            CompareGreaterThan(Tx __Left, Ty __Right)
-            noexcept
-        {
-            return __Left > __Right;
-        }
-
-        template<typename Tx, typename Ty>
-        inline bool
-            CompareGreaterThanEquals(Tx __Left, Ty __Right)
-            noexcept
-        {
-            return __Left >= __Right;
-        }
-
-        template<typename Tx, typename Ty>
-        inline bool
-            CompareEquals(Tx __Left, Ty __Right)
-            noexcept
-        {
-            return __Left == __Right;
-        }
     };
 }

@@ -1,0 +1,50 @@
+//Classes >O<
+
+struct Vector2D //all struct variables are public within its scope
+{
+    let x->int;
+    let y->int;
+}
+
+class Character
+{
+    public
+    {
+        let Name->string;
+    }
+    private
+    {
+        let Position->Vector2D = {1, 3}; //default value initialization, assumed constructor
+    }
+
+    func Character(fp_Position->Vector2D) -> void
+    {
+        Position = fp_Position;
+    }
+
+    func CurrentPosition() -> void
+    {
+        print(f"My character is at x : {Position.x}, y : {Position.y}!", "bright blue"); //formatted string output with class member
+    }
+}
+
+func main() -----------> int
+{
+    let Ryan->Character = Character({6, 9}); //typical class creation, typical heap value
+
+    Ryan.CurrentPosition();
+
+    let Gaurav->Character = Ryan; //reference to Ryan class
+
+    Gaurav.Position = {0, 1}; //change current position
+
+    Ryan.CurrentPosition(); //will print with {0, 1} instead since Gaurav is a ptr ref to the original character creation
+    Gaurav.CurrentPosition(); //will print name as Ryan since Gaurav only got a reference to Ryan
+
+    Gaurav = Character({0, 0}); //Gaurav gets a brand new unique Character reference
+
+    Ryan.CurrentPosition(); //will print with {0, 1} instead since Gaurav is a ptr ref to the original character creation
+    Gaurav.CurrentPosition(); //will print name as Ryan since Gaurav only got a reference to Ryan
+
+    return 0;
+}

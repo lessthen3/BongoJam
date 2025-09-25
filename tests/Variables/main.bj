@@ -1,0 +1,7 @@
+
+func main() -> int
+{
+    print("I's jus math bb >O<", "bright red");
+
+    //return 0;
+}

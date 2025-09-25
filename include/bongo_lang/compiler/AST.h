@@ -15,6 +15,8 @@
 
 #include <variant>
 #include <array>
+#include <vector>
+#include <unordered_map>
 
 #define BONGO_PRIMITIVE_VALUE variant \
 < \
@@ -29,13 +31,20 @@ namespace BongoJam {
 
     enum class SyntaxNodeType
     {
+        //////////////////// Compiler Specific ////////////////////
+
+        NameSpace,
+        IncludeStatement,
+
         //////////////////// User Declarations ////////////////////
 
         VarDeclaration,
         FieldDeclaration,
-        IfDeclaration, //else(if) statements are only found under an if-statement so we're good not to explicitly type for it
-
         VariableDeclaration,
+
+        IfDeclaration, //else(if) statements are only found under an if-statement so we're good not to explicitly type for it
+        ElseIfDeclaration,
+        ElseDeclaration,
 
         FuncDeclaration,
         MethodDeclaration,
@@ -79,7 +88,7 @@ namespace BongoJam {
 
         ModuloEqualsExpr,
 
-        BracketedExpr,
+        OpenParenExpr,
 
         GreaterThanExpr,
         GreaterThanOrEqualsExpr,
@@ -111,34 +120,16 @@ namespace BongoJam {
         //////////////////// Included Functions ////////////////////
 
         StandardFunction,
-
         PrintFunction,
 
-        //////////////////// User Defined Names ////////////////////
-
-        ClassName,
-        StructName,
-        StringName,
-        IntName,
-        FloatName,
-        BoolName,
-        FuncName,
-
-        //////////////////// Dependent on Parent Statements ////////////////////
+        //////////////////// Conditional Child Statements ////////////////////
 
         BreakSubStatement,
-        ElseIfDeclaration,
-        ElseDeclaration,
+        ContinueSubStatement,
         ReturnSubStatement,
-        ImportStatement,
 
+        //////////////////// Default type uwu ////////////////////
         None
-    };
-
-    struct PrimitiveValue
-    {
-        Token m_Token;
-        BONGO_PRIMITIVE_VALUE Value;
     };
 
     //////////////////////////////////////////////
@@ -163,76 +154,120 @@ namespace BongoJam {
     struct Expr : public StatementNode //it twas not a cannon and ur dumb and lazy about learning variants uwu
     {
         Expr() : StatementNode(SyntaxNodeType::Expr) {}
+
+        TokenType EvaluatesTo = TokenType::NO_TOKEN_VALUE;
+    };
+
+    struct OpenParenExpr : public Expr //idk if ill use these for function definition/call args as well, which would also translate to classes naturally
+    {
+        OpenParenExpr() { m_Domain = SyntaxNodeType::OpenParenExpr; }
+        vector<unique_ptr<Expr>> Inside;
     };
 
     struct SingleValueExpr : public Expr
     {
-        PrimitiveValue Value;
+        Token m_Value;
 
         SingleValueExpr(Token fp_ValueToken) 
         {
             m_Domain = SyntaxNodeType::SingleValueExpr; 
-            Value.m_Token = fp_ValueToken;
+            m_Value = fp_ValueToken;
         }
 
         SingleValueExpr() = default;
     };
 
-    struct BracketedExpr : public Expr
-    {
-        BracketedExpr() { m_Domain = SyntaxNodeType::BracketedExpr; }
-        vector <unique_ptr<Expr>> Values;
-    };
-
     struct BinaryOperationExpr : public Expr
     {
         //meant to be overriden
-        BinaryOperationExpr() { m_Domain = SyntaxNodeType::BinaryOperationExpr; }
+        BinaryOperationExpr()
+        { 
+            m_Domain = SyntaxNodeType::BinaryOperationExpr; 
+        }
+
+        BinaryOperationExpr(Token fp_Operator, unique_ptr<Expr>&& fp_First, unique_ptr<Expr>&& fp_Second) 
+        { 
+            m_Domain = SyntaxNodeType::BinaryOperationExpr;
+
+            First = move(fp_First);
+            Second = move(fp_Second);
+
+            m_Operator = fp_Operator;
+        }
 
         Token m_Operator;
-
-
-       variant< 
-           PrimitiveValue,
-           BracketedExpr
-       > First, Second;
+        unique_ptr<Expr> First, Second;
     };
 
 
     struct UnaryOperatorExpr : public Expr
     {
         UnaryOperatorExpr() { m_Domain = SyntaxNodeType::UnaryOperatorExpr; }
+
+        UnaryOperatorExpr(Token fp_Operator, unique_ptr<Expr>&& fp_Value)
+        {
+            m_Domain = SyntaxNodeType::BinaryOperationExpr;
+            Value = move(fp_Value);
+            m_Operator = fp_Operator;
+        }
+
         Token m_Operator;
-
-        variant<
-            PrimitiveValue,
-            BracketedExpr  //could be -1 or -(1 + 2)
-        >  Value; 
+        unique_ptr<Expr> Value;
     };
 
-    struct StatementBlockNode: public StatementNode //used as a scope
+    struct StatementBlock: public StatementNode //used as a scope
     {
-        StatementBlockNode() : StatementNode(SyntaxNodeType::StatementBlock) {}
-        vector<unique_ptr<StatementNode>> m_CodeBody;
+        StatementBlock() : StatementNode(SyntaxNodeType::StatementBlock) {}
+
+        vector<unique_ptr<StatementNode>> CodeBody;
+
+        //WARNING THIS BREAKS EVERYTHING FOR SOME REASON LMFAO
+        //map<string, Token> SymbolTable; //symbols defined inside a function, important for functions that call external src files which is the case most of the time imo
     };
 
-    struct ImportStatement :public StatementNode
+    struct IncludeStatement :public StatementNode
     {
-        ImportStatement() : StatementNode(SyntaxNodeType::ImportStatement) {}
+        IncludeStatement() : StatementNode(SyntaxNodeType::IncludeStatement) {}
+        Token m_IncludePath;
+    };
 
+    struct NameSpaceBlock : public StatementBlock
+    {
+        NameSpaceBlock() { m_Domain = SyntaxNodeType::NameSpace; }
+        Token m_Name;
+    };
+
+    struct ReturnStatement : public StatementNode
+    {
+        ReturnStatement() : StatementNode(SyntaxNodeType::ReturnSubStatement) {}
+        unique_ptr<Expr> ReturnValue = nullptr;
+    };
+
+    struct BreakStatement : public StatementNode
+    {
+        BreakStatement() : StatementNode(SyntaxNodeType::BreakSubStatement) {} //no value needed besides the tag since its always just "break" uwu atm at least owo
+    };
+
+    struct ContinueStatement : public StatementNode
+    {
+        ContinueStatement() : StatementNode(SyntaxNodeType::ContinueSubStatement) {}
     };
 
     //////////////////////////////////////////////
     // Variable assignment and re-assignment
     //////////////////////////////////////////////
 
-    struct VarDeclaration : public Expr
+    struct VarDeclaration : public Expr //gets its symbol resolved at compilation
     {
         VarDeclaration() { m_Domain = SyntaxNodeType::VarDeclaration; }
-        Token m_VariableName;
-        Token m_VariableType;
-        Token m_Value;
-        int m_ScopeDepth = -1;
+
+        Token Name;
+        Token Type;
+
+        unique_ptr<Expr> DefaultValue = nullptr; //could be an expression like when i default a unique ptr using  ptr = make_unique<>() in a class field declaration
+
+        bool IsStatic = false;
+        bool IsConst = false;
     };
 
 
@@ -248,7 +283,7 @@ namespace BongoJam {
         VariableReassignmentExpr() { m_Domain = SyntaxNodeType::VariableReassignmentExpr; }
     };
 
-    struct FieldReassignmentExpr : public Expr
+    struct FieldReassignmentExpr : public VariableReassignmentExpr
     {
         FieldReassignmentExpr() { m_Domain = SyntaxNodeType::FieldReassignmentExpr; }
     };
@@ -257,81 +292,100 @@ namespace BongoJam {
     // Declarations Involving Multiple Expressions
     //////////////////////////////////////////////
 
-    struct ElseDeclaration : public StatementBlockNode
+    struct ElseDeclaration : public StatementBlock
     {
         ElseDeclaration() { m_Domain = SyntaxNodeType::ElseDeclaration; }
-        int m_ScopeDepth = -1;
     };
 
-
-    struct IfDeclaration : public StatementBlockNode
+    struct IfDeclaration : public StatementBlock
     {
         IfDeclaration() { m_Domain = SyntaxNodeType::IfDeclaration; }
-        vector<Expr> m_Condition; //needs to be a vector since and and or's are a thing
-        vector<IfDeclaration> m_ElseIfStatements;
-        ElseDeclaration m_ElseStatement;
-        int m_ScopeDepth = -1;
+
+        unique_ptr<Expr> m_Condition = nullptr;; //needs to be a vector since and and or's are a thing
+
+        vector<unique_ptr<IfDeclaration>> m_ElseIfStatements; //unique ptr since its easier w ptr ownership semantics and avoiding rleasing the ptr and copying the dereference which would cause a problem w the condition var
+        unique_ptr<ElseDeclaration> m_ElseStatement = nullptr;
     };
 
-    struct FuncDeclaration : public StatementBlockNode
+    struct FuncArgument
+    {
+        Token Name;
+        Token Type;
+        Token DefaultValue;
+    };
+
+    struct FuncDeclaration : public StatementBlock
     {
         FuncDeclaration() { m_Domain = SyntaxNodeType::FuncDeclaration; }
         Token m_FuncName;
         Token m_FuncReturnType;
 
-        vector<unique_ptr<Expr>> m_FuncArgs; //tracks all tokens that are relevant for function execution
-        vector<unique_ptr<Expr>> m_FuncArgTypes; //arg types should correspond to the same position in m_FuncArgs
+        vector<FuncArgument> Arguments;
+
+        bool IsStatic = false;
+        bool IsConstant = false;
     };
 
-    struct MethodDeclaration : public StatementNode
+    struct MethodDeclaration : public FuncDeclaration
     {
-        MethodDeclaration() : StatementNode(SyntaxNodeType::MethodDeclaration) {}
+        MethodDeclaration() { m_Domain = SyntaxNodeType::MethodDeclaration; }
         Token m_AccessLevel; //used for tracking private, public, or protected
-        FuncDeclaration m_FunctionDefinition;
     };
 
 
-    struct WhileLoopDeclaration : public StatementBlockNode
+    struct WhileLoopDeclaration : public StatementBlock
     {
         WhileLoopDeclaration() { m_Domain = SyntaxNodeType::WhileLoopDeclaration; }
-        unique_ptr<BracketedExpr> m_Condition; //needs to be a vector since and and or's are a thing
+        unique_ptr<Expr> m_Condition = nullptr; //needs to be a vector since and and or's are a thing
     };
 
-    struct ForLoopDeclaration : public StatementBlockNode
+    struct ForLoopDeclaration : public StatementBlock
     {
         ForLoopDeclaration() { m_Domain = SyntaxNodeType::ForLoopDeclaration; }
     };
 
 
-    struct ClassDeclaration : public StatementBlockNode
+    struct ClassDeclaration : public StatementNode //not a block node since a class is just variables + functions and a name for symbol resolution
     {
-        ClassDeclaration() { m_Domain = SyntaxNodeType::ClassDeclaration; }
+        ClassDeclaration() : StatementNode(SyntaxNodeType::ClassDeclaration) {}
 
-        vector<Token> m_ConstructorArgs; //tracks all tokens that are relevant for the class constructor
-        map<string, FieldDeclaration> m_FieldValues;
+        Token ClassName;
+
+        unordered_map<string, Token> SymbolTable; //symbols defined inside a function, important for functions that call external src files which is the case most of the time imo
+
+        vector<FuncDeclaration> Constructors; //list of constructors for declared class
+        vector<FuncDeclaration> Methods; //list of methods used in class
+
+        vector<unique_ptr<FieldDeclaration>> Fields; //needs to be a unique ptr since var declaration holds a unique ptr
+
     };
 
     //structs are classes without methods, excluding the constructor(s)
     //structs are just used as generic data containers, where operators are defined on it that dictate how this struct interacts with other of its or other types
-    struct StructDeclaration : public StatementBlockNode
+    struct StructDeclaration : public StatementNode
     {
-        vector<Token> m_ConstructorArgs; //tracks all tokens that are relevant for the struct constructor
-        StructDeclaration() { m_Domain = SyntaxNodeType::StructDeclaration; }
+        StructDeclaration() : StatementNode(SyntaxNodeType::StructDeclaration) {}
+
+        Token StructName;
+        vector<FuncDeclaration> Constructors; //list of constructors for declared class, FuncArgument can be stack allocated since it has no unique ptrs uwu
+
+        //needs to be a unique ptr since var declaration holds a unique ptr
+        vector <unique_ptr<VarDeclaration>> Members; //all struct members are public always so no accessor levels, and structs dont use inheritance uwu just aliasing
     };
 
-    struct ScopeDeclaration : public StatementBlockNode
+    struct ScopeDeclaration : public StatementBlock
     {
         ScopeDeclaration() { m_Domain = SyntaxNodeType::ScopeDeclaration; }
     };
 
-    struct ListDeclaration : public StatementBlockNode
+    struct ListDeclaration : public StatementNode
     {
-        ListDeclaration() { m_Domain = SyntaxNodeType::ListDeclaration; }
+        ListDeclaration() : StatementNode(SyntaxNodeType::ListDeclaration) {}
     };
 
-    struct DictionaryDeclaration : public StatementBlockNode
+    struct DictionaryDeclaration : public StatementNode
     {
-        DictionaryDeclaration() { m_Domain = SyntaxNodeType::DictionaryDeclaration; }
+        DictionaryDeclaration() : StatementNode(SyntaxNodeType::DictionaryDeclaration) {}
     };
 
     //////////////////////////////////////////////
@@ -341,9 +395,9 @@ namespace BongoJam {
 
     struct PrintFunction : public Expr
     {
-        array<unique_ptr<Expr>, 2> m_FuncArgs;
-
         PrintFunction() { m_Domain = SyntaxNodeType::PrintFunction; }
+
+        array<unique_ptr<Expr>, 2> m_FuncArgs; //will only ever be two arguments for now, adding a f"" format feature cause i like that
     };
 
     //////////////////////////////////////////////
@@ -512,11 +566,3 @@ namespace BongoJam {
     };
 
 }
-
-//list of names for all types, used for searching any types being used before they've been defined, or if they've been defined at all Xd
-//vector<string> m_ListClassNames;
-//vector<string> m_ListStructNames;
-//
-////these maps hold the var/func name and its corresponding type/return-type, need to be strings since they could be user-defined types
-//map<const string, const string> m_MapFuncNames; //can't recast a functions return type though
-//map<const string, string> m_MapVariableNames; //types can be recast for variables

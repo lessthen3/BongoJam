@@ -27,14 +27,15 @@ namespace BongoJam {
     {
         //////////////////// GOATS ////////////////////
 
-        UnsignedIntNumber,
+        UnsignedIntNumber, //idk
         IntNumber,
         FloatNumber,
         DoubleNumber,
-        CharLiteral,
+        CharLiteral, //char value idk how it differs from an int but idk just here in case uwu
         StringLiteral, //just plain text
-        UserIdentifier,
-        Import,
+        UserIdentifier, //var or class names, function calls, function names, class constructors
+
+        Include,
         NameSpace,
 
         //////////////////// Operators ////////////////////
@@ -161,6 +162,7 @@ namespace BongoJam {
         True,
         False,
         String, //string type decl
+        Char,
 
         List,
         Dictionary,
@@ -256,7 +258,7 @@ namespace BongoJam {
     {
         //////////////////// GOAT ////////////////////
 
-        {"import", TokenType::Import}, //PLEASE I LOVE USING OTHER PEOPLE'S CODE
+        {"include", TokenType::Include}, //PLEASE I LOVE USING OTHER PEOPLE'S CODE
         {"namespace", TokenType::NameSpace}, //used for namespaces, name identifier {}
 
         //////////////////// Declaratives ////////////////////
@@ -294,8 +296,9 @@ namespace BongoJam {
 
         {"const", TokenType::Const},
         {"static", TokenType::Static},
-        {"public", TokenType::Public}, //private is implied
+        {"public", TokenType::Public}, //there was a stupid comment here uwu bro evn in the classes in bongojam i use private explicitly idk maybe i assumed different formatting
         {"protected", TokenType::Protected},
+        {"private", TokenType::Private},
         {"as", TokenType::As},
         {"in", TokenType::In},
         {"extends", TokenType::Extends},

@@ -3,5 +3,5 @@
 func main() -> int
 {
     print("Hello World", "magenta");
-    //return 0;
+    return 0;
 }

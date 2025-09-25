@@ -15,6 +15,20 @@
 
 namespace BongoJam {
 
+    //////////////////////////////////////////////
+    // Import Verification (warn circular dependencies)
+    //////////////////////////////////////////////
+
+    struct ImportTree //should parse this tbh idk
+    {
+
+        bool
+            ValidateImportTree()
+        {
+            return false;
+        }
+    };
+
     struct BongoLinker //links together compilation units and validates symbols exist and function properly
     {
     public:

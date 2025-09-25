@@ -13,7 +13,7 @@
 
 ///BongoJam
 #include "Parser.h"
-#include "../Opcodes.h"
+#include "../BongoGlue.h"
 
 namespace BongoJam {
 
@@ -33,32 +33,34 @@ namespace BongoJam {
 
 namespace BongoJam {
 
-    //////////////////////////////////////////////
-    // Import Verification (warn circular dependencies)
-    //////////////////////////////////////////////
+    enum class SymbolKind { Variable, Field, Function, Method, Struct, Class };
 
-    struct ImportTree
+    struct Symbol
     {
+        string Name;
 
-        bool
-            ValidateImportTree()
-        {
-            return false;
-        }
-    };
+        SymbolKind Kind; // FUNCTION, STRUCT, CLASS, GLOBAL_VAR
+        TokenType Type; // optional, for future type-checking
 
-    struct BONGO_WORD
-    {
-        OPCODES OP = OPCODES::NOP;
-        unique_ptr<StatementNode> OPERAND = nullptr; //ptr to an AST statement, statements ar designed to be one complete "sentence" in a sense
+        size_t OffsetInBytecode; // or StructLayout offset
+
+        bool IsResolved = false;
+
+        Symbol(const string& fp_Name, SymbolKind fp_Kind, TokenType fp_Type, size_t fp_Offset, bool fp_IsResolved = false) 
+            : Name(fp_Name), Kind(fp_Kind), Type(fp_Type), OffsetInBytecode(fp_Offset), IsResolved(fp_IsResolved) {}
     };
 
     struct CompilationUnit
     {
-        vector<uint8_t> CompiledByteCode;
+        string ScriptPath; //compilation units rae generated per script so # of scripts = # of compilation units
 
-        vector<BONGO_WORD> CompiledCode;
-        map<uint64_t, string> NameTable; // symbol ID : name characters
+        vector<uint8_t> CompiledByteCode; //bytecode
+        vector<SSAInstruction> SSA_IR; //
+
+        unordered_map<string, Symbol> SymbolTable; // symbol name : symbol information
+        unordered_map<string, Symbol> UnresolvedSymbolTable; //hf linker
+
+        //debugname table quesiton mark???_????
     };
 
     struct BongoScriptUnit
@@ -76,13 +78,16 @@ namespace BongoJam {
     public:
         const string BONGO_VERSION = "0.0.1";
 
+        shared_ptr<Logger> compiler_logger = nullptr; //shared for now cause idk how else work
+
     ///////////////////////////////////////////////////////////// PRIVATE /////////////////////////////////////////////////////////////
     private:
         unique_ptr<Parser> pm_BongoParser = nullptr; //needa make this a class since that's the only way cpp will let me do mutual recursion for some reason lmao
 
-        unique_ptr<Logger> compiler_logger = nullptr;
-
         uint64_t pm_CompilerID = 0;
+        
+        string pm_CompilerName;
+        uint8_t pm_NextAvailableStackSlot = 0;
 
     private:
         ////////////////////////////////////////////// Utility Functions //////////////////////////////////////////////
@@ -95,12 +100,16 @@ namespace BongoJam {
             (
                 string* fp_SourceCode,
                 const string& fp_ScriptFilePath
-            );
+            )
+            const;
         
         ////////////////////////////////////////////// Encoding Functions //////////////////////////////////////////////
         
         void
             Encode32BitInt(vector<uint8_t>& fp_ByteCode, uint32_t fp_Int);
+
+        void
+            Encode64BitInt(vector<uint8_t>& fp_ByteCode, uint64_t fp_Int);
 
         void
             EncodeUTF8String(vector<uint8_t>& fp_ByteCode, const string& fp_String);
@@ -116,6 +125,7 @@ namespace BongoJam {
 
     public:
         ////////////////////////////////////////////// MAIN COMPILING FUNCTION //////////////////////////////////////////////
+
         int
             CompileUnit
             (
@@ -124,17 +134,47 @@ namespace BongoJam {
                 const bool fp_IsDebug = false
             );
 
-        void
+        bool
             CompilePrintFunction
             (
                 PrintFunction* fp_PrintFunction,
                 CompilationUnit* fp_CompilationUnit
             );
 
-        void
+        bool
             CompileDeclaredFunction
             (
+                FuncDeclaration* fp_FuncDeclaration,
+                CompilationUnit* fp_CompilationUnit
+            );
 
+        bool
+            CompileDeclaredClass
+            (
+                ClassDeclaration* fp_FuncDeclaration,
+                CompilationUnit* fp_CompilationUnit,
+                const string& fp_NameSpace = ""
+            );
+
+        bool
+            CompileStructDeclaration
+            (
+                StructDeclaration* fp_StructDec,
+                CompilationUnit* fp_CompilationUnit
+            );
+
+        bool
+            CompileVarDeclaration
+            (
+                VarDeclaration* fp_VarDeclaration,
+                CompilationUnit* fp_CompilationUnit
+            );
+
+        bool
+            CompileFieldDeclaration
+            (
+                FieldDeclaration* fp_VarDeclaration,
+                CompilationUnit* fp_CompilationUnit
             );
 
         void

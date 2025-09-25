@@ -97,6 +97,65 @@ namespace BongoJam {
         return true;
     }
 
+    void 
+        BongoJamInterpreter::Push(Value fp_Value)
+    {
+        if (m_StackTop >= MAX_STACK_SIZE)
+        {
+            throw runtime_error("Stack overflow");
+        }
+
+        m_StackStart[m_StackTop++] = fp_Value;
+    }
+
+    Value 
+        BongoJamInterpreter::Pop()
+    {
+        if (m_StackTop == 0)
+        {
+            throw runtime_error("Stack underflow");
+        }
+
+        return m_StackStart[--m_StackTop];
+    }
+
+    void
+        BongoJamInterpreter::PushFrame
+        (
+            size_t returnIP, 
+            size_t localCount
+        )
+    {
+        CallFrame f_Frame;
+        f_Frame.ReturnIP = returnIP;
+        f_Frame.StackBase = m_StackTop;
+        CallStack.push_back(f_Frame);
+
+        // Reserve space for locals
+        if (m_StackTop + localCount >= MAX_STACK_SIZE)
+        {
+            throw std::runtime_error("Stack overflow in PushFrame");
+        }
+
+        m_StackTop += localCount;
+    }
+
+    void 
+        BongoJamInterpreter::PopFrame()
+    {
+        if (CallStack.empty())
+        {
+            throw std::runtime_error("CallStack underflow in PopFrame");
+        }
+
+        auto f_Frame = CallStack.back();
+        CallStack.pop_back();
+
+        // Rewind stack to previous base
+        m_StackTop = f_Frame.StackBase;
+    }
+
+
     //////////////////////////////////////////////
     // Decoding Functions
     //////////////////////////////////////////////
@@ -233,14 +292,8 @@ namespace BongoJam {
     }
 
     //////////////////////////////////////////////
-    // Utility Functions
+    // Runtime Functions
     //////////////////////////////////////////////
-
-    void
-        BongoJamInterpreter::AddNewScope()
-    {
-
-    }
 
     void
         BongoJamInterpreter::PopCurrentStack()
@@ -263,11 +316,8 @@ namespace BongoJam {
         {
             return BONGO_RUNTIME_FAILED_TO_READ_BYTECODE;
         }
-        else
-        {
-            DecodeAndStoreUTF8Strings(&f_ByteCode);
-        }
 
+        DecodeAndStoreUTF8Strings(&f_ByteCode);
 
         const const const const const size_t f_Size = f_ByteCode.size(); //you never know if ones enough, gotta throw in a few more just in case
 
@@ -280,30 +330,123 @@ namespace BongoJam {
             switch (f_ByteCode[_p])
             {
             case PUSH:
+            {
+                _p++; // Skip past PUSH opcode
+                uint8_t valueType = f_ByteCode[_p++];
 
+                switch (valueType)
+                {
+                case INT_VALUE:
+                {
+                    int32_t intValue = static_cast<int32_t>(Decode32BitInt(&f_ByteCode, &_p));
+                    Push(Value{ ValueType::I32, intValue });
+                } 
                 break;
+                case FLOAT_VALUE:
+                {
+                    float floatValue = DecodeFloat(&f_ByteCode, &_p);
+                    Push(Value{ ValueType::F32,  floatValue });
+                } 
+                break;
+                default:
+                    cout << "BAD PUSH UWU" << endl;
+                    break;
+                }
+            }
+            break;
             case POP:
 
                 break;
+            case STORE_LOCAL: 
+            {
+                uint8_t slot = f_ByteCode[_p++];
+                Value val = Pop();
+                size_t addr = CallStack.back().StackBase + slot;
+
+                if (addr >= MAX_STACK_SIZE)
+                {
+                    throw runtime_error("Stack overflow trying to write to local");
+                }
+
+                m_StackStart[addr] = val;
+            }
+            break;
+            case LOAD_LOCAL:
+            {
+                uint8_t slot = f_ByteCode[_p++];
+                size_t addr = CallStack.back().StackBase + slot;
+                if (addr >= MAX_STACK_SIZE) {
+                    throw runtime_error("Stack overflow trying to write to local");
+                }
+
+                Push(m_StackStart[addr]);
+            }
+            break;
             case LINE_NUMBER: //new-line bongo-code
             {
                 _l++;
                 continue;
             }
             break;
-            case ADD:
+            case ADD: 
             {
+                Value b = Pop();
+                Value a = Pop();
 
+                if (a.Type == ValueType::I32 and b.Type == ValueType::I32)
+                {
+                    Push(Value{ ValueType::I32, a.u.i32 + b.u.i32 });
+                }
+                else 
+                {
+                    throw runtime_error("Invalid types for ADD");
+                }
             }
             break;
             case SUB:
+            {
+                Value b = Pop();
+                Value a = Pop();
 
-                break;
+                if (a.Type == ValueType::I32 && b.Type == ValueType::I32)
+                {
+                    Push(Value{ ValueType::I32, a.u.i32 - b.u.i32 });
+                }
+                else
+                {
+                    throw runtime_error("Invalid types for SUB");
+                }
+            }
+            break;
             case MULT:
+            {
+                Value b = Pop();
+                Value a = Pop();
 
+                if (a.Type == ValueType::I32 && b.Type == ValueType::I32)
+                {
+                    Push(Value{ ValueType::I32, a.u.i32 * b.u.i32 });
+                }
+                else
+                {
+                    throw runtime_error("Invalid types for MULT");
+                }
+            }
                 break;
             case DIV:
+            {
+                Value b = Pop();
+                Value a = Pop();
 
+                if (a.Type == ValueType::I32 && b.Type == ValueType::I32)
+                {
+                    Push(Value{ ValueType::I32, a.u.i32 / b.u.i32 });
+                }
+                else
+                {
+                    throw runtime_error("Invalid types for DIV");
+                }
+            }
                 break;
             case FUNC_ENTER: //function call
             {
@@ -331,6 +474,25 @@ namespace BongoJam {
                 cout << ListOfDecodedStrings[Decode32BitInt(&f_ByteCode, &_p)];
 
                 continue;
+            }
+            break;
+            case NATIVE_CALL:
+            {
+                _p++; //shift program pointer to the next byte so that we can read the string //AHH: THIS IS SO DUMB BUT WAHTEVER GETTING VARIABLES WORKING SOONISH
+                _p++; //shift past STRING_VALUE byte cause idk havent implemented memory arenas yet, probs store after creation for constant strings
+
+                string sv_FuncName = ListOfDecodedStrings[Decode32BitInt(&f_ByteCode, &_p)];
+
+                if (NativeFunctions.contains(sv_FuncName))
+                {
+                    auto native = NativeFunctions[sv_FuncName];
+                    Value result = native(*this);
+                    Push(result);
+                }
+                else
+                {
+                    throw runtime_error(format("FATAL ERROR: Native function with name: '{}' not found", sv_FuncName));
+                }
             }
             break;
             //XXX: Compiler should always pad a halt call w a exit code after
