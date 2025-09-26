@@ -43,7 +43,11 @@ If you want to build the compiler + runtime for yourself:
 
 ## Why Another Scripting Language
 
-BongoJam isn't trying to replace any language in particular. BongoJam is just supposed to be a nice language to use, it isn't supposed to be a one size fits all solution. BongoJam was born out of my desire to have a statically typed python. BongoJam is designed for embedding within C++ programs, but it also works just fine standalone.
+BongoJam isn't trying to replace any language in particular. BongoJam is just supposed to be a nice language to use, it isn't supposed to be a one size fits all solution. 
+
+BongoJam was born out of my desire to have a statically typed python. 
+
+BongoJam is designed for embedding within C++ programs, but it also works just fine standalone.
 
 ## Platforms Successfully Tested
 

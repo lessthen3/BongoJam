@@ -322,7 +322,7 @@ namespace BongoJam {
         {
             if (pm_HasBeenInitialized) //stops accidental reinitialization of logmanager
             {
-                PrintError(format("Logger with name : '{}' has already been initialized, Logger is only allowed to initialize once", fp_DesiredLoggerName));
+                PrintError(format("Logger with name : '{}' has already been initialized, Logger is only allowed to initialize once", pm_LoggerName)); //can use logger name since it was already initialized uwu
                 return false;
             }
 
