@@ -16,7 +16,7 @@
 #include "../BongoGlue.h"
 
 #include "BumpAllocator.h"
-#include "MemoryArena.h"
+#include "DynamicMemoryArena.h"
 
 #include "GarbageCollector.h"
 
