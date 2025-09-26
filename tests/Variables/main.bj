@@ -1,7 +1,9 @@
 
 func main() -> int
 {
-    print("I's jus math bb >O<", "bright red");
+    print("UwU", "bright red");
 
-    //return 0;
+    var f_UwU->string = ">O<" + "UwU" + "OwO"; //+ ("1" + ("2" + "3")); 
+
+    return 0;
 }

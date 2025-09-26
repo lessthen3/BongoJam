@@ -173,21 +173,11 @@ namespace BongoJam {
         bool
             CompileFieldDeclaration
             (
-                FieldDeclaration* fp_VarDeclaration,
+                VarDeclaration* fp_VarDeclaration,
                 CompilationUnit* fp_CompilationUnit
             );
 
         void
             UpdateThreadOwner();
-
-        template<typename T>
-        unique_ptr<T> unique_dynamic_cast(unique_ptr<StatementNode>&& base) 
-        {
-            T* derived = dynamic_cast<T*>(base.release());
-            return unique_ptr<T>(derived);
-        }
-
-        //auto f_FuncDec = unique_dynamic_cast<FuncDeclaration>(move(f_CurrentProgramStatement));
-
     };
 }

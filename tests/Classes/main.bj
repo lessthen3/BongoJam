@@ -2,21 +2,19 @@
 
 struct Vector2D //all struct variables are public within its scope
 {
-    let x->int;
-    let y->int;
+    var x->int = 0;
+    var y->int = 0;
 }
 
 class Character
 {
-    public
-    {
-        let Name->string;
-    }
-    private
-    {
-        let Position->Vector2D = {1, 3}; //default value initialization, assumed constructor
-    }
-
+public:
+    var Name->string;
+    
+private:
+    var Position->Vector2D = {1, 3}; //default value initialization, assumed constructor
+    
+public:
     func Character(fp_Position->Vector2D) -> void
     {
         Position = fp_Position;
@@ -30,11 +28,11 @@ class Character
 
 func main() -----------> int
 {
-    let Ryan->Character = Character({6, 9}); //typical class creation, typical heap value
+    var Ryan->Character = Character({6, 9}); //typical class creation, typical heap value
 
     Ryan.CurrentPosition();
 
-    let Gaurav->Character = Ryan; //reference to Ryan class
+    var Gaurav->Character = Ryan; //reference to Ryan class
 
     Gaurav.Position = {0, 1}; //change current position
 

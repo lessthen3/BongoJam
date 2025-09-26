@@ -35,6 +35,10 @@ namespace BongoJam {
         StringLiteral, //just plain text
         UserIdentifier, //var or class names, function calls, function names, class constructors
 
+        FormattedStringLiteralStart, // f"uwuuwu its {name} uwuwuwuwu >O<"
+        FormattedStringLiteralEnd,
+        FormattedStringInsert,
+
         Include,
         NameSpace,
 
@@ -112,6 +116,7 @@ namespace BongoJam {
         Continue,
         Try,
         Catch,
+        Scope,
 
         //////////////////// Boolean Operators ////////////////////
 
@@ -284,6 +289,7 @@ namespace BongoJam {
         {"continue", TokenType::Continue},
         {"try", TokenType::Try},
         {"catch", TokenType::Catch},
+        {"scope", TokenType::Scope},
 
         //////////////////// Boolean Operators ////////////////////
 
@@ -396,6 +402,9 @@ namespace BongoJam {
 
     [[nodiscard]] char
         ShiftForward(string& fp_Src);
+
+    [[nodiscard]] char
+        Peek(const string& fp_Src);
 
     bool
         Tokenize

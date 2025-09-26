@@ -1,0 +1,12 @@
+//MATH OwO
+
+func ThatFormula(a->float, b->float, c->float) -> float
+{
+    return (-b + sqrt(4*a*c - b^2))/2*a
+}
+
+func main() -> int
+{
+    print(f"quadratic formula (1, 2, 3): {ThatFormula(1, 2, 3)}");
+    return 0;
+}

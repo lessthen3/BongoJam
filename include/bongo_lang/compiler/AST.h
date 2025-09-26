@@ -17,6 +17,7 @@
 #include <array>
 #include <vector>
 #include <unordered_map>
+#include <memory>
 
 #define BONGO_PRIMITIVE_VALUE variant \
 < \
@@ -39,7 +40,6 @@ namespace BongoJam {
         //////////////////// User Declarations ////////////////////
 
         VarDeclaration,
-        FieldDeclaration,
         VariableDeclaration,
 
         IfDeclaration, //else(if) statements are only found under an if-statement so we're good not to explicitly type for it
@@ -56,7 +56,11 @@ namespace BongoJam {
         StructDeclaration,
         ScopeDeclaration,
 
+        TryCatchDeclaration,
+
         StatementBlock,
+
+        InPlaceStructConstruction,
 
         //////////////////// Built-in Class Types ////////////////////
 
@@ -231,10 +235,12 @@ namespace BongoJam {
         Token m_IncludePath;
     };
 
-    struct NameSpaceBlock : public StatementBlock
+    struct NameSpaceBlock : public StatementNode
     {
-        NameSpaceBlock() { m_Domain = SyntaxNodeType::NameSpace; }
+        NameSpaceBlock(): StatementNode(SyntaxNodeType::NameSpace) {}
         Token m_Name;
+
+        unique_ptr<StatementBlock> CodeBlock;
     };
 
     struct ReturnStatement : public StatementNode
@@ -253,9 +259,30 @@ namespace BongoJam {
         ContinueStatement() : StatementNode(SyntaxNodeType::ContinueSubStatement) {}
     };
 
+    struct TryCatchDeclaration : public StatementNode //can i break from inside a try statement mid loop uwu les try
+    {
+        TryCatchDeclaration() : StatementNode(SyntaxNodeType::TryCatchDeclaration) {}
+
+        unique_ptr<StatementBlock> TryBlock = nullptr;
+
+        unique_ptr<StatementBlock> CatchBlock = nullptr;
+        unique_ptr<Expr> CatchCondition = nullptr;
+
+    };
+
     //////////////////////////////////////////////
     // Variable assignment and re-assignment
     //////////////////////////////////////////////
+
+    enum ModifierFlags : uint8_t
+    {
+        NONE = 0,
+        PRIVATE = 1 << 0,
+        PROTECTED = 1 << 1,
+        PUBLIC = 1 << 2,
+        STATIC = 1 << 3,
+        CONSTANT = 1 << 4
+    };
 
     struct VarDeclaration : public Expr //gets its symbol resolved at compilation
     {
@@ -264,18 +291,10 @@ namespace BongoJam {
         Token Name;
         Token Type;
 
+        //DANGER: this value always needs to be null checked since var declaration is used for vars that have a default value or not uwu
         unique_ptr<Expr> DefaultValue = nullptr; //could be an expression like when i default a unique ptr using  ptr = make_unique<>() in a class field declaration
 
-        bool IsStatic = false;
-        bool IsConst = false;
-    };
-
-
-    struct FieldDeclaration : public VarDeclaration
-    {
-        FieldDeclaration() { m_Domain = SyntaxNodeType::FieldDeclaration; }
-
-        Token m_AccessLevel; //used for tracking private, public, or protected
+        uint8_t Modifiers = NONE; //static or const or access level uwu
     };
 
     struct VariableReassignmentExpr : public Expr
@@ -322,14 +341,7 @@ namespace BongoJam {
 
         vector<FuncArgument> Arguments;
 
-        bool IsStatic = false;
-        bool IsConstant = false;
-    };
-
-    struct MethodDeclaration : public FuncDeclaration
-    {
-        MethodDeclaration() { m_Domain = SyntaxNodeType::MethodDeclaration; }
-        Token m_AccessLevel; //used for tracking private, public, or protected
+        uint8_t Modifiers = NONE;
     };
 
 
@@ -353,10 +365,10 @@ namespace BongoJam {
 
         unordered_map<string, Token> SymbolTable; //symbols defined inside a function, important for functions that call external src files which is the case most of the time imo
 
-        vector<FuncDeclaration> Constructors; //list of constructors for declared class
-        vector<FuncDeclaration> Methods; //list of methods used in class
+        vector<unique_ptr<FuncDeclaration>> Constructors; //list of constructors for declared class
+        vector<unique_ptr<FuncDeclaration>> Methods; //list of methods used in class
 
-        vector<unique_ptr<FieldDeclaration>> Fields; //needs to be a unique ptr since var declaration holds a unique ptr
+        vector<unique_ptr<VarDeclaration>> Fields; //needs to be a unique ptr since var declaration holds a unique ptr
 
     };
 
@@ -371,6 +383,13 @@ namespace BongoJam {
 
         //needs to be a unique ptr since var declaration holds a unique ptr
         vector <unique_ptr<VarDeclaration>> Members; //all struct members are public always so no accessor levels, and structs dont use inheritance uwu just aliasing
+    };
+
+    struct InPlaceStructConstruction : public Expr
+    {
+        InPlaceStructConstruction() { m_Domain = SyntaxNodeType::InPlaceStructConstruction; }
+        vector<unique_ptr<Expr>> Arguments; //indices here and in argument names should match, just argument names is optional so no map uwu
+        vector<string> ArgumentNames; //string for ".field =" in place construction
     };
 
     struct ScopeDeclaration : public StatementBlock
@@ -565,4 +584,12 @@ namespace BongoJam {
         vector<unique_ptr<StatementNode>> ParsedScript; //contains all defined functions inside the script
     };
 
+    template<typename T>
+    unique_ptr<T> unique_dynamic_cast(unique_ptr<StatementNode>&& base)
+    {
+        T* derived = dynamic_cast<T*>(base.release());
+        return unique_ptr<T>(derived);
+    }
+
+    //auto f_FuncDec = unique_dynamic_cast<FuncDeclaration>(move(f_CurrentProgramStatement));
 }

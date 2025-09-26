@@ -22,7 +22,7 @@ namespace BongoJam {
     class Parser
     {
     private:
-        shared_ptr<Logger> parser_logger = nullptr;
+        shared_ptr<Logger> parser_logger = nullptr; //borrowed from the compiler
 
     public:
         Parser(shared_ptr<Logger> fp_CompilerLogger)
@@ -50,7 +50,8 @@ namespace BongoJam {
                 fp_Token.m_Type != TokenType::Double and
                 fp_Token.m_Type != TokenType::String and
                 fp_Token.m_Type != TokenType::Char and 
-                fp_Token.m_Type != TokenType::Bool
+                fp_Token.m_Type != TokenType::Bool and
+                fp_Token.m_Type != TokenType::Void //voiddddddd
                 )
             {
                 return false;
@@ -100,7 +101,7 @@ namespace BongoJam {
         {
             if (fp_TokenVector.empty())
             {
-                return Token("EOF", TokenType::ENDF, -1); //return escape char when source code is done being read
+                return Token("END__OF__FILE", TokenType::ENDF, -1); //return escape char when source code is done being read
             }
 
             Token f_FirstElement = fp_TokenVector.front();
@@ -146,30 +147,38 @@ namespace BongoJam {
             fp_CurrentToken = ShiftForward(fp_ProgramTokens); //Shift forwards to look for a semi dot or more ops
 
             //returning on close paren should kick start the paren chain back up to the original openparen() call
-            if (fp_CurrentToken.m_Type == TokenType::SemiDot or fp_CurrentToken.m_Type == TokenType::CloseParen or fp_CurrentToken.m_Type == TokenType::Comma) //base case that stops the recursive descent
+            if (fp_CurrentToken.m_Type == TokenType::SemiDot or fp_CurrentToken.m_Type == TokenType::CloseParen or fp_CurrentToken.m_Type == TokenType::Comma or fp_CurrentToken.m_Type == TokenType::CloseBracket) //base case that stops the recursive descent
             {
                 return make_unique<SingleValueExpr>(f_EntryToken); //entry token is the value, situation is . . . "string"; we're pointing at ';' rn so take the stashed entry token as val
             }
 
             switch (fp_CurrentToken.m_Type)
             {
-                case TokenType::AdditionOperator:
-
-                    break;
-                case TokenType::MultiplicationOperator:
-
-                    break;
-                case TokenType::NegativeOperator:
-
-                    break;
-                case TokenType::DivisionOperator:
-
-                    break;
                 case TokenType::ModulusOperator:
-                    break;
-                case TokenType::SemiDot: //base case that stops the recursive descent
+                case TokenType::DivisionOperator:
+                case TokenType::NegativeOperator:
+                case TokenType::MultiplicationOperator:
+                case TokenType::AdditionOperator:
+                {
+                    Token f_OperatorToken = fp_CurrentToken;
 
-                    break;
+                    auto f_RegExpr = ParseRegularExpr(fp_CurrentToken, fp_ProgramTokens);
+
+                    if (not f_RegExpr)
+                    {
+                        parser_logger->Error(format("error parsing numerical expression at line: '{}', expected a value but found something very different! COME ON BROTHER!", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                        return nullptr;
+                    }
+
+                    //success! parsed expr properly and signing + sealing for delivery back up the call stack
+                    return make_unique<BinaryOperationExpr>
+                        (
+                            f_OperatorToken,
+                            make_unique<SingleValueExpr>(f_EntryToken),
+                            move(f_RegExpr)
+                        );
+                }
+                break;
                 default:
                     parser_logger->Error(format("found : '{}', when mathematical binary operation was expected", fp_CurrentToken.m_Value), "Parser");
                     return nullptr;
@@ -186,21 +195,10 @@ namespace BongoJam {
             Token f_EntryToken = fp_CurrentToken;
             fp_CurrentToken = ShiftForward(fp_ProgramTokens); //Shift forwards to look for a semi dot or more ops
             
-            if (fp_CurrentToken.m_Type == TokenType::SemiDot) //base case that stops the recursive descent
+            //returning on close paren should kick start the paren chain back up to the original openparen() call
+            if (fp_CurrentToken.m_Type == TokenType::SemiDot or fp_CurrentToken.m_Type == TokenType::CloseParen or fp_CurrentToken.m_Type == TokenType::Comma or fp_CurrentToken.m_Type == TokenType::CloseBracket) //base case that stops the recursive descent
             {
                 return make_unique<SingleValueExpr>(f_EntryToken); //entry token is the value, situation is . . . "string"; we're pointing at ';' rn so take the stashed entry token as val
-            }
-
-            fp_CurrentToken = ShiftForward(fp_ProgramTokens); //no ';' found, so expression assumed to continue
-
-            while(fp_CurrentToken.m_Type == TokenType::CloseParen) //could be at the end of a long op ..."text"))); <-- not uncommon and definitely needs to be handled
-            {
-                fp_CurrentToken = ShiftForward(fp_ProgramTokens); //at top because loop only enters if the current token is a close paren already, we look for ';' or more parens now
-
-                if (fp_CurrentToken.m_Type == TokenType::SemiDot) //base case that stops the recursive descent
-                {
-                    return make_unique<SingleValueExpr>(f_EntryToken); //entry token is the value, situation is . . . "string"; we're pointing at ';' rn so take the stashed entry token as val
-                }
             }
 
             //fall through to switch now since the expr is assumed to be  ... "text") ... <-- probably an op after the closed bracket uwu
@@ -209,169 +207,38 @@ namespace BongoJam {
             {
             case TokenType::AdditionOperator:
             {
-                auto result = ParseAdditionExpr(fp_CurrentToken, fp_ProgramTokens);
+                Token f_OperatorToken = fp_CurrentToken;
 
-                if (not result) //check if parse was successfull before constructing another expr
+                auto f_RegExpr = ParseRegularExpr(fp_CurrentToken, fp_ProgramTokens);
+
+                if (not f_RegExpr)
                 {
-
+                    parser_logger->Error(format("error parsing numerical expression at line: '{}', expected a value but found something very different! COME ON BROTHER!", f_EntryToken.m_SourceCodeLineNumber), "Parser");
                     return nullptr;
                 }
 
                 //success! parsed expr properly and signing + sealing for delivery back up the call stack
-
                 return make_unique<BinaryOperationExpr>
-                (
-                    fp_CurrentToken,
-                    make_unique<SingleValueExpr>(f_EntryToken),
-                    move(result)
-                );
+                    (
+                        f_OperatorToken,
+                        make_unique<SingleValueExpr>(f_EntryToken),
+                        move(f_RegExpr)
+                    );
+            }
+            break;
+            case TokenType::ModulusOperator:
+            case TokenType::DivisionOperator:
+            case TokenType::NegativeOperator:
+            case TokenType::MultiplicationOperator:
+            {
+                parser_logger->Error(format("Math operation used improperly, tried to use an operation that wasn't '+' on a string at line: {}", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                return nullptr;
             }
             break;
             default:
                 parser_logger->Error(format("found : '{}', when processing : '{}' mathematical binary operation was expected", fp_CurrentToken.m_Value, f_EntryToken.m_Value), "Parser");
-                fp_ProgramTokens.clear(); //XXX: probaly should keep parsing after finding an error for intellisense and to list ALL errors not just one at a time so multiple compile attempts arent required
                 return nullptr;
             }
-        }
-
-        //////////////////////////////////////////////
-        // Math Operator Expressions
-        //////////////////////////////////////////////
-
-        unique_ptr<Expr>
-            ParseAdditionExpr
-            (
-                Token& fp_CurrentToken,
-                vector<Token>& fp_ProgramTokens
-            )
-        {
-            switch (fp_CurrentToken.m_Type)
-            {
-                case TokenType::IntNumber:
-
-                    break;
-                case TokenType::UnsignedIntNumber:
-
-                    break;
-                case TokenType::FloatNumber:
-
-                    break;
-                case TokenType::DoubleNumber:
-
-                    break;
-                case TokenType::StringLiteral:
-
-                    break;
-                case TokenType::CharLiteral:
-
-                    break;
-                case TokenType::UserIdentifier: //XXX: used for function calls and variables
-
-                    break;
-                default:
-                    parser_logger->Error(format("found : '{}', when mathematical expression was expected", fp_CurrentToken.m_Value), "Parser");
-                    fp_ProgramTokens.clear(); //XXX: probaly should keep parsing after finding an error for intellisense and to list ALL errors not just one at a time so multiple compile attempts arent required
-                }
-
-            return nullptr;
-        }
-
-        unique_ptr<Expr>
-            ParseSubtractionExpr
-            (
-                Token& fp_CurrentToken, 
-                vector<Token>& fp_Tokens,
-                unique_ptr<Expr>* fp_Expression
-            )
-        {
-            switch (fp_CurrentToken.m_Type)
-            {
-                case TokenType::AdditionOperator:
-
-                    break;
-                case TokenType::MultiplicationOperator:
-
-                    break;
-                case TokenType::NegativeOperator:
-
-                    break;
-                case TokenType::DivisionOperator:
-
-                    break;
-                case TokenType::UserIdentifier: //XXX: used for function calls
-
-                    break;
-                default:
-                    parser_logger->Error(format("found : '{}', when mathematical expression was expected", fp_CurrentToken.m_Value), "Parser");
-                    fp_Tokens.clear(); //XXX: probaly should keep parsing after finding an error for intellisense and to list ALL errors not just one at a time so multiple compile attempts arent required
-                    return nullptr;
-                }
-        }
-
-        unique_ptr<Expr>
-            ParseMultiplicationExpr
-            (
-                Token& fp_CurrentToken, 
-                vector<Token>& fp_Tokens,
-                unique_ptr<Expr>* fp_Expression
-            )
-        {
-            switch (fp_CurrentToken.m_Type)
-            {
-                case TokenType::AdditionOperator:
-
-                    break;
-                case TokenType::MultiplicationOperator:
-
-                    break;
-                case TokenType::NegativeOperator:
-
-                    break;
-                case TokenType::DivisionOperator:
-
-                    break;
-                case TokenType::UserIdentifier: //XXX: used for function calls
-
-                    break;
-                default:
-                    parser_logger->Error(format("found : '{}', when mathematical expression was expected", fp_CurrentToken.m_Value), "Parser");
-                    fp_Tokens.clear(); //XXX: probaly should keep parsing after finding an error for intellisense and to list ALL errors not just one at a time so multiple compile attempts arent required
-                }
-
-            return nullptr;
-        }
-
-        unique_ptr<Expr>
-            ParseDivisionExpr
-            (
-                Token& fp_CurrentToken, 
-                vector<Token>& fp_Tokens,
-                unique_ptr<Expr>* fp_Expression
-            )
-        {
-            switch (fp_CurrentToken.m_Type)
-            {
-                case TokenType::AdditionOperator:
-
-                    break;
-                case TokenType::MultiplicationOperator:
-
-                    break;
-                case TokenType::NegativeOperator:
-
-                    break;
-                case TokenType::DivisionOperator:
-
-                    break;
-                case TokenType::UserIdentifier: //XXX: used for function calls
-
-                    break;
-                default:
-                    parser_logger->Error(format("found : '{}', when mathematical expression was expected", fp_CurrentToken.m_Value), "Parser");
-                    fp_Tokens.clear(); //XXX: probaly should keep parsing after finding an error for intellisense and to list ALL errors not just one at a time so multiple compile attempts arent required
-                }
-
-            return nullptr;
         }
 
         //this function is used to deal with user defined tokens relating to lines of code like "myVar = newVal;" or "myClass.myFunc();" or "myFunc();"		    handled by ParseNumber()
@@ -414,12 +281,17 @@ namespace BongoJam {
 
             }
             break;
-            case TokenType::Equals:
+            case TokenType::ModuloEqualsOperator:
+            case TokenType::PlusEqualsOperator:
+            case TokenType::MinusEqualsOperator:
+            case TokenType::MultEqualsOperator:
+            case TokenType::DivEqualsOperator:
             {
 
             }
             break;
-            case TokenType::StrictlyEquals:
+            
+            case TokenType::StrictlyEquals: //'=='
             {
 
             }
@@ -482,13 +354,19 @@ namespace BongoJam {
 
         //used for parsing any expr, and types it accordingly------ the assumed entry is a caller that is optimistic about the result being an expression so as a result the current token is right before said expression uwu
         unique_ptr<Expr>
-            ParseRegularExpr 
+            ParseRegularExpr
             (
                 Token& fp_CurrentToken,
-                vector<Token>& fp_ProgramTokens
+                vector<Token>& fp_ProgramTokens,
+                bool fp_ShouldShift = true
             )
         {
-            fp_CurrentToken = ShiftForward(fp_ProgramTokens);
+            if(fp_ShouldShift)
+            {
+                fp_CurrentToken = ShiftForward(fp_ProgramTokens);
+            }
+
+            Token f_EntryToken = fp_CurrentToken;
 
             switch (fp_CurrentToken.m_Type)
             {
@@ -548,6 +426,30 @@ namespace BongoJam {
                 return move(sv_ParsedOpenParen);
             }
             break;
+            case TokenType::True:
+            {
+
+            } //end of scope
+            break;
+            case TokenType::False:
+            {
+
+            } //end of scope 
+            break;
+            case TokenType::OpenBracket: //we want to handle scope declarations first since any keywords will overshadow it in the logical flow
+            {
+                unique_ptr<InPlaceStructConstruction> sv_StructConstruc = ParseStructConstruction(fp_CurrentToken, fp_ProgramTokens);
+
+                if (not sv_StructConstruc)
+                {
+                    parser_logger->Error(format("Parsing Error at line: {}, invalid scope declaration found inside function", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                    return nullptr;
+                }
+
+                return move(sv_StructConstruc);
+                //current token should be '}' should be safe to shift  
+            }
+            break;
             default:
                 parser_logger->Error(format("found : '{}', when regular expression was expected at line number: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
                 return nullptr;
@@ -575,22 +477,49 @@ namespace BongoJam {
                 return nullptr;
             }
 
+            bool f_ShouldParse = true;
+
             //parse the else code body
-            while (fp_ProgramTokens.size() > 0)
+            while (f_ShouldParse)
             {
                 fp_CurrentToken = ShiftForward(fp_ProgramTokens); //we can shift now since we"re sitting on "(" right now, and have handled it"s logic   
+                Token f_EntryToken = fp_CurrentToken;
 
                 switch (fp_CurrentToken.m_Type)
                 {
+                case TokenType::Print:
+                {
+                    unique_ptr<PrintFunction> sv_PrintFuncCall = ParsePrintFunction(fp_CurrentToken, fp_ProgramTokens);
+
+                    if (not sv_PrintFuncCall)
+                    {
+                        parser_logger->Error(format("Parsing Error at line: {} invalid call to print() function", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                        return nullptr;
+                    }
+
+                    f_StatementBloc->CodeBody.push_back(move(sv_PrintFuncCall));
+                    //current token should be ';' should be safe to shift 
+                    //after parsing the print function successfully we should be pointing to an already processed token, so we can safely iterate and ShiftForward() at the top of the loop
+                }
+                break;
                 case TokenType::Return:
                 {
+                    auto sv_ReturnStatement = ParseReturnStatement(fp_CurrentToken, fp_ProgramTokens);
+
+                    if (not sv_ReturnStatement)
+                    {
+                        parser_logger->Error(format("Parsing Error at line: {}, invalid return statement found", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                        return nullptr;
+                    }
+
+                    f_StatementBloc->CodeBody.push_back(move(sv_ReturnStatement));
                 }
                 break;
                 case TokenType::Break:
                 {
                     if (not fp_IsInLoop) //THROW ERROR
                     {
-                        parser_logger->Error(format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
+                        parser_logger->Error(format("Error at Line Number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
                         parser_logger->Warning("You are not allowed to use a break statement outside of a loop brother!", "Parser");
                         return nullptr;
                     }
@@ -602,7 +531,7 @@ namespace BongoJam {
                 {
                     if (not fp_IsInLoop) //THROW ERROR
                     {
-                        parser_logger->Error(format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
+                        parser_logger->Error(format("Error at Line Number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
                         parser_logger->Warning("You are not allowed to use a continue statement outside of a loop brother!", "Parser");
                         return nullptr;
                     }
@@ -612,15 +541,113 @@ namespace BongoJam {
                 break;
                 case TokenType::If:
                 {
-                    unique_ptr<IfDeclaration> sv_NestedIfStatement = ParseIfBlock(fp_IsInLoop, fp_CurrentToken, fp_ProgramTokens);
+                    unique_ptr<IfDeclaration> sv_NestedIfStatement = ParseIfBlock(fp_CurrentToken, fp_ProgramTokens, fp_IsInLoop);
 
                     if (not sv_NestedIfStatement)
                     {
-                        parser_logger->Error(format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
+                        parser_logger->Error(format("Error at Line Number: {}", f_EntryToken.m_SourceCodeLineNumber), "Parser");
                         return nullptr;
                     }
 
                     f_StatementBloc->CodeBody.push_back(move(sv_NestedIfStatement));
+                }
+                break;
+                case TokenType::CloseBracket:
+                    f_ShouldParse = false; //end parsing since end of block was reached uwu
+                    break;
+                //deal with user defined tokens relating to lines of code like "myVar = newVal;" or "myClass.myFunc();" or "myFunc();" specifically
+                case TokenType::UserIdentifier: //handles variables, function, and class instance names being passed as a single argument
+                {
+                    auto sv_UserDefinedAction = ParseUserIdentifier(fp_CurrentToken, fp_ProgramTokens); //used for var reassignment, class method access
+
+                    if (not sv_UserDefinedAction)
+                    {
+                        parser_logger->Error(format("Parsing Error at line: {}, bad grammer found involving a user identifier", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                        return nullptr;
+                    }
+
+                    f_StatementBloc->CodeBody.push_back(move(sv_UserDefinedAction));
+                    //current token should be ';' should be safe to shift
+                } //end of scope
+                break;
+                case TokenType::Var:
+                {
+                    auto sv_VariableDefinition = ParseVarDeclaration(fp_CurrentToken, fp_ProgramTokens);
+
+                    if (not sv_VariableDefinition)
+                    {
+                        parser_logger->Error(format("Parsing Error at line: {}, invalid variable definition found inside code block", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                        return nullptr;
+                    }
+
+                    f_StatementBloc->CodeBody.push_back(move(sv_VariableDefinition));
+                    //current token should be ';' should be safe to shift
+                }
+                break;
+                case TokenType::While:
+                {
+                    auto sv_WhileDec = ParseWhileBlock(fp_CurrentToken, fp_ProgramTokens);
+
+                    if (not sv_WhileDec)
+                    {
+                        parser_logger->Error(format("Parsing Error at line: {}, invalid variable definition found inside code block", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                        return nullptr;
+                    }
+
+                    f_StatementBloc->CodeBody.push_back(move(sv_WhileDec));
+                }
+                    break;
+                case TokenType::For:
+                {
+                    auto sv_ForDec = ParseForBlock(fp_CurrentToken, fp_ProgramTokens);
+
+                    if (not sv_ForDec)
+                    {
+                        parser_logger->Error(format("Parsing Error at line: {}, invalid variable definition found inside code block", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                        return nullptr;
+                    }
+
+                    f_StatementBloc->CodeBody.push_back(move(sv_ForDec));
+                }
+                    break;
+                case TokenType::Try:
+                {
+                    auto sv_TryCatch = ParseTryCatchBlock(fp_CurrentToken, fp_ProgramTokens, fp_IsInLoop);
+
+                    if (not sv_TryCatch)
+                    {
+                        parser_logger->Error(format("Parsing Error at line: {}, invalid try-catch definition found inside code block", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                        return nullptr;
+                    }
+
+                    f_StatementBloc->CodeBody.push_back(move(sv_TryCatch));
+                    //~~~~~~~~~ uwu
+                }
+                break;
+                case TokenType::OpenParen:
+                {
+                    auto sv_OpenParen = ParseOpenParen(fp_CurrentToken, fp_ProgramTokens);
+
+                    if (not sv_OpenParen)
+                    {
+                        parser_logger->Error(format("Parsing Error at line: {}, invalid expression found inside code block", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                        return nullptr;
+                    }
+
+                    f_StatementBloc->CodeBody.push_back(move(sv_OpenParen));
+                }
+                break;
+                case TokenType::Const:
+                {
+                    auto sv_ConstStatement = ParseConstant(fp_CurrentToken, fp_ProgramTokens);
+
+                    if (not sv_ConstStatement)
+                    {
+                        parser_logger->Error(format("Parsing Error at line: {}, invalid const definition found inside code block", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                        return nullptr;
+                    }
+
+                    f_StatementBloc->CodeBody.push_back(move(sv_ConstStatement));
                 }
                 break;
                 default:
@@ -631,12 +658,62 @@ namespace BongoJam {
 
             if (fp_CurrentToken.m_Type != TokenType::CloseBracket) //THROW ERROR
             {
-                parser_logger->Error(format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
+                parser_logger->Error(format("Error at Line Number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
                 parser_logger->Warning("Unrecognized expression found while declaring your function brother! Try taking a look at your function parameter(s) definition", "Parser");
                 return nullptr;
             }
 
             return move(f_StatementBloc);
+        }
+
+        unique_ptr<TryCatchDeclaration>
+            ParseTryCatchBlock //catch should come immediately after try always 
+            (
+                Token& fp_CurrentToken,
+                vector<Token>& fp_ProgramTokens,
+                bool fp_IsInLoop
+            )
+        {
+            Token f_EntryToken = fp_CurrentToken;
+
+            unique_ptr<TryCatchDeclaration> f_TryCatchDec = make_unique<TryCatchDeclaration>();
+
+            {
+                auto sv_TryCodeBlock = ParseStatementBlock(fp_CurrentToken, fp_ProgramTokens, fp_IsInLoop);
+
+                if (not sv_TryCodeBlock)
+                {
+                    parser_logger->Error(format("Error at Line Number: {}, unable to parse try code block >O<", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                    return nullptr;
+                }
+
+                f_TryCatchDec->TryBlock = move(sv_TryCodeBlock);
+            }
+            {
+                auto sv_CatchCondition = ParseRegularExpr(fp_CurrentToken, fp_ProgramTokens);
+
+                if (not sv_CatchCondition)
+                {
+                    parser_logger->Error(format("Error at Line Number: {}, unable to parse catch() condition, go read a book", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                    return nullptr;
+                }
+
+                f_TryCatchDec->CatchCondition = move(sv_CatchCondition);
+            }
+            //WARNING: NOT SURE IF I NEEDA SHIFT HERE OR NOT IK STATEMENTBLOCK ENDS ON A CLOSEBRACKET ALWAYS SO IDK WE SEE UWU
+            {
+                auto sv_CatchBlock = ParseStatementBlock(fp_CurrentToken, fp_ProgramTokens, fp_IsInLoop);
+
+                if (not sv_CatchBlock)
+                {
+                    parser_logger->Error(format("Error at Line Number: {}, unable to parse catch code block ^_^", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                    return nullptr;
+                }
+
+                f_TryCatchDec->TryBlock = move(sv_CatchBlock);
+            }
+
+            return move(f_TryCatchDec);
         }
 
         //////////////////////////////////////////////
@@ -646,31 +723,31 @@ namespace BongoJam {
         unique_ptr<IfDeclaration>
             ParseIfBlock
             (
-                bool fp_IsInLoop, 
                 Token& fp_CurrentToken,
-                vector<Token>& fp_ProgramTokens
+                vector<Token>& fp_ProgramTokens,
+                bool fp_IsInLoop
             )
         {
+            Token f_EntryToken = fp_CurrentToken;
+
             unique_ptr<IfDeclaration> f_IfDec = make_unique<IfDeclaration>();
 
             size_t f_IfLineNumber = fp_CurrentToken.m_SourceCodeLineNumber;
 
             fp_CurrentToken = ShiftForward(fp_ProgramTokens);
             
-            if (fp_CurrentToken.m_Type != TokenType::OpenParen)
+            if (fp_CurrentToken.m_Type != TokenType::OpenParen) //THROW ERROR
             {
-                //THROW ERROR
-                parser_logger->Error(format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
+                parser_logger->Error(format("Error at Line Number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
                 parser_logger->Warning("Something bad happened while declaring your if statement brother! Try looking at your brackets on the if-statement", "Parser");
                 return nullptr;
             }
             
             fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shiftforwards to find a valid value entry including user identifiers
             
-            if (not (IsValue(fp_CurrentToken) or IsUnaryOperator(fp_CurrentToken))) //did not find a valid entry
+            if (not (IsValue(fp_CurrentToken) or IsUnaryOperator(fp_CurrentToken))) //did not find a valid entry //THROW ERROR
             {
-                //THROW ERROR
-                parser_logger->Error(format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
+                parser_logger->Error(format("Error at Line Number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
                 parser_logger->Warning("Something bad happened while declaring your if statement brother! Try looking at your brackets on the if-statement", "Parser");
                 return nullptr;
             }
@@ -681,7 +758,12 @@ namespace BongoJam {
 
             if (not f_ConditionExpr)
             {
-
+                parser_logger->Error(format("Error at Line Number: {}, couldn't parse the condition for your if statement~~ nyah", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                return nullptr;
+            }
+            else if (f_ConditionExpr->EvaluatesTo != TokenType::Bool) //make sure condition evaluates to a proper condition uwu
+            {
+                parser_logger->Error(format("Error occured at line: {}, if-statement condition doesn't evaluate to a bool, wtf man?", f_EntryToken.m_SourceCodeLineNumber), "Parser");
                 return nullptr;
             }
 
@@ -691,89 +773,35 @@ namespace BongoJam {
 
             if (fp_CurrentToken.m_Type != TokenType::CloseParen)
             {
-                parser_logger->Error(format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
+                parser_logger->Error(format("Error at Line Number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
                 return nullptr;
             }
 
             //fp_CurrentToken = ')' right now
             //assuming that when the bracket count goes to 0, we are outside of the if statement condition, we now check for the first curly-brace
-            fp_CurrentToken = ShiftForward(fp_ProgramTokens); //we can shift now to look for an open bracket
+
+            auto f_CodeBlock = ParseStatementBlock(fp_CurrentToken, fp_ProgramTokens, fp_IsInLoop);
             
-
-            if (fp_CurrentToken.m_Type != TokenType::OpenBracket)
+            if (not f_CodeBlock)
             {
-                //THROW ERROR
-                parser_logger->Error(format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
-                parser_logger->Warning("Unrecognized expression found while declaring your function brother! Try taking a look at your function parameter(s) definition", "Parser");
+                parser_logger->Error(format("Error at Line Number: {}, unable to parse if statement code block >w<", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
                 return nullptr;
             }
 
-            //parse the if-statement code body
-            while (fp_ProgramTokens.size() > 0)
-            {
-                fp_CurrentToken = ShiftForward(fp_ProgramTokens); //we can shift now since we"re sitting on "(" right now, and have handled it"s logic
-
-                switch (fp_CurrentToken.m_Type)
-                {
-                case TokenType::Return:
-                {
-                }
-                break;
-                case TokenType::Break:
-                {
-                    if (not fp_IsInLoop)
-                    {
-                        //THROW ERROR
-                        parser_logger->Error(format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
-                        parser_logger->Warning("You are not allowed to use a break statement outside of a loop brother!", "Parser");
-                        return nullptr;
-                    }
-
-                    f_IfDec->CodeBody.emplace_back(make_unique<BreakStatement>()); //aparently its easier to use emplace back since its the same as push back but i can access out of it since ++17 uwu
-                }
-                break;
-                case TokenType::If:
-                {
-                    auto sv_NestedIfStatement = ParseIfBlock(fp_IsInLoop, fp_CurrentToken, fp_ProgramTokens);
-
-                    if (not sv_NestedIfStatement)
-                    {
-                        parser_logger->Error(format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
-                        return nullptr;
-                    }
-
-                    f_IfDec->m_ElseIfStatements.push_back(move(sv_NestedIfStatement));
-                }
-                break;
-                default:
-                    break;
-                }
-            }
-
-            if (fp_CurrentToken.m_Type == TokenType::ENDF)
-            {
-                parser_logger->Error(format("Found end of file instead of the end of if declaration at line: {}", f_IfLineNumber), "Parser");
-                return nullptr;
-            }
-
-            if (fp_CurrentToken.m_Type != TokenType::CloseBracket)
-            {
-                //THROW ERROR
-                parser_logger->Error(format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
-                parser_logger->Warning("Unrecognized expression found while declaring your function brother! Try taking a look at your function parameter(s) definition", "Parser");
-                return nullptr;
-            }
+            f_IfDec->CodeBody = move(f_CodeBlock->CodeBody);
+            
+            //end of processing code block
 
             fp_CurrentToken = ShiftForward(fp_ProgramTokens); //we can shift now since we"re sitting on "(" right now, and have handled it"s logic
             
             //idk wtf i had here before but yeah keep looping while else if's are found uwu
             while (fp_CurrentToken.m_Type == TokenType::Elif)
             {
-                auto sv_FallThroughCondition = ParseIfBlock(fp_IsInLoop, fp_CurrentToken, fp_ProgramTokens);
+                auto sv_FallThroughCondition = ParseIfBlock(fp_CurrentToken, fp_ProgramTokens, fp_IsInLoop);
 
                 if (not sv_FallThroughCondition)
                 {
-                    parser_logger->Error(format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
+                    parser_logger->Error(format("Error at Line Number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
                     return nullptr;
                 }
 
@@ -786,7 +814,7 @@ namespace BongoJam {
 
                 if (not f_ElseStatement)
                 {
-                    parser_logger->Error(format("Error while defining an else statement at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
+                    parser_logger->Error(format("Error while defining an else statement at Line Number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
                     return nullptr;
                 }
 
@@ -812,7 +840,7 @@ namespace BongoJam {
 
             if (not f_StatementBlock)
             {
-                parser_logger->Error(format("Error occured at line: '{}' while trying to parse your else statement >:^(", to_string(f_EntryToken.m_SourceCodeLineNumber)), "Parser");
+                parser_logger->Error(format("Error occured at line: '{}' while trying to parse your else statement >:^(", f_EntryToken.m_SourceCodeLineNumber), "Parser");
                 return nullptr;
             }
 
@@ -821,16 +849,83 @@ namespace BongoJam {
             return move(f_ElseDec);
         }
 
-        WhileLoopDeclaration
-            ParseWhileBlock()
+        unique_ptr<WhileLoopDeclaration>
+            ParseWhileBlock
+            (
+                Token& fp_CurrentToken,
+                vector<Token>& fp_ProgramTokens
+            )
         {
+            Token f_EntryToken = fp_CurrentToken;
 
+            unique_ptr<WhileLoopDeclaration> f_WhileDec = make_unique<WhileLoopDeclaration>();
+
+            auto f_ParsedCondition = ParseRegularExpr(fp_CurrentToken, fp_ProgramTokens);
+            if (not f_ParsedCondition)
+            {
+                parser_logger->Error(format("Error occured at line: {} while trying to parse your while statement Owo", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                return nullptr;
+            }
+            else if (f_ParsedCondition->EvaluatesTo != TokenType::Bool) //make sure condition evaluates to a proper condition uwu
+            {
+                parser_logger->Error(format("Error occured at line: {}, while-loop condition doesn't evaluate ->bool, wtf man?", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                return nullptr;
+            }
+            f_WhileDec->m_Condition = move(f_ParsedCondition);
+
+            auto f_ParsedStatementBlock = ParseStatementBlock(fp_CurrentToken, fp_ProgramTokens, true);
+            if (not f_ParsedStatementBlock)
+            {
+                parser_logger->Error(format("Error occured at line: {}, while-loop code block is bad and doesn't work try again but better this time", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                return nullptr;
+            }
+
+            f_WhileDec->CodeBody = move(f_ParsedStatementBlock->CodeBody);
+
+            return move(f_WhileDec);
         }
 
-        ForLoopDeclaration
-            ParseForBlock()
+        unique_ptr<ForLoopDeclaration>
+            ParseForBlock
+            (
+                Token& fp_CurrentToken,
+                vector<Token>& fp_ProgramTokens
+            )
         {
+            Token f_EntryToken = fp_CurrentToken;
 
+            unique_ptr<ForLoopDeclaration> f_ForDec = make_unique<ForLoopDeclaration>();
+
+            fp_CurrentToken = ShiftForward(fp_ProgramTokens);
+            
+            if (fp_CurrentToken.m_Type != TokenType::OpenParen)
+            {
+                parser_logger->Error(format("Error occured at line: {}, expected '(' at for-loop condition, found: '{}' instead", f_EntryToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
+                return nullptr;
+            }
+
+            fp_CurrentToken = ShiftForward(fp_ProgramTokens);
+            
+            //////////// parse for loop condition
+
+            fp_CurrentToken = ShiftForward(fp_ProgramTokens);
+
+            if (fp_CurrentToken.m_Type != TokenType::CloseParen)
+            {
+                parser_logger->Error(format("Error occured at line: {}, expected ')' at for-loop condition, found: '{}' instead", f_EntryToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
+                return nullptr;
+            }
+
+            auto f_ParsedStatementBlock = ParseStatementBlock(fp_CurrentToken, fp_ProgramTokens, true);
+            if (not f_ParsedStatementBlock)
+            {
+                parser_logger->Error(format("Error occured at line: {}, couldn't parse for-loop code block, u srs?", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                return nullptr;
+            }
+
+            f_ForDec->CodeBody = move(f_ParsedStatementBlock->CodeBody);
+
+            return move(f_ForDec);
         }
 
         unique_ptr<ReturnStatement>
@@ -906,20 +1001,17 @@ namespace BongoJam {
                 f_CurrentArgument.Name = fp_CurrentToken;
                 fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift forward to look for an open paren
                 
-                if (fp_CurrentToken.m_Type != TokenType::TypeArrow)
+                if (fp_CurrentToken.m_Type != TokenType::TypeArrow) //THROW ERROR
                 {
-                    //THROW ERROR
                     parser_logger->Error(format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
                     parser_logger->Warning("Unrecognized symbol following a name definition while declaring: " + f_FuncDec->m_FuncName.m_Value + "'s arguments brother! Try taking a look at your type-arrows", "Parser");
                     return nullptr;
                 }
 
                 fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift forward to look for an open paren
-                
 
-                if (not IsTypename(fp_CurrentToken))
+                if (not IsTypename(fp_CurrentToken)) //THROW ERROR
                 {
-                    //THROW ERROR
                     parser_logger->Error(format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
                     parser_logger->Warning("Unrecognized type found while declaring: " + f_FuncDec->m_FuncName.m_Value + "'s brother! Are you sure you've entered a valid type in " + f_FuncDec->m_FuncName.m_Value + "'s argument definition?", "Parser");
                     return nullptr;
@@ -966,8 +1058,8 @@ namespace BongoJam {
                     return nullptr;
                 }
             } //end of function arg parsing
-
-            ////////////////////////////////////////// idk
+            ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+            
             //if function definition was valid, then f_CurrentToken = ')' right now
             fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift forward to look for a type arrow definition
             
@@ -982,136 +1074,28 @@ namespace BongoJam {
 
             if (not IsTypename(fp_CurrentToken)) //THROW ERROR
             {
-                parser_logger->Error(format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
+                parser_logger->Error(format("Error at Line Number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
                 parser_logger->Warning("Invalid type found in: " + f_FuncDec->m_FuncName.m_Value + "'s return type defintion! \n Try taking a look at your type-arrow definition", "Parser");
                 return nullptr;
             }
  
             f_FuncDec->m_FuncReturnType = fp_CurrentToken; //assign return type to the FuncDeclaration struct
-            fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift forward to look for an open bracket to indicate function body code    
 
-            if (fp_CurrentToken.m_Type != TokenType::OpenBracket) //THROW ERROR
+            auto f_FuncBody = ParseStatementBlock(fp_CurrentToken, fp_ProgramTokens, false);
+
+            if (not f_FuncBody)
             {
-                parser_logger->Error(format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
-                parser_logger->Warning("Unrecognized symbol following " + f_FuncDec->m_FuncName.m_Value + "'s function parameter definition! Try taking a look at your function body definition", "Parser");
+                parser_logger->Error(format("Error at Line Number: {}, unable to parse function : '{}' code body", fp_CurrentToken.m_SourceCodeLineNumber, f_FuncDec->m_FuncName.m_Value), "Parser");
                 return nullptr;
             }
 
-            //we don't shift here because we want the while loop to always shift at the top, so we just leave it for the first iteration uwu
-
-            bool f_IsDoneParsingCodeBody = true;
-            //parse function body definition
-            while (f_IsDoneParsingCodeBody)
-            {
-                fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift forward to start parsing the function body
-
-                Token f_EntryToken = fp_CurrentToken; //used for debugging
-
-                switch (fp_CurrentToken.m_Type)
-                {
-                case TokenType::Print:
-                {
-                    unique_ptr<PrintFunction> sv_PrintFuncCall = ParsePrintFunction(fp_CurrentToken, fp_ProgramTokens);
-
-                    if (not sv_PrintFuncCall)
-                    {
-                        parser_logger->Error(format("Parsing Error at line: {}, in function named : '{}' invalid call to print() function", f_EntryToken.m_SourceCodeLineNumber, f_FuncDec->m_FuncName.m_Value), "Parser");
-                        return nullptr;
-                    }
-                    
-                    f_FuncDec->CodeBody.push_back(move(sv_PrintFuncCall));
-                    //current token should be ';' should be safe to shift 
-                    //after parsing the print function successfully we should be pointing to an already processed token, so we can safely iterate and ShiftForward() at the top of the loop
-                }
-                break;
-                case TokenType::UserIdentifier: //deal with user defined tokens relating to lines of code like "myVar = newVal;" or "myClass.myFunc();" or "myFunc();" specifically
-                {
-                    auto sv_UserDefinedAction = ParseUserIdentifier(fp_CurrentToken, fp_ProgramTokens); //used for var reassignment, class method access
-
-                    if (not sv_UserDefinedAction)
-                    {
-                        parser_logger->Error(format("Parsing Error at line: {}, bad grammer found involving a user identifier in function named: '{}'", f_EntryToken.m_SourceCodeLineNumber, f_FuncDec->m_FuncName.m_Value), "Parser");
-                        return nullptr;
-                    }
-
-                    f_FuncDec->CodeBody.push_back(move(sv_UserDefinedAction));
-                    //current token should be ';' should be safe to shift
-                }
-                break;
-                case TokenType::OpenBracket: //we want to handle scope declarations first since any keywords will overshadow it in the logical flow
-                {
-                    unique_ptr<ScopeDeclaration> sv_ScopeBlock = ParseScopeDeclaration(fp_CurrentToken, fp_ProgramTokens);
-
-                    if (not sv_ScopeBlock)
-                    {
-                        parser_logger->Error(format("Parsing Error at line: {}, invalid scope declaration found inside function with name: '{}'", f_EntryToken.m_SourceCodeLineNumber, f_FuncDec->m_FuncName.m_Value), "Parser");
-                        return nullptr;
-                    }
-
-                    f_FuncDec->CodeBody.push_back(move(sv_ScopeBlock));
-                    //current token should be '}' should be safe to shift  
-                }
-                break;
-                case TokenType::Var:
-                {
-                    auto sv_VariableDefinition = ParseVarDeclaration(fp_CurrentToken, fp_ProgramTokens);
-
-                    if (not sv_VariableDefinition)
-                    {
-                        parser_logger->Error(format("Parsing Error at line: {}, invalid variable definition found inside function named: '{}'", f_EntryToken.m_SourceCodeLineNumber, f_FuncDec->m_FuncName.m_Value), "Parser");
-                        return nullptr;
-                    }
-
-                    f_FuncDec->CodeBody.push_back(move(sv_VariableDefinition));
-                    //current token should be ';' should be safe to shift
-                }
-                break;
-                case TokenType::If:
-                {
-                    auto sv_IfStatement = ParseIfBlock(false, fp_CurrentToken, fp_ProgramTokens);
-
-                    if (not sv_IfStatement)
-                    {
-                        parser_logger->Error(format("Parsing Error at line: {}, invalid if statement found inside function named: '{}'", f_EntryToken.m_SourceCodeLineNumber, f_FuncDec->m_FuncName.m_Value), "Parser");
-                        return nullptr;
-                    }
-
-                    f_FuncDec->CodeBody.push_back(move(sv_IfStatement));
-                }
-                break;
-                case TokenType::While:
-                    break;
-                case TokenType::For:
-                    break;
-                case TokenType::Try:
-                    break;
-                case TokenType::Return:
-                {
-                    auto sv_ReturnStatement = ParseReturnStatement(fp_CurrentToken, fp_ProgramTokens);
-
-                    if (not sv_ReturnStatement)
-                    {
-                        parser_logger->Error(format("Parsing Error at line: {}, invalid return statement found inside function named: '{}'", f_EntryToken.m_SourceCodeLineNumber, f_FuncDec->m_FuncName.m_Value), "Parser");
-                        return nullptr;
-                    }
-
-                    f_FuncDec->CodeBody.push_back(move(sv_ReturnStatement));
-                }
-                    break;
-                case TokenType::CloseBracket:
-                    f_IsDoneParsingCodeBody = false; //eh best solution i got for now uwu
-                    break;
-                default:
-                    parser_logger->Error(format("Parsing Error at line: {}, found : '{}', when statement was expected inside function named: '{}'", f_EntryToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value, f_FuncDec->m_FuncName.m_Value), "Parser");
-                    return nullptr;
-                }
-            }
+            f_FuncDec->CodeBody = move(f_FuncBody->CodeBody);
 
             //since we successfully parsed the function body, due to our while-loop condition, f_CurrentToken = '}',
             //we don't need to ShiftForward() here because when this function exits, it leaves that responsibility up to the while loop that called it
             //so fp_CurrentToken = '}' aka close bracket
 
-            if (f_FuncDec->m_FuncReturnType.m_Type != TokenType::Void and (not ValidateFunctionReturnPaths())) //validate every path returns a value for non-void funcs
+            if (not ValidateFunctionReturnPaths()) //validate every path returns a value for even void funcs since the coder could've written a return inside a void function, gotta check for accidents
             {
 
                 return nullptr;
@@ -1163,47 +1147,7 @@ namespace BongoJam {
 
                 switch (fp_CurrentToken.m_Type)
                 {
-                case TokenType::CloseParen:
-                    continue; // I THINK THIS WORKS THE WAY I WANT IT TO
-                case TokenType::OpenParen:
-                    continue;
-                case TokenType::UserIdentifier: //handles variables, function, and class instance names being passed as a single argument
-                {
-                    auto sv_UserDefinedAction = ParseUserIdentifier(fp_CurrentToken, fp_ProgramTokens); //used for var reassignment, class method access
 
-                    if (not sv_UserDefinedAction)
-                    {
-                        return nullptr;
-                    }
-
-                    //f_FuncCallExpr->
-                } //end of scope
-                break;
-                case TokenType::Comma:
-                {
-
-                } //end of scope
-                break;
-                case TokenType::FloatNumber:
-                {
-
-                } //end of scope
-                break;
-                case TokenType::StringLiteral:
-                {
-
-                } //end of scope
-                break;
-                case TokenType::True:
-                {
-
-                } //end of scope
-                break;
-                case TokenType::False:
-                {
-
-                } //end of scope 
-                break;
                 default: //THROW ERROR
                 {
                     parser_logger->Error(format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
@@ -1217,50 +1161,225 @@ namespace BongoJam {
             return move(f_FuncCallExpr);
         }
 
-        bool
+        unique_ptr<ClassDeclaration>
             ParseClassDeclaration
             (
-
                 Token& fp_CurrentToken, 
                 vector<Token>& fp_ProgramTokens, 
-
-                ClassDeclaration& fp_ClassBlock, 
                 bool fp_IsSingle
             )
         {
+            Token f_EntryToken = fp_CurrentToken;
+
+            unique_ptr<ClassDeclaration> f_ClassDec = make_unique<ClassDeclaration>();
+
             fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift forward to look for an user defined identifier eg. "class MyClass"
             
-
-            if (fp_CurrentToken.m_Type == TokenType::UserIdentifier)//if it"s a proper name defintion then we can now proceed forwards
+            if (fp_CurrentToken.m_Type != TokenType::UserIdentifier)//if it"s a proper name defintion then we can now proceed forwards //THROW ERROR
             {
-                fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift forward to look for an open paren
-                
-
-                if (fp_CurrentToken.m_Type != TokenType::OpenBracket)
-                {
-                    //THROW ERROR
-                        parser_logger->Error(format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
-                    parser_logger->Warning("Something bad happened while declaring your class brother! Did you remember an open bracket?", "Parser");
-                    return false;
-                }
-
-                while (fp_ProgramTokens.size() > 0 && fp_CurrentToken.m_Type != TokenType::CloseBracket)
-                {
-                    fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift forward since the current character is "{"
-                    
-                }
+                parser_logger->Error(format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
+                parser_logger->Warning("Something bad happened while declaring your class brother! Did you forget an open bracket?", "Parser");
+                return nullptr;
             }
-            else
+
+            f_ClassDec->ClassName = fp_CurrentToken;
+            fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift forward to look for an open paren
+
+            if (fp_CurrentToken.m_Type != TokenType::OpenBracket) //THROW ERROR
             {
-                //THROW ERROR
-                    parser_logger->Error(format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
+                parser_logger->Error(format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
                 parser_logger->Warning("Something bad happened while declaring your class brother! Did you remember an open bracket?", "Parser");
-                return false;
+                return nullptr;
             }
 
-            return true;
+            bool f_IsParsing = true;
+            uint8_t f_CurrentAccessLevel = 0;
+
+            while (f_IsParsing) //parse main code block of class decl
+            {
+                fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift forward since the current character is "{"
+                f_EntryToken = fp_CurrentToken;
+
+                switch (fp_CurrentToken.m_Type)
+                {
+                case TokenType::Var:
+                {
+                    auto sv_FieldDec = ParseVarDeclaration(fp_CurrentToken, fp_ProgramTokens);
+
+                    if (not sv_FieldDec)
+                    {
+                        parser_logger->Error(format("Error at Line Number: {}, unable to parse field declaration inside class : '{}'", fp_CurrentToken.m_SourceCodeLineNumber, f_ClassDec->ClassName.m_Value), "Parser");
+                        return nullptr;
+                    }
+
+                    sv_FieldDec->Modifiers |= f_CurrentAccessLevel; //set access level
+
+                    f_ClassDec->Fields.push_back(move(sv_FieldDec));
+                }
+                break;
+                case TokenType::Func:
+                {
+                    auto sv_FuncDeclaration = ParseFuncDeclaration(fp_CurrentToken, fp_ProgramTokens);
+
+                    if (not sv_FuncDeclaration)
+                    {
+                        parser_logger->Error(format("Error at Line Number: {}, unable to parse field declaration inside class : '{}'", fp_CurrentToken.m_SourceCodeLineNumber, f_ClassDec->ClassName.m_Value), "Parser");
+                        return nullptr;
+                    }
+
+                    sv_FuncDeclaration->Modifiers |= f_CurrentAccessLevel; //set access level
+
+                    if(sv_FuncDeclaration->m_FuncName.m_Value == f_ClassDec->ClassName.m_Value)
+                    {
+                        f_ClassDec->Constructors.push_back(move(sv_FuncDeclaration));
+                    }
+                    else
+                    {
+                        f_ClassDec->Methods.push_back(move(sv_FuncDeclaration));
+                    }
+                    //Success! function parsed uwu
+                }
+                break;
+                case TokenType::Static:
+                {
+
+                }
+                break;
+                case TokenType::Const:
+                {
+                    auto sv_ConstStatement = ParseConstant(fp_CurrentToken, fp_ProgramTokens);
+
+                    if (not sv_ConstStatement)
+                    {
+                        parser_logger->Error(format("Parsing Error at line: {}, invalid const definition found inside code block", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                        return nullptr;
+                    }
+                    if(sv_ConstStatement->m_Domain == SyntaxNodeType::VarDeclaration)
+                    {
+                        f_ClassDec->Fields.push_back(unique_dynamic_cast<VarDeclaration>(move(sv_ConstStatement)));
+                    }
+                }
+                break;
+                case TokenType::Private:
+                {
+                    f_EntryToken = fp_CurrentToken;
+                    fp_CurrentToken = ShiftForward(fp_ProgramTokens);
+
+                    if (fp_CurrentToken.m_Type != TokenType::DoubleDot)
+                    {
+                        parser_logger->Error(format("Error at Line Number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
+                        return nullptr;
+                    }
+
+                    f_CurrentAccessLevel = ModifierFlags::PRIVATE;
+                }
+                break;
+                case TokenType::Protected:
+                {
+                    f_EntryToken = fp_CurrentToken;
+                    fp_CurrentToken = ShiftForward(fp_ProgramTokens);
+
+                    if (fp_CurrentToken.m_Type != TokenType::DoubleDot)
+                    {
+                        parser_logger->Error(format("Error at Line Number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
+                        return nullptr;
+                    }
+
+                    f_CurrentAccessLevel = ModifierFlags::PROTECTED;
+                }
+                break;
+                case TokenType::Public:
+                {
+                    f_EntryToken = fp_CurrentToken;
+                    fp_CurrentToken = ShiftForward(fp_ProgramTokens);
+
+                    if (fp_CurrentToken.m_Type != TokenType::DoubleDot)
+                    {
+                        parser_logger->Error(format("Error at Line Number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
+                        return nullptr;
+                    }
+
+                    f_CurrentAccessLevel = ModifierFlags::PUBLIC;
+                }
+                break;
+                case TokenType::CloseBracket:
+                    f_IsParsing = false;
+                    break;
+                }
+            }
+
+            return move(f_ClassDec);
         }
 
+        unique_ptr<InPlaceStructConstruction> //assumed entry token is '{'
+            ParseStructConstruction
+            (
+                Token& fp_CurrentToken,
+                vector<Token>& fp_ProgramTokens
+            )
+        {
+            Token f_EntryToken = fp_CurrentToken;
+            unique_ptr<InPlaceStructConstruction> f_StructConstruc = make_unique<InPlaceStructConstruction>();
+
+            while (1)
+            {
+                fp_CurrentToken = ShiftForward(fp_ProgramTokens);
+                
+                if(fp_CurrentToken.m_Type == TokenType::Dot)
+                {
+                    fp_CurrentToken = ShiftForward(fp_ProgramTokens);
+
+                    if (fp_CurrentToken.m_Type != TokenType::UserIdentifier)
+                    {
+
+                        return nullptr;
+                    }
+
+                    Token f_VarName = fp_CurrentToken;
+                    fp_CurrentToken = ShiftForward(fp_ProgramTokens);
+
+                    if (fp_CurrentToken.m_Type != TokenType::Equals)
+                    {
+
+                        return nullptr;
+                    }
+
+                    auto sv_RegExpr = ParseRegularExpr(fp_CurrentToken, fp_ProgramTokens);
+
+                    if (not sv_RegExpr)
+                    {
+                        parser_logger->Error(format("Error at Line Number: {}, unable to parse named in-place struct contructor call argument ;o;", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
+                        return nullptr;
+                    }
+
+                    f_StructConstruc->ArgumentNames.push_back(f_VarName.m_Value);
+                    f_StructConstruc->Arguments.emplace_back(move(sv_RegExpr));
+                }
+                else if (fp_CurrentToken.m_Type == TokenType::Comma) //repeat loop uwu
+                {
+                    continue;
+                }
+                else if(fp_CurrentToken.m_Type == TokenType::CloseBracket) //loop exit condition either it finds a close bracket or EOF uwu u choose
+                {
+                    break;
+                }
+                else //most basic case where its var x->mystruct = {1, 2, 3};
+                {
+                    auto sv_RegExpr = ParseRegularExpr(fp_CurrentToken, fp_ProgramTokens, false); //avoid shift since the top of the loop overstepped a token at this point
+
+                    if (not sv_RegExpr)
+                    {
+                        parser_logger->Error(format("Error at Line Number: {}, unable to parse struct contructor call argument ;o;", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
+                        return nullptr;
+                    }
+
+                    f_StructConstruc->Arguments.emplace_back(move(sv_RegExpr));
+                }
+                
+            }
+
+            return move(f_StructConstruc);
+        }
         unique_ptr<StructDeclaration>
             ParseStructDeclaration
             (
@@ -1274,7 +1393,7 @@ namespace BongoJam {
             
             if (fp_CurrentToken.m_Type != TokenType::UserIdentifier)//if it"s a proper name defintion then we can now proceed forwards, //THROW ERROR
             {
-                parser_logger->Error(format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
+                parser_logger->Error(format("Error at Line Number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
                 parser_logger->Warning("Something bad happened while declaring your struct brother, did you forget or type your name wrong?", "Parser");
                 return nullptr;
             }
@@ -1284,12 +1403,14 @@ namespace BongoJam {
 
             if (fp_CurrentToken.m_Type != TokenType::OpenBracket) //THROW ERROR
             {
-                parser_logger->Error(format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
+                parser_logger->Error(format("Error at Line Number: {}",fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
                 parser_logger->Warning("Something bad happened while declaring your class brother! Did you remember an open bracket?", "Parser");
                 return nullptr;
             }
 
-            while (fp_ProgramTokens.size() > 0 and fp_CurrentToken.m_Type != TokenType::CloseBracket)
+            bool f_IsParsing = true;
+
+            while (f_IsParsing)
             {
                 fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift forward since the current character is "{"
 
@@ -1308,6 +1429,9 @@ namespace BongoJam {
                     f_StructDec->Members.push_back(move(sv_VariableDeclaration));
                 }
                 break;
+                case TokenType::CloseBracket:
+                    f_IsParsing = false;
+                    break;
                 default:
                     parser_logger->Error(format("Error at Line Number: {}, found : '{}', when declaring variables inside a struct", to_string(fp_CurrentToken.m_SourceCodeLineNumber), fp_CurrentToken.m_Value), "Parser");
                     return nullptr;
@@ -1329,16 +1453,54 @@ namespace BongoJam {
             return move(f_ScopeDec);
         }
 
-        ListDeclaration
+        unique_ptr<NameSpaceBlock>
+            ParseNameSpace
+            (
+                Token& fp_CurrentToken,
+                vector<Token>& fp_ProgramTokens
+            )
+        {
+            Token f_EntryToken = fp_CurrentToken;
+
+            unique_ptr<NameSpaceBlock> f_NameSpace = make_unique<NameSpaceBlock>();
+
+            fp_CurrentToken = ShiftForward(fp_ProgramTokens); //look for namespace name uwu
+
+            if (fp_CurrentToken.m_Type != TokenType::UserIdentifier) 
+            {
+
+                return nullptr;
+            }
+
+            f_NameSpace->m_Name = fp_CurrentToken;
+
+            {
+                auto sv_NameBlock = ParseStatementBlock(fp_CurrentToken, fp_ProgramTokens, false);
+
+                if (not sv_NameBlock)
+                {
+
+                    return nullptr;
+                }
+
+                f_NameSpace->CodeBlock = move(sv_NameBlock);
+            }
+
+            return move(f_NameSpace);
+        }
+
+        unique_ptr<ListDeclaration>
             ParseListDeclaration()
         {
 
+            return nullptr;
         }
 
-        DictionaryDeclaration
+        unique_ptr<DictionaryDeclaration>
             ParseDictionaryDeclaration()
         {
 
+            return nullptr;
         }
 
         unique_ptr<VarDeclaration> //returns true if it worked, false if it failed
@@ -1348,14 +1510,15 @@ namespace BongoJam {
                 vector<Token>& fp_ProgramTokens
             )
         {
+            Token f_EntryToken = fp_CurrentToken;
+
             unique_ptr<VarDeclaration> f_VarDec = make_unique<VarDeclaration>();
 
             fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift forward one token to check for any accessor symbols
 
-            if (fp_CurrentToken.m_Type != TokenType::UserIdentifier)
+            if (fp_CurrentToken.m_Type != TokenType::UserIdentifier) //THROW ERROR
             {
-                //THROW ERROR
-                    parser_logger->Error(format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
+                parser_logger->Error(format("Error at Line Number: {}, expected a variable name but found: '{}' instead", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
                 parser_logger->Warning("Something bad happened while declaring a variable brother! Try taking a look at the variable name definition", "Parser");
                 return nullptr;
             }
@@ -1363,77 +1526,42 @@ namespace BongoJam {
             f_VarDec->Name = fp_CurrentToken;
             fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift forward one token to check for a type arrow
                         
-
-            if (fp_CurrentToken.m_Type != TokenType::TypeArrow)
+            if (fp_CurrentToken.m_Type != TokenType::TypeArrow)  //THROW ERROR
             {
-                //THROW ERROR
-                    parser_logger->Error(format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
+                parser_logger->Error(format("Error at Line Number: {}, expected type arrow '->' but found: '{}' instead", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
                 parser_logger->Warning("Invalid symbol found after name-definition while declaring a variable brother! Try taking a look at the variable type-arrow definition", "Parser");
                 return nullptr;
             }
 
             fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift forward one token to check for type and member access level
             
-
-            if (not IsTypename(fp_CurrentToken))
+            if (not IsTypename(fp_CurrentToken)) //THROW ERROR
             {
-                //THROW ERROR
-                    parser_logger->Error(format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
+                parser_logger->Error(format("Error at Line Number: {}, expected typename but found: '{}' instead", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
                 parser_logger->Warning("Something bad happened while declaring a variable brother! Try taking a look at the variable type definition", "Parser");
                 return nullptr;
             }
 
             f_VarDec->Type = fp_CurrentToken;
-            fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift forward one token to check for a type arrow
-            
+            fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift forward one token to check for '='
 
-            switch(fp_CurrentToken.m_Type)
+            if (fp_CurrentToken.m_Type == TokenType::SemiDot) //for var decs like 'var x->int;' but every primitive type has a default initializer so w/e
             {
-                case TokenType::Equals:
-                {
-
-                }
-                break;
-                case TokenType::ModuloEqualsOperator:
-                {
-
-                }
-                break;
-                case TokenType::PlusEqualsOperator:
-                {
-
-                }
-                break;
-                case TokenType::MinusEqualsOperator:
-                {
-
-                }
-                break;
-                case TokenType::MultEqualsOperator:
-                {
-
-                }
-                break;
-                case TokenType::DivEqualsOperator:
-                {
-
-                }
-                break;
-                default:
-                    //THROW ERROR
-                        parser_logger->Error(format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
-                    parser_logger->Warning("Unexpected symbol found after type-indicator while declaring a variable brother! Try taking a look at the variable type definition", "Parser");
-                    return nullptr;
+                return move(f_VarDec); //already done, just default value is nullptr uwu
             }
-
-            fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift forward one token to check for a type arrow
-            
-            auto f_ParsedRegExpr = ParseRegularExpr(fp_CurrentToken, fp_ProgramTokens);
-
-            if(not f_ParsedRegExpr)
+             
+            if (fp_CurrentToken.m_Type != TokenType::Equals)
             {
-                //THROW ERROR
-                    parser_logger->Error(format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
+                parser_logger->Error(format("Error at Line Number: {}, expected '=' during var declaration but found: '{}' instead", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
+                parser_logger->Warning(format("Found : '{}', when '=' was expected during definition of your variable named: '{}'", fp_CurrentToken.m_Value, f_VarDec->Name.m_Value), "Parser");
+                return nullptr;
+            }
+            
+            auto f_ParsedRegExpr = ParseRegularExpr(fp_CurrentToken, fp_ProgramTokens); //no shift here since the parseregexpr will do that for me uwu
+
+            if(not f_ParsedRegExpr) //THROW ERROR
+            {
+                parser_logger->Error(format("Error at Line Number: {}, failed to parse variable value declaration", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
                 parser_logger->Warning("Invalid value found while declaring a variable brother! Try taking a look at the variable value definition", "Parser");
                 return nullptr;
             }
@@ -1471,7 +1599,7 @@ namespace BongoJam {
                         return nullptr;
                     }
 
-                    f_StaticVarDec->IsStatic = true;
+                    f_StaticVarDec->Modifiers |= ModifierFlags::STATIC;
 
                     return move(f_StaticVarDec);
                 }
@@ -1491,7 +1619,7 @@ namespace BongoJam {
                         return nullptr;
                     }
 
-                    sv_StaticFuncDec->IsStatic = true;
+                    sv_StaticFuncDec->Modifiers |= ModifierFlags::STATIC;
 
                     return move(sv_StaticFuncDec);
                 }
@@ -1511,8 +1639,7 @@ namespace BongoJam {
                         return nullptr;
                     }
 
-                    sv_StaticConstVarDec->IsStatic = true;
-                    sv_StaticConstVarDec->IsConst = true;
+                    sv_StaticConstVarDec->Modifiers |= ModifierFlags::STATIC | ModifierFlags::CONSTANT;
 
                     return move(sv_StaticConstVarDec);
                 }
@@ -1535,8 +1662,80 @@ namespace BongoJam {
                 vector<Token>& fp_ProgramTokens
             )
         {
+            //Shift forward to look for a type token
+            fp_CurrentToken = ShiftForward(fp_ProgramTokens);
 
-            return nullptr;
+            switch (fp_CurrentToken.m_Type)
+            {
+            case TokenType::Var:
+            {
+                auto f_StaticVarDec = ParseVarDeclaration(fp_CurrentToken, fp_ProgramTokens);
+
+                if (not f_StaticVarDec)
+                {
+                    parser_logger->Error
+                    (
+                        format("Parsing Error: failed to parse variable declaration, found: '{}' instead in source code at line: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber),
+                        "Parser"
+                    );
+
+                    return nullptr;
+                }
+
+                f_StaticVarDec->Modifiers |= ModifierFlags::CONSTANT;
+
+                return move(f_StaticVarDec);
+            }
+            break;
+            case TokenType::Func:
+            {
+                auto sv_StaticFuncDec = ParseFuncDeclaration(fp_CurrentToken, fp_ProgramTokens);
+
+                if (not sv_StaticFuncDec)
+                {
+                    parser_logger->Error
+                    (
+                        format("Parsing Error: failed to parse variable declaration, found: '{}' instead in source code at line: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber),
+                        "Parser"
+                    );
+
+                    return nullptr;
+                }
+
+                sv_StaticFuncDec->Modifiers |= ModifierFlags::CONSTANT;
+
+                return move(sv_StaticFuncDec);
+            }
+            break;
+            case TokenType::Static: //parse as regular var and just add const decorator on top of static
+            {
+                auto sv_StaticConstVarDec = ParseVarDeclaration(fp_CurrentToken, fp_ProgramTokens);
+
+                if (not sv_StaticConstVarDec)
+                {
+                    parser_logger->Error
+                    (
+                        format("Parsing Error: failed to parse variable declaration, found: '{}' instead in source code at line: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber),
+                        "Parser"
+                    );
+
+                    return nullptr;
+                }
+
+                sv_StaticConstVarDec->Modifiers |= ModifierFlags::STATIC | ModifierFlags::CONSTANT;
+
+                return move(sv_StaticConstVarDec);
+            }
+            break;
+            default:
+                parser_logger->Error
+                (
+                    format("Parsing Error: expected var when using const, eg . 'const var ~~', but found: '{}' instead in source code at line: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber),
+                    "Parser"
+                );
+            }
+
+            return nullptr; // :(
         }
 
         //////////////////////////////////////////////
@@ -1625,26 +1824,17 @@ namespace BongoJam {
         unique_ptr<Program>
             ConstructAST(vector<Token>& fp_ProgramTokens)
         {
-            map<string, uint32_t> f_VariableToScopeMap;
-
             unique_ptr<Program> f_Program = make_unique<Program>();
 
             Token f_CurrentToken;
-            Token f_EntryToken;
+            Token f_EntryToken; //used for debugging 
 
             bool f_IsSingle = false; //used for tracking whether the class defintion we're in is a singleton or not
-            bool f_ShouldShift = true;
 
             while (not IsENDF(f_CurrentToken) and fp_ProgramTokens.size() > 0) //this loop operates on every statement that lives on scope-depth = 0, everything else is branched like a tree from the 0th level
             {
-                if (not f_ShouldShift)
-                {
-                    f_ShouldShift = true;
-                }
-                else
-                {
-                    f_CurrentToken = ShiftForward(fp_ProgramTokens);
-                }
+                f_CurrentToken = ShiftForward(fp_ProgramTokens);
+                
                 switch (f_CurrentToken.m_Type)
                 {
                 case TokenType::Func: //used for func and class method definitions
@@ -1652,7 +1842,7 @@ namespace BongoJam {
                     f_EntryToken = f_CurrentToken;
                     unique_ptr<FuncDeclaration> sv_FunctionDefintion = ParseFuncDeclaration(f_CurrentToken, fp_ProgramTokens);
 
-                    if (not sv_FunctionDefintion.get())
+                    if (not sv_FunctionDefintion)
                     {
                         parser_logger->Error(format("Parsing Error at line:'{}', function named : '{}' declaration is invalid", f_EntryToken.m_SourceCodeLineNumber, "main uwu"), "Parser");
                         return nullptr;
@@ -1671,37 +1861,42 @@ namespace BongoJam {
                 break;
                 case TokenType::Class: //Class Definition, not accessor; we do that with the UserIdentifier token
                 {
-                    //ClassDeclaration s_ClassBlock; //used for func args, var reassignment, class method access
+                    auto sv_ClassBlock = ParseClassDeclaration(f_CurrentToken, fp_ProgramTokens, f_IsSingle); //used for func args, var reassignment, class method access
 
-                    //if (not ParseClassDeclaration(f_CurrentToken, f_ProgramTokens, s_ClassBlock, f_IsSingle))
-                    //{
-                    //	continue;
-                    //}
-                    //else
-                    //{
-                    //	f_Program.m_ProgramClasses.push_back(s_ClassBlock);
-                    //	f_IsSingle = false; //reset so that the next class definition doesn't get falsely labelled as a singleton
-                    //}
+                    if (not sv_ClassBlock)
+                    {
+                        parser_logger->Error(format("Parsing Error at line:'{}', couldn't parse class ;w;", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                        return nullptr;
+                    }
+                    
+                    f_Program->ParsedScript.push_back(move(sv_ClassBlock));
+                    f_IsSingle = false; //reset so that the next class definition doesn't get falsely labelled as a singleton
                 }
                 break;
                 case TokenType::Struct: //define a struct
                 {
-                    //StructDeclaration s_StructBlock; //used for func args, var reassignment, class method access
+                    auto sv_StructBlock = ParseStructDeclaration(f_CurrentToken, fp_ProgramTokens); //used for func args, var reassignment, class method access
 
-                    //if (not ParseStructDeclaration(f_CurrentToken, f_ProgramTokens, s_StructBlock))
-                    //{
-                    //	continue;
-                    //}
-                    //else
-                    //{
-                    //	f_Program.m_ProgramStructs.push_back(s_StructBlock);
-                    //}
+                    if (not sv_StructBlock)
+                    {
+                        parser_logger->Error(format("Parsing Error at line:'{}', couldn't parse struct ;w;", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                        return nullptr;
+                    }
+
+                    f_Program->ParsedScript.push_back(move(sv_StructBlock));
                 }
                 break;
                 case TokenType::NameSpace:
                 {
-                    unique_ptr<NameSpaceBlock> sv_NameSpace = make_unique<NameSpaceBlock>();
+                    auto sv_NameSpace = ParseNameSpace(f_CurrentToken, fp_ProgramTokens);
 
+                    if (not sv_NameSpace)
+                    {
+
+                        return nullptr;
+                    }
+
+                    f_Program->ParsedScript.push_back(move(sv_NameSpace));
                 }
                 break;
                 case TokenType::Include:
@@ -1749,7 +1944,7 @@ namespace BongoJam {
 
                     if (not sv_StaticStatement)
                     {
-
+                        parser_logger->Error(format("Parsing Error at line:'{}', couldn't parse static whatever ", f_EntryToken.m_SourceCodeLineNumber), "Parser");
                         return nullptr;
                     }
 
@@ -1775,7 +1970,7 @@ namespace BongoJam {
                 {
                     parser_logger->Error
                     (
-                        format("Compiler Error: Improper grammar used! found: '{}' in source code at line: {} ", f_CurrentToken.m_Value, to_string(f_CurrentToken.m_SourceCodeLineNumber)),
+                        format("Parsing Error: Improper grammar used in global scope! found: '{}' in source code at line: {} ", f_CurrentToken.m_Value, to_string(f_CurrentToken.m_SourceCodeLineNumber)),
                         "Parser"
                     );
 

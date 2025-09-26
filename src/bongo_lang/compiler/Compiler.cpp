@@ -236,7 +236,6 @@ bool
 
                 return false;
             }
-            continue;
         }
         break;
         case SyntaxNodeType::VarDeclaration:
@@ -247,7 +246,26 @@ bool
 
                 return false;
             }
-            continue;
+        }
+        break;
+        case SyntaxNodeType::ReturnSubStatement:
+        {
+            
+        }
+        break;
+        case SyntaxNodeType::IfDeclaration:
+        {
+
+        }
+        break;
+        case SyntaxNodeType::WhileLoopDeclaration:
+        {
+
+        }
+        break;
+        case SyntaxNodeType::ForLoopDeclaration:
+        {
+
         }
         break;
         default:
@@ -293,7 +311,7 @@ bool
 bool
     BongoCompiler::CompileFieldDeclaration
     (
-        FieldDeclaration* fp_VarDeclaration,
+        VarDeclaration* fp_VarDeclaration,
         CompilationUnit* fp_CompilationUnit
     )
 {
@@ -314,17 +332,17 @@ bool
         //put symbol and offset before so the offset represents the first byte of the translated constructor declaration
         fp_CompilationUnit->SymbolTable.emplace
         (
-            fp_NameSpace + "::" + fp_ClassDec->ClassName.m_Value + "::" + lv_Constructor.m_FuncName.m_Value, //resolves as classname::method
+            fp_NameSpace + "::" + fp_ClassDec->ClassName.m_Value + "::" + lv_Constructor->m_FuncName.m_Value, //resolves as classname::method
             Symbol
             (
-                lv_Constructor.m_FuncName.m_Value,
+                lv_Constructor->m_FuncName.m_Value,
                 SymbolKind::Method,
-                fp_ClassDec->SymbolTable.at(lv_Constructor.m_FuncName.m_Value).m_Type,
+                fp_ClassDec->SymbolTable.at(lv_Constructor->m_FuncName.m_Value).m_Type,
                 fp_CompilationUnit->CompiledByteCode.size()
             )
         ); //idk if the bytecode part is kosher
 
-        if (not CompileDeclaredFunction(&lv_Constructor, fp_CompilationUnit))
+        if (not CompileDeclaredFunction(lv_Constructor.get(), fp_CompilationUnit))
         {
 
             return false;
@@ -335,17 +353,17 @@ bool
     {
         fp_CompilationUnit->SymbolTable.emplace
         (
-            fp_NameSpace + "::" + fp_ClassDec->ClassName.m_Value + "::" + lv_Method.m_FuncName.m_Value, //resolves as classname::method
+            fp_NameSpace + "::" + fp_ClassDec->ClassName.m_Value + "::" + lv_Method->m_FuncName.m_Value, //resolves as classname::method
             Symbol
             (
-                lv_Method.m_FuncName.m_Value,
+                lv_Method->m_FuncName.m_Value,
                 SymbolKind::Method,
-                fp_ClassDec->SymbolTable.at(lv_Method.m_FuncName.m_Value).m_Type,
+                fp_ClassDec->SymbolTable.at(lv_Method->m_FuncName.m_Value).m_Type,
                 fp_CompilationUnit->CompiledByteCode.size()
             )
         ); //idk if the bytecode part is kosher
 
-        if (not CompileDeclaredFunction(&lv_Method, fp_CompilationUnit))
+        if (not CompileDeclaredFunction(lv_Method.get(), fp_CompilationUnit))
         {
 
             return false;
