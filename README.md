@@ -8,7 +8,7 @@ Some might say BongoJam is severely unoptimized, however here at BongoJam we pre
 
 ## Overall Design and Features
 
-BongoJam is statically typed, and uses a GC. The syntax is an unholy amalgamation of C++ and Python
+BongoJam is a stack machine that is statically typed, and uses a GC. The syntax is an unholy amalgamation of C++ and Python
 
 ## Philosophy
 

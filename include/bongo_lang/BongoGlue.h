@@ -16,6 +16,7 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
+#include <array>
 
 namespace BongoJam
 {
@@ -55,20 +56,22 @@ namespace BongoJam
         size_t StackBase; // where this frame starts in m_Stack
     };
 
-    enum HeapTag { STRING, ARRAY, STRUCT };
+    enum HeapTag { STRING, LIST, DICTIONARY, ARRAY, TYPE, INVALID };
 
     struct HeapObject
     {
         unordered_map<string, Value> Fields; // class/struct members
 
-        HeapTag Tag;
-        uint32_t Generation;
+        HeapTag Tag = HeapTag::INVALID;
+        uint32_t Generation = 0;
 
         union
         {
-            string* StringVal;
-            vector<Value>* ArrayVal;
-            void* StructPtr;
+            string* StringPtr; //strings uwu
+            Value* ArrayPtr[2]; //heap allocated static lists are important for multi threaded access, since array's wont invalidate iterators upon resize since it doesn't resize uwu
+            vector<Value>* ListPtr; //vector, so bj list's are guaranteed contiguous blocks (in virutal memory >w<)
+            map<Value, Value>* DictionaryPtr; //hash map, don't require strong ordering of types just matches values since dictionaries don't have begin() and end() iterators so ye
+            void* TypePtr; //classes/structs
         } u;
     };
 
@@ -95,6 +98,11 @@ namespace BongoJam
         CEIL,
         FLOOR,
 
+        AND,
+        OR,
+        XOR,
+        NOT,
+
         //////////////////// Memory Operations ////////////////////
         PUSH_NEW_STACK_FRAME,
         POP_CURRENT_STACK_FRAME, //IDK
@@ -111,7 +119,7 @@ namespace BongoJam
         LOAD_GLOBAL, //loads a global heap value
 
         COPY,
-        MOVE,
+        MOVE, //UNSURE IF needed uwu
 
         //////////////////// Control Flow Operations ////////////////////
 
@@ -180,21 +188,13 @@ namespace BongoJam
         CHAR_VALUE,
         STRING_VALUE, //string literal value always follows, pattern is: str size in bytes -> encoded utf-8 str
 
-        VOID_VALUE,
+        VOID_VALUE, //idk IF NEEDED
 
         //////////////////// Boolean Comparison Operations ////////////////////
 
         LOGICAL_AND,
         LOGICAL_OR,
         LOGICAL_NOT,
-
-        //////////////////// Function/Method Operations ////////////////////
-
-        FUNC_ENTER,
-        FUNC_LEAVE,
-
-        LOAD_ARG,
-        STORE_ARG,
 
         //////////////////// Stop op UwU ////////////////////
 

@@ -27,6 +27,10 @@
 constexpr const uint32_t MAX_STACK_SIZE = 8192;
 
 namespace BongoJam {
+    const string BONGO_RUNTIME_VERSION = "0.0.1";
+}
+
+namespace BongoJam {
 
     struct RuntimeSymbol 
     {
@@ -39,7 +43,7 @@ namespace BongoJam {
         BongoJamInterpreter
     {
     public:
-        typedef function<Value(BongoJamInterpreter&)> NATIVE_FUNCTION;
+        typedef typename function<Value(BongoJamInterpreter&)> NATIVE_FUNCTION;
 
     private:
         unordered_map<string, RuntimeSymbol> LocalSymbols;
@@ -56,9 +60,6 @@ namespace BongoJam {
 
 
         unordered_map<string, NATIVE_FUNCTION> NativeFunctions;
-
-    public:
-        const string BONGO_VERSION = "0.0.1";
 
     public:
         BongoJamInterpreter();

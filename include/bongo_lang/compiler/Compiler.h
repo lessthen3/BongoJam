@@ -16,6 +16,10 @@
 #include "../BongoGlue.h"
 
 namespace BongoJam {
+    const string BONGO_COMPILER_VERSION = "0.0.1";
+}
+
+namespace BongoJam {
 
     enum BongoCompilerFlags : uint64_t
     {

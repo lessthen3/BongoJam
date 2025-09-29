@@ -21,6 +21,10 @@
 #include <atomic>
 
 namespace BongoJam {
+    static atomic<bool> BONGO_COMPILE_SUCCESS = true;
+}
+
+namespace BongoJam {
 
     struct CompilationTask
     {
@@ -161,6 +165,7 @@ namespace BongoJam {
                     if (result != BONGO_OK)
                     {
                         f_CompilerLogger->Error(format("Failed to compile : '{}', with compiler exit code : '{}' ", f_Task.FilePath, result), "Worker");
+                        BONGO_COMPILE_SUCCESS = false;
                     }
                     else
                     {

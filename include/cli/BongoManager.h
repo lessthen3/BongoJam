@@ -252,7 +252,8 @@ namespace BongoJam {
             pm_Linker = make_unique<BongoLinker>();
             pm_Interpreter = make_unique<BongoJamInterpreter>();
 
-            pm_BongoRuntimeVersion = pm_Interpreter->BONGO_VERSION;
+            pm_BongoRuntimeVersion = BONGO_RUNTIME_VERSION;
+            pm_BongoCompilerVersion = BONGO_COMPILER_VERSION;
         }
 
         ~BongoManager() = default;
@@ -560,7 +561,11 @@ namespace BongoJam {
         int
             RunCommands(const CompilerConfigs& fp_CompilerConfigs, bool fp_IsCompileRun)
         {
-            StartCompilationOfProject(fp_CompilerConfigs);
+            if (StartCompilationOfProject(fp_CompilerConfigs) != BONGO_OK)
+            {
+                bongo_logger->Error("Compilation Failed! nothing was done.", "RunCommands");
+                return BONGO_COMPILATION_FAILED;
+            }
 
             if (fp_IsCompileRun)
             {
@@ -657,16 +662,7 @@ namespace BongoJam {
         int
             StartCompilationOfProject(const CompilerConfigs& fp_CompilerConfigs)
         {
-            //compile main separately and idk if before or after is smart
             //read file paths into a job queue
-
-            //uint32_t f_CurrentPriorityLevel = 0;
-            //used to track when each compiler has been assigned, so that each priority group is guaranteed to be processed first, so if
-            //one compiler gets one source file per priority group it ensures that the same compiler isnt being used by multiple threads
-            //this is needed since each compiler has its own state due to the presence a logger, flags are the same across projects so state information like that doesn't matter
-            //and doing this is worth it if the alternative is losing logging and compilation info since those error strings still gotta be put somewhere idk maybe theres a better way
-            //with mt threaded queuing but that has its own downsides idk, logging is fine as is maybe i can even just pass a handle to a logger, however if that logger is used multiple times
-            //its string buffer probably wont like that idk each log file is hashed as well so that's not gonna go over well but its static so readonly ops should be fine idk
 
             pm_CompilerThreadPool.EnqueueTask({ pm_FoundMains[0].FilePath.string() , pm_FoundMains[0].CompiledUnit.get() });
 
@@ -680,14 +676,23 @@ namespace BongoJam {
 
             pm_CompilerThreadPool.WaitUntilAllTasksComplete();
 
+            if (not BONGO_COMPILE_SUCCESS)
+            {
+
+                return EXIT_FAILURE;
+            }
+
             /////// THIS IS ONLY FOR TESTING UWU
             pm_Linker->WriteBytecodeToFile(pm_FoundMains[0].CompiledUnit->CompiledByteCode, fp_CompilerConfigs.OutputDirectory, fp_CompilerConfigs.OutputFileName);
             return BONGO_OK;
 
+            pm_CurrentProjectSources.push_back(move(pm_FoundMains[0])); //put entry point as last item
+
             //////////////////// every script was validated and compiled into a CompilationUnit, Linker time baby ////////////////////
             // also need to find precompiled CompilationUnits via configs for external deps
             //link together compilationunits, assuming everything was checked properly, every script unit should have a corresponding compilationunit attached to it uwu
-                        //run linker to resolve symbols, and return error if found fingys cwossed >w<  
+            //run linker to resolve symbols, and return error if found fingys cwossed >w<  
+
             vector<uint8_t> f_FullBongoProgram;
             pm_Linker->LinkCompilationUnits(move(pm_CurrentProjectSources), f_FullBongoProgram);
             

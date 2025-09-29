@@ -68,6 +68,21 @@ namespace BongoJam {
 
         ModuloEqualsOperator,
 
+        BitshiftRightOperator,
+        BitshiftLeftOperator,
+
+        //no Bitand since & is already being used as a token generally as ampersand, not lexing '|' or '~' atm so ye need those
+        BitOrOperator,
+        BitNotOperator,
+        BitXorOperator,
+
+        BitshiftRightEquals,
+        BitshiftLeftEquals,
+
+        BitAndEquals,
+        BitOrEquals,
+        BitXorEquals,
+
         //////////////////// Bracket Types ////////////////////
 
         OpenParen,
@@ -236,16 +251,16 @@ namespace BongoJam {
     {
         string m_Value;
         TokenType m_Type;
-        int m_SourceCodeLineNumber;
+        size_t m_SourceCodeLineNumber;
 
-        explicit Token(const string& fp_Value, const TokenType fp_Type, const int fp_SourceCodeLineNumber)
+        explicit Token(const string& fp_Value, const TokenType fp_Type, const size_t fp_SourceCodeLineNumber)
         {
             m_Value = fp_Value;
             m_Type = fp_Type;
             m_SourceCodeLineNumber = fp_SourceCodeLineNumber;
         }
 
-        explicit Token(const char& fp_Value, const TokenType fp_Type, const int fp_SourceCodeLineNumber)
+        explicit Token(const char& fp_Value, const TokenType fp_Type, const size_t fp_SourceCodeLineNumber)
         {
             m_Value = fp_Value;
             m_Type = fp_Type;
@@ -405,6 +420,36 @@ namespace BongoJam {
 
     [[nodiscard]] char
         Peek(const string& fp_Src);
+
+    [[nodiscard]] Token
+        LexNumber
+        (
+            string& fp_Src,
+            char& fp_CurrentChar,
+            vector<Token>& fp_ProgramTokens,
+            size_t& fp_CurrentLineNumber,
+            Logger* logger
+        );
+
+    [[nodiscard]] string
+        LexWord //gets a single alphabetical unit uwu
+        (
+            string& fp_Src,
+            char& fp_CurrentChar,
+            vector<Token>& fp_ProgramTokens,
+            size_t& fp_CurrentLineNumber
+        );
+
+    [[nodiscard]] bool
+        LexOperator
+        (
+            string& fp_Src,
+            char& fp_CurrentChar,
+            vector<Token>& fp_ProgramTokens,
+            size_t& fp_CurrentLineNumber,
+            bool& fp_IsCurrentlyInsideComment,
+            Logger* logger
+        );
 
     bool
         Tokenize

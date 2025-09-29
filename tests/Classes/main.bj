@@ -9,7 +9,7 @@ struct Vector2D //all struct variables are public within its scope
 class Character
 {
 public:
-    var Name->string;
+    var Name->text;
     
 private:
     var Position->Vector2D = {1, 3}; //default value initialization, assumed constructor

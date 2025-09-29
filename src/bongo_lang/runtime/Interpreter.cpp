@@ -448,7 +448,7 @@ namespace BongoJam {
                 }
             }
                 break;
-            case FUNC_ENTER: //function call
+            case LABEL: //function call
             {
                 _p++;
 

@@ -40,14 +40,12 @@ namespace BongoJam {
         //////////////////// User Declarations ////////////////////
 
         VarDeclaration,
-        VariableDeclaration,
 
         IfDeclaration, //else(if) statements are only found under an if-statement so we're good not to explicitly type for it
         ElseIfDeclaration,
         ElseDeclaration,
 
         FuncDeclaration,
-        MethodDeclaration,
 
         WhileLoopDeclaration,
         ForLoopDeclaration,
@@ -76,35 +74,7 @@ namespace BongoJam {
         BinaryOperationExpr,
         UnaryOperatorExpr,
 
-        AdditionExpr,
-        MultiplicationExpr,
-
-        SubtractionExpr,
-        DivisionExpr,
-
-        ModuloExpr,
-
-        PlusEqualsExpr,
-        MinusEqualsExpr,
-
-        DivEqualsExpr,
-        MultEqualsExpr,
-
-        ModuloEqualsExpr,
-
-        OpenParenExpr,
-
-        GreaterThanExpr,
-        GreaterThanOrEqualsExpr,
-
-        LesserThanExpr,
-        LesserThanOrEqualsExpr,
-
-        StrictlyEqualsExpr,
-
-        AndExpr,
-        OrExpr,
-        NotExpr,
+        ParenExpr,
 
         MethodCallExpr,
         FunctionCallExpr,
@@ -113,13 +83,8 @@ namespace BongoJam {
         StructCallExpr,
 
         VariableReassignmentExpr,
-        FieldReassignmentExpr,
 
-        //////////////////// Access Levels ////////////////////
-
-        PublicAccess,
-        ProtectedAccess,
-        PrivateAccess,
+        FmtdStringExpr,
 
         //////////////////// Included Functions ////////////////////
 
@@ -162,10 +127,10 @@ namespace BongoJam {
         TokenType EvaluatesTo = TokenType::NO_TOKEN_VALUE;
     };
 
-    struct OpenParenExpr : public Expr //idk if ill use these for function definition/call args as well, which would also translate to classes naturally
+    struct ParenExpr : public Expr //idk if ill use these for function definition/call args as well, which would also translate to classes naturally
     {
-        OpenParenExpr() { m_Domain = SyntaxNodeType::OpenParenExpr; }
-        vector<unique_ptr<Expr>> Inside;
+        ParenExpr() { m_Domain = SyntaxNodeType::ParenExpr; }
+        unique_ptr<Expr> Inside; //inside evals to a tree or singlevalexpr
     };
 
     struct SingleValueExpr : public Expr
@@ -300,11 +265,9 @@ namespace BongoJam {
     struct VariableReassignmentExpr : public Expr
     {
         VariableReassignmentExpr() { m_Domain = SyntaxNodeType::VariableReassignmentExpr; }
-    };
-
-    struct FieldReassignmentExpr : public VariableReassignmentExpr
-    {
-        FieldReassignmentExpr() { m_Domain = SyntaxNodeType::FieldReassignmentExpr; }
+        Token VariableName;
+        TokenType Operator = TokenType::NO_TOKEN_VALUE;
+        unique_ptr<Expr> NewValue;
     };
 
     //////////////////////////////////////////////
@@ -362,6 +325,7 @@ namespace BongoJam {
         ClassDeclaration() : StatementNode(SyntaxNodeType::ClassDeclaration) {}
 
         Token ClassName;
+        uint8_t Modifiers = ModifierFlags::NONE;
 
         unordered_map<string, Token> SymbolTable; //symbols defined inside a function, important for functions that call external src files which is the case most of the time imo
 
@@ -369,6 +333,8 @@ namespace BongoJam {
         vector<unique_ptr<FuncDeclaration>> Methods; //list of methods used in class
 
         vector<unique_ptr<VarDeclaration>> Fields; //needs to be a unique ptr since var declaration holds a unique ptr
+
+        vector<unique_ptr<ClassDeclaration>> NestedClassDecs;
 
     };
 
@@ -379,6 +345,8 @@ namespace BongoJam {
         StructDeclaration() : StatementNode(SyntaxNodeType::StructDeclaration) {}
 
         Token StructName;
+        uint8_t Modifiers = ModifierFlags::NONE; //the struct doesnt have access levels for its members but the struct could be defined within a class uwu
+
         vector<FuncDeclaration> Constructors; //list of constructors for declared class, FuncArgument can be stack allocated since it has no unique ptrs uwu
 
         //needs to be a unique ptr since var declaration holds a unique ptr
@@ -423,157 +391,25 @@ namespace BongoJam {
     // Numeric Expressions
     //////////////////////////////////////////////
 
-
-    struct AdditionExpr : public BinaryOperationExpr
-    {
-        AdditionExpr() { m_Domain = SyntaxNodeType::AdditionExpr; }
-    };
-
-
-    struct SubtractionExpr : public BinaryOperationExpr
-    {
-        SubtractionExpr() { m_Domain = SyntaxNodeType::SubtractionExpr; }
-    };
-
-
-    struct MultiplicationExpr : public BinaryOperationExpr
-    {
-        MultiplicationExpr() { m_Domain = SyntaxNodeType::MultiplicationExpr; }
-    };
-
-
-    struct DivisionExpr : public BinaryOperationExpr
-    {
-        DivisionExpr() { m_Domain = SyntaxNodeType::DivisionExpr; }
-    };
-
-
-    struct ModuloExpr : public BinaryOperationExpr
-    {
-        ModuloExpr() { m_Domain = SyntaxNodeType::ModuloExpr; }
-    };
-
-
-    struct PlusEqualsExpr : public BinaryOperationExpr
-    {
-        PlusEqualsExpr() { m_Domain = SyntaxNodeType::PlusEqualsExpr; }
-    };
-
-
-    struct MinusEqualsExpr : public BinaryOperationExpr
-    {
-        MinusEqualsExpr() { m_Domain = SyntaxNodeType::MinusEqualsExpr; }
-    };
-
-
-    struct MultEqualsExpr : public BinaryOperationExpr
-    {
-        MultEqualsExpr() { m_Domain = SyntaxNodeType::MultEqualsExpr; }
-    };
-
-
-    struct DivEqualsExpr : public BinaryOperationExpr
-    {
-        DivEqualsExpr() { m_Domain = SyntaxNodeType::DivEqualsExpr; }
-    };
-
-
-    struct ModuloEqualsExpr : public BinaryOperationExpr
-    {
-        ModuloEqualsExpr() { m_Domain = SyntaxNodeType::ModuloEqualsExpr; }
-    };
-
-    struct MethodCallExpr : public Expr
-    {
-        MethodCallExpr() { m_Domain = SyntaxNodeType::MethodCallExpr; }
-        Token m_MethodName;
-        Token m_ReturnType;
-        vector<Token> m_MethodArgs;
-    };
-
-
-    struct FunctionCallExpr : public Expr
+    struct FunctionCallExpr : public Expr  //idk how to get maybe after parsing we do a grammar check uwu everything could be spelt right but not make perfect sense
     {
         FunctionCallExpr() { m_Domain = SyntaxNodeType::FunctionCallExpr; }
-        Token m_FuncName;
-        Token m_ReturnType;
-        vector<Token> m_FuncArgs;
+
+        Token FuncName;
+
+        vector<unique_ptr<Expr>> Arguments; //vector cause multiple arguments unknown size, expr because it could get crazy uwu
+
+        //WARNING: ChainedIdentifier can be null so null checks are MANDATORY
+        unique_ptr<Expr> ChainedIdentifier = nullptr; //in a call chain this is ...MyFunc().MyClass.................
     };
 
-
-    struct ClassCallExpr : public Expr //used for: "let x->myClass = new myClass();"
+    struct FmtdStringExpr : public Expr //this expr is meant to be traversed in order since f"hello {plant} i love you" gets parsed as three tokens
     {
-        ClassCallExpr() { m_Domain = SyntaxNodeType::ClassCallExpr; }
+        FmtdStringExpr() { m_Domain = SyntaxNodeType::FmtdStringExpr;}
 
-        bool m_IsHeapAllocated = false;
-    };
-
-
-    struct StructCallExpr : public Expr //used for: "var x->myStruct = new myStruct();"
-    {
-        StructCallExpr() { m_Domain = SyntaxNodeType::StructCallExpr; }
-
-        bool m_IsHeapAllocated = false;
-    };
-
-    //////////////////////////////////////////////
-    // Boolean Expressions
-    //////////////////////////////////////////////
-
-
-    struct GreaterThanExpr : public BinaryOperationExpr
-    {
-        GreaterThanExpr() { m_Domain = SyntaxNodeType::GreaterThanExpr; }
-
-    };
-
-
-    struct GreaterThanOrEqualsExpr : public BinaryOperationExpr
-    {
-        GreaterThanOrEqualsExpr() { m_Domain = SyntaxNodeType::GreaterThanOrEqualsExpr; }
-
-    };
-
-
-    struct LesserThanExpr : public BinaryOperationExpr
-    {
-        LesserThanExpr() { m_Domain = SyntaxNodeType::LesserThanExpr; }
-
-    };
-
-
-    struct LesserThanOrEqualsExpr : public BinaryOperationExpr
-    {
-        LesserThanOrEqualsExpr() { m_Domain = SyntaxNodeType::LesserThanOrEqualsExpr; }
-
-    };
-
-
-    struct StrictlyEqualsExpr : public BinaryOperationExpr
-    {
-        StrictlyEqualsExpr() { m_Domain = SyntaxNodeType::StrictlyEqualsExpr; }
-
-    };
-
-
-    struct AndExpr : public BinaryOperationExpr
-    {
-        AndExpr() { m_Domain = SyntaxNodeType::AndExpr; }
-
-    };
-
-
-    struct OrExpr : public BinaryOperationExpr
-    {
-        OrExpr() { m_Domain = SyntaxNodeType::OrExpr; }
-
-    };
-
-
-    struct NotExpr : public UnaryOperatorExpr
-    {
-        NotExpr() { m_Domain = SyntaxNodeType::NotExpr; }
-
+        //this list has single val expr for the string islands and any expr for the insert var
+        //used for tracking exprs used inside the formatted string arg style, ordering matters here, index 0 --> first value inserted to string at first slot
+        vector<unique_ptr<Expr>> FullString; 
     };
 
     //////////////////////////////////////// Primitive Value Type Enum ////////////////////////////////////////

@@ -330,17 +330,17 @@ bool
     for (auto& lv_Constructor : fp_ClassDec->Constructors) //compile constructors
     {
         //put symbol and offset before so the offset represents the first byte of the translated constructor declaration
-        fp_CompilationUnit->SymbolTable.emplace
-        (
-            fp_NameSpace + "::" + fp_ClassDec->ClassName.m_Value + "::" + lv_Constructor->m_FuncName.m_Value, //resolves as classname::method
-            Symbol
-            (
-                lv_Constructor->m_FuncName.m_Value,
-                SymbolKind::Method,
-                fp_ClassDec->SymbolTable.at(lv_Constructor->m_FuncName.m_Value).m_Type,
-                fp_CompilationUnit->CompiledByteCode.size()
-            )
-        ); //idk if the bytecode part is kosher
+        //fp_CompilationUnit->SymbolTable.emplace
+        //(
+        //    fp_NameSpace + "::" + fp_ClassDec->ClassName.m_Value + "::" + lv_Constructor->m_FuncName.m_Value, //resolves as classname::method
+        //    Symbol
+        //    (
+        //        lv_Constructor->m_FuncName.m_Value,
+        //        SymbolKind::Method,
+        //        fp_ClassDec->SymbolTable.at(lv_Constructor->m_FuncName.m_Value).m_Type,
+        //        fp_CompilationUnit->CompiledByteCode.size()
+        //    )
+        //); //idk if the bytecode part is kosher
 
         if (not CompileDeclaredFunction(lv_Constructor.get(), fp_CompilationUnit))
         {
@@ -351,17 +351,17 @@ bool
 
     for (auto& lv_Method : fp_ClassDec->Methods) //compile methods
     {
-        fp_CompilationUnit->SymbolTable.emplace
-        (
-            fp_NameSpace + "::" + fp_ClassDec->ClassName.m_Value + "::" + lv_Method->m_FuncName.m_Value, //resolves as classname::method
-            Symbol
-            (
-                lv_Method->m_FuncName.m_Value,
-                SymbolKind::Method,
-                fp_ClassDec->SymbolTable.at(lv_Method->m_FuncName.m_Value).m_Type,
-                fp_CompilationUnit->CompiledByteCode.size()
-            )
-        ); //idk if the bytecode part is kosher
+        //fp_CompilationUnit->SymbolTable.emplace
+        //(
+        //    fp_NameSpace + "::" + fp_ClassDec->ClassName.m_Value + "::" + lv_Method->m_FuncName.m_Value, //resolves as classname::method
+        //    Symbol
+        //    (
+        //        lv_Method->m_FuncName.m_Value,
+        //        SymbolKind::Method,
+        //        fp_ClassDec->SymbolTable.at(lv_Method->m_FuncName.m_Value).m_Type,
+        //        fp_CompilationUnit->CompiledByteCode.size()
+        //    )
+        //); //idk if the bytecode part is kosher
 
         if (not CompileDeclaredFunction(lv_Method.get(), fp_CompilationUnit))
         {
@@ -372,17 +372,17 @@ bool
 
     for (auto& lv_Field : fp_ClassDec->Fields)
     {
-        fp_CompilationUnit->SymbolTable.emplace
-        (
-            fp_NameSpace + "::" + fp_ClassDec->ClassName.m_Value + "::" + lv_Field->Name.m_Value, //resolves as classname::method
-            Symbol
-            (
-                lv_Field->Name.m_Value,
-                SymbolKind::Field,
-                fp_ClassDec->SymbolTable.at(lv_Field->Name.m_Value).m_Type,
-                fp_CompilationUnit->CompiledByteCode.size()
-            )
-        ); //idk if the bytecode part is kosher        
+        //fp_CompilationUnit->SymbolTable.emplace
+        //(
+        //    fp_NameSpace + "::" + fp_ClassDec->ClassName.m_Value + "::" + lv_Field->Name.m_Value, //resolves as namespace::classname::method
+        //    Symbol
+        //    (
+        //        lv_Field->Name.m_Value,
+        //        SymbolKind::Field,
+        //        fp_ClassDec->SymbolTable.at(lv_Field->Name.m_Value).m_Type,
+        //        fp_CompilationUnit->CompiledByteCode.size()
+        //    )
+        //); //idk if the bytecode part is kosher        
         if (not CompileFieldDeclaration(lv_Field.get(), fp_CompilationUnit))
         {
 

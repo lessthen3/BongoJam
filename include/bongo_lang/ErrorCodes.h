@@ -33,4 +33,6 @@ namespace BongoJam{
     ////////////////////////////////////////////// Compiler ////////////////////////////////////////////// - 5
 
     constexpr const uint32_t BONGO_COMPILER_FAILED_TO_READ_SOURCE = -5000;
+
+    constexpr uint32_t BONGO_COMPILATION_FAILED = -5001;
 }
