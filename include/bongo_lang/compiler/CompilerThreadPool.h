@@ -21,10 +21,6 @@
 #include <atomic>
 
 namespace BongoJam {
-    static atomic<bool> BONGO_COMPILE_SUCCESS = true;
-}
-
-namespace BongoJam {
 
     struct CompilationTask
     {
@@ -57,6 +53,7 @@ namespace BongoJam {
             Shutdown();
         }
     public:
+        atomic<bool> BONGO_COMPILE_SUCCESS = true;
 
     private:
         unique_ptr<Logger> threadpool_logger = nullptr;

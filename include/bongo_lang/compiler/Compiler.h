@@ -11,13 +11,11 @@
 **************************************************************************/
 #pragma once
 
+#define BONGO_COMPILER_VERSION "0.0.1"
+
 ///BongoJam
 #include "Parser.h"
-#include "../BongoGlue.h"
-
-namespace BongoJam {
-    const string BONGO_COMPILER_VERSION = "0.0.1";
-}
+#include "../Opcodes.h"
 
 namespace BongoJam {
 
@@ -33,25 +31,41 @@ namespace BongoJam {
         BUILD_EXECUTABLE = 1U << 5
     };
 
-}
+    enum SymbolFlag : uint8_t
+    {
+        NO_FLAGS = 0,
 
-namespace BongoJam {
+        IS_STATIC = 1 << 0,
+        IS_CONST = 1 << 1,
+        IS_SINGLE = 1 << 2,
 
-    enum class SymbolKind { Variable, Field, Function, Method, Struct, Class };
+        IS_HEAP = 1 << 3,
+
+        PRIVATE_SYM = 1 << 4,
+        PROTECTED_SYM = 1 << 5,
+        PUBLIC_SYM = 1 << 6,
+
+        IS_RESOLVED = 1 << 7
+    };
+
+    enum class SymbolKind { INVALID, Variable, Field, Function, Method, Struct, Class };
 
     struct Symbol
     {
         string Name;
 
-        SymbolKind Kind; // FUNCTION, STRUCT, CLASS, GLOBAL_VAR
+        SymbolKind Kind = SymbolKind::INVALID; // FUNCTION, STRUCT, CLASS, GLOBAL_VAR
         TokenType Type; // optional, for future type-checking
 
-        size_t OffsetInBytecode; // or StructLayout offset
+        size_t OffsetInBytecode = 0; // Offset based off the compilation unit the compilationunit base offset will be recorded by the linker for resolving symbols
 
-        bool IsResolved = false;
+        uint8_t Flags = SymbolFlag::NO_FLAGS;
 
-        Symbol(const string& fp_Name, SymbolKind fp_Kind, TokenType fp_Type, size_t fp_Offset, bool fp_IsResolved = false) 
-            : Name(fp_Name), Kind(fp_Kind), Type(fp_Type), OffsetInBytecode(fp_Offset), IsResolved(fp_IsResolved) {}
+        Symbol(const string& fp_Name, SymbolKind fp_Kind, TokenType fp_Type, const size_t fp_Offset, const uint8_t fp_SymFlags)
+            : Name(fp_Name), Kind(fp_Kind), Type(fp_Type), OffsetInBytecode(fp_Offset), Flags(fp_SymFlags) {
+        }
+
+        Symbol() = default;
     };
 
     struct CompilationUnit
@@ -64,6 +78,8 @@ namespace BongoJam {
         unordered_map<string, Symbol> SymbolTable; // symbol name : symbol information
         unordered_map<string, Symbol> UnresolvedSymbolTable; //hf linker
 
+        vector<string> Includes;
+
         //debugname table quesiton mark???_????
     };
 
@@ -72,6 +88,9 @@ namespace BongoJam {
         filesystem::path FilePath;
         unique_ptr<CompilationUnit> CompiledUnit = make_unique<CompilationUnit>();
     };
+}
+
+namespace BongoJam {
 
     struct BongoCompiler
     {
@@ -80,8 +99,6 @@ namespace BongoJam {
         BongoCompiler();
 
     public:
-        const string BONGO_VERSION = "0.0.1";
-
         shared_ptr<Logger> compiler_logger = nullptr; //shared for now cause idk how else work
 
     ///////////////////////////////////////////////////////////// PRIVATE /////////////////////////////////////////////////////////////
@@ -90,7 +107,7 @@ namespace BongoJam {
 
         uint64_t pm_CompilerID = 0;
         
-        string pm_CompilerName;
+        string pm_CompilerName = "NO_COMPILER_NAME";
         uint8_t pm_NextAvailableStackSlot = 0;
 
     private:
@@ -127,6 +144,12 @@ namespace BongoJam {
         void
             EncodeBool(vector<uint8_t>& fp_ByteCode, bool fp_Bool);
 
+        size_t
+            GetCurrentByteOffset(CompilationUnit* fp_CompilationUnit)
+        {
+            return fp_CompilationUnit->CompiledByteCode.size() - 1; //-1 because its accessing a vector index so it starts at 0 uwu
+        }
+
     public:
         ////////////////////////////////////////////// MAIN COMPILING FUNCTION //////////////////////////////////////////////
 
@@ -149,7 +172,8 @@ namespace BongoJam {
             CompileDeclaredFunction
             (
                 FuncDeclaration* fp_FuncDeclaration,
-                CompilationUnit* fp_CompilationUnit
+                CompilationUnit* fp_CompilationUnit,
+                const string& fp_NameSpace = ""
             );
 
         bool
@@ -161,17 +185,19 @@ namespace BongoJam {
             );
 
         bool
-            CompileStructDeclaration
+            CompileDeclaredStruct
             (
-                StructDeclaration* fp_StructDec,
-                CompilationUnit* fp_CompilationUnit
+                StructDeclaration* fp_FuncDeclaration,
+                CompilationUnit* fp_CompilationUnit,
+                const string& fp_NameSpace = ""
             );
 
         bool
             CompileVarDeclaration
             (
                 VarDeclaration* fp_VarDeclaration,
-                CompilationUnit* fp_CompilationUnit
+                CompilationUnit* fp_CompilationUnit,
+                const string& fp_NameSpace = ""
             );
 
         bool
@@ -181,7 +207,53 @@ namespace BongoJam {
                 CompilationUnit* fp_CompilationUnit
             );
 
+        bool
+            CompileRegularExpr
+            (
+                Expr* fp_Expression,
+                CompilationUnit* fp_CompilationUnit
+            );
+
+        bool
+            CompileFuncCall
+            (
+                FunctionCallExpr* fp_VarDeclaration,
+                CompilationUnit* fp_CompilationUnit
+            );
+
+        bool
+            CompileIfStatement
+            (
+                IfDeclaration* fp_VarDeclaration,
+                CompilationUnit* fp_CompilationUnit
+            );
+
+        bool
+            CompileWhileLoop
+            (
+                WhileLoopDeclaration* fp_VarDeclaration,
+                CompilationUnit* fp_CompilationUnit
+            );
+
+        bool
+            CompileForLoop
+            (
+                ForLoopDeclaration* fp_VarDeclaration,
+                CompilationUnit* fp_CompilationUnit
+            );
+
+        bool
+            CompileVarReassignment 
+            (
+                VariableReassignmentExpr* fp_Expression,
+                CompilationUnit* fp_CompilationUnit
+            );
+
         void
-            UpdateThreadOwner();
+            UpdateThreadOwner()
+            const
+        {
+            compiler_logger->UpdateThreadOwner();
+        }
     };
 }

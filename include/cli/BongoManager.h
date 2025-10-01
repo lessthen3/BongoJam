@@ -52,10 +52,6 @@ namespace BongoJam
     constexpr int BONGO_NO_BUILD_TYPE_SPECIFIED = -1009;
     constexpr int BONGO_NO_OUTPUT_TYPE_SPECIFIED = -1010;
 
-}
-
-namespace BongoJam {
-
     struct BongoConfigs
     {
         BongoConfigs() = default;
@@ -206,7 +202,7 @@ namespace BongoJam {
         SERIALIZABLE_FIELDS(ScriptName, ScriptFilePath)
     };
 
-    struct CompilerConfigs
+    struct CompilerConfigs //keeps track of compiler settings and all source paths
     {
         string MainFilePath;
         // Name : Path
@@ -220,18 +216,27 @@ namespace BongoJam {
         SERIALIZABLE_FIELDS(MainFilePath, BongoScripts, OutputFileName, OutputDirectory, CompilerFlags)
     };
 
-    struct BongoProject
+    struct BongoProject //serialized to .bsproj file when building
     {
         string ProjectName = "OwO";
+        string ProjectVersion = "0.0.1";
 
-        string Version = "0.0.1";
         string BongoJamVersion = "0.0.1";
+        string BongoCompilerVersion = "0.0.1";
 
         CompilerConfigs LastUsedCompilerConfigs;
 
-        SERIALIZABLE_FIELDS(Version, BongoJamVersion, LastUsedCompilerConfigs)
+        SERIALIZABLE_FIELDS(ProjectName, ProjectVersion, BongoJamVersion, BongoCompilerVersion, LastUsedCompilerConfigs)
     };
 
+    struct CurrentBongoProject //used by bongomanager during runtime
+    {
+        BongoProject Project;
+        filesystem::path pm_CurrentBongoProjectFilePath;
+    };
+}
+
+namespace BongoJam {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     template<size_t pm_MaximumAllowedThreads>
@@ -251,12 +256,12 @@ namespace BongoJam {
 
             pm_Linker = make_unique<BongoLinker>();
             pm_Interpreter = make_unique<BongoJamInterpreter>();
-
-            pm_BongoRuntimeVersion = BONGO_RUNTIME_VERSION;
-            pm_BongoCompilerVersion = BONGO_COMPILER_VERSION;
         }
 
-        ~BongoManager() = default;
+        ~BongoManager()
+        {
+            pm_CompilerThreadPool.Shutdown();
+        }
 
         BongoManager(const BongoManager&) = delete;
         BongoManager& operator=(const BongoManager&) = delete;
@@ -275,12 +280,9 @@ namespace BongoJam {
         vector<BongoScriptUnit> pm_CurrentProjectSources;
         vector<BongoScriptUnit> pm_FoundMains;
 
-        string pm_BongoRuntimeVersion;
-        string pm_BongoCompilerVersion;
-
         Serializer pm_Serializer;
 
-        BongoProject pm_CurrentBongoProject;
+        CurrentBongoProject pm_CurrentProject;
 
         CompilerThreadPool<pm_MaximumAllowedThreads> pm_CompilerThreadPool;
 
@@ -289,13 +291,13 @@ namespace BongoJam {
         int
             LoadProject(const string& fp_ProjectDirectory, CompilerConfigs& fp_CompilerConfigs)
         {
-            if (not pm_Serializer.FromJSON(pm_CurrentBongoProject, fp_ProjectDirectory, bongo_logger.get()))
+            if (not pm_Serializer.FromJSON(pm_CurrentProject.Project, fp_ProjectDirectory, bongo_logger.get()))
             {
 
                 return BONGO_FAILED_TO_LOAD_PROJECT;
             }
 
-            fp_CompilerConfigs = pm_CurrentBongoProject.LastUsedCompilerConfigs;
+            fp_CompilerConfigs = pm_CurrentProject.Project.LastUsedCompilerConfigs;
 
             return BONGO_OK;
         }
@@ -314,8 +316,58 @@ namespace BongoJam {
             return BONGO_OK;
         }
 
+        char** 
+            StringVectorToCharArray(const vector<string>& fp_StringVector) 
+        {
+            // Allocate memory for the array of char* pointers
+            char** f_CharArray = new char* [fp_StringVector.size() + 1]; // +1 for the null terminator
+
+            // Iterate through the vector and convert each string
+            for (size_t _i = 0; _i < fp_StringVector.size(); ++_i)
+            {
+                const string& s = fp_StringVector[_i];
+                // Allocate memory for the C-style string (including null terminator)
+                f_CharArray[_i] = new char[s.length() + 1];
+                // Copy the string content
+                strcpy(f_CharArray[_i], s.c_str());
+            }
+
+            // Null-terminate the array of pointers
+            f_CharArray[fp_StringVector.size()] = nullptr;
+
+            return f_CharArray;
+        }
+
+        void FreeCharArray(char** charArray) 
+        {
+            if (charArray == nullptr) 
+            {
+                return;
+            }
+            // Free each individual C-style string
+            for (size_t i = 0; charArray[i] != nullptr; ++i)
+            {
+                delete[] charArray[i];
+            }
+
+            // Free the array of pointers itself
+            delete[] charArray;
+        }
+
         int
-            ParseArguments(int fp_ArgCount, char* fp_ArgVector[], CompilerConfigs& fp_CompilerConfigs)
+            ParseArguments(const vector<string>& fp_Args) //for easier use from C++
+        {
+            char** f_CharArray = StringVectorToCharArray(fp_Args);
+
+            int result = ParseArguments(fp_Args.size(), f_CharArray);
+
+            FreeCharArray(f_CharArray);
+
+            return result;
+        }
+
+        int
+            ParseArguments(int fp_ArgCount, char* fp_ArgVector[])
         {
             if (fp_ArgCount < 2)
             {
@@ -325,7 +377,6 @@ namespace BongoJam {
 
             bool f_IsOutputTypeSpecified = false;
             bool f_IsBuildTypeSpecified = false;
-
             bool f_IsCompileRun = false;
 
             for (int _i = 1; _i < fp_ArgCount; ++_i) //check for args that could fuck up other processes
@@ -341,7 +392,11 @@ namespace BongoJam {
                 }
                 else if (f_CompilerArg == "--version")
                 {
-                    cout << CreateColouredText("Current BongoJam Compiler Version: ", Colours::BrightMagenta) << CreateColouredText(pm_BongoCompilerVersion, Colours::BrightCyan) << "\n";
+                    cout  
+                        << CreateColouredText("Current BongoJam Compiler Version: ", Colours::BrightMagenta) << CreateColouredText(BONGO_COMPILER_VERSION, Colours::BrightCyan) << "\n"
+                        << CreateColouredText("Current BongoJam Compiler Version: ", Colours::BrightMagenta) << CreateColouredText(BONGO_RUNTIME_VERSION, Colours::BrightCyan) << "\n"
+                    ;
+
                     return BONGO_OK;
                 }
             }
@@ -354,7 +409,7 @@ namespace BongoJam {
                 {
                     //////////////////// find main function and scripts path - check ////////////////////
 
-                    int result = ScanCwdRecursivelyForScripts();
+                    int result = ScanDirectoryRecursivelyForScripts(filesystem::current_path());
 
                     if (result != BONGO_OK)
                     {
@@ -363,7 +418,7 @@ namespace BongoJam {
 
                     //////////////////// unique main script found, and all scripts for project, time to start compilation of each script -> CompilationUnit ////////////////////
 
-                    fp_CompilerConfigs.OutputFileName = "rawr_uwu"; //quick extension substitution (later at compile time)
+                    pm_CurrentProject.Project.LastUsedCompilerConfigs.OutputFileName = "rawr_uwu"; //quick extension substitution (later at compile time)
                 }
                 else if (f_CompilerArg == "-sp") // sp = specified, for scripts specified individually
                 {
@@ -380,8 +435,8 @@ namespace BongoJam {
 
                     if (f_Dot != string::npos and f_CompilerArg.substr(f_Dot) == ".bsproj")
                     {
-                        fp_CompilerConfigs.BongoScripts.clear(); //just in case some dumbass does "script script proj script"
-                        LoadProject(f_CompilerArg, fp_CompilerConfigs); //assuming the proj file is passed as ../../somefolder/name.bsproj i dont think thats a bold assumption
+                        pm_CurrentProject.Project.LastUsedCompilerConfigs.BongoScripts.clear(); //just in case some dumbass does "script script proj script"
+                        LoadProject(f_CompilerArg, pm_CurrentProject.Project.LastUsedCompilerConfigs); //assuming the proj file is passed as ../../somefolder/name.bsproj i dont think thats a bold assumption
 
                         continue;
                     }
@@ -419,7 +474,7 @@ namespace BongoJam {
                             return INVALID_SCRIPT_TARGET;
                         }
 
-                        fp_CompilerConfigs.BongoScripts.push_back(f_Script); //add script to current compiler configs
+                        pm_CurrentProject.Project.LastUsedCompilerConfigs.BongoScripts.push_back(f_Script); //add script to current compiler configs
                     }
 
                     if (f_CompilerArg != "]")
@@ -431,12 +486,12 @@ namespace BongoJam {
                 }//
                 else if (f_CompilerArg == "--build_exe")
                 {
-                    if (fp_CompilerConfigs.CompilerFlags & BongoCompilerFlags::BUILD_DYNAMIC_LIBRARY)
+                    if (pm_CurrentProject.Project.LastUsedCompilerConfigs.CompilerFlags & BongoCompilerFlags::BUILD_DYNAMIC_LIBRARY)
                     {
                         bongo_logger->Warning("INCOMPATIBLE OPTION SELECTED: tried to pass --build_exe when build_dynamic was already selected, cannot create static lib and executable at the same time", "ParseArguments");
                         continue;
                     }
-                    else if (fp_CompilerConfigs.CompilerFlags & BongoCompilerFlags::BUILD_STATIC_LIBRARY)
+                    else if (pm_CurrentProject.Project.LastUsedCompilerConfigs.CompilerFlags & BongoCompilerFlags::BUILD_STATIC_LIBRARY)
                     {
                         bongo_logger->Warning("INCOMPATIBLE OPTION SELECTED: tried to pass --build_exe when build_static was already selected, cannot create static lib and executable at the same time", "ParseArguments");
                         continue;
@@ -448,7 +503,7 @@ namespace BongoJam {
                     }
                     else
                     {
-                        fp_CompilerConfigs.CompilerFlags = fp_CompilerConfigs.CompilerFlags | BongoCompilerFlags::BUILD_EXECUTABLE;
+                        pm_CurrentProject.Project.LastUsedCompilerConfigs.CompilerFlags |= BongoCompilerFlags::BUILD_EXECUTABLE;
                         f_IsOutputTypeSpecified = true;
                     }
                 }
@@ -461,7 +516,7 @@ namespace BongoJam {
                         return NO_OUTPUT_FILE_NAME_GIVEN;
                     }
 
-                    fp_CompilerConfigs.OutputFileName = fp_ArgVector[++_i];  // Increment `_i` to skip the next argument, which is the filename
+                    pm_CurrentProject.Project.LastUsedCompilerConfigs.OutputFileName = fp_ArgVector[++_i];  // Increment `_i` to skip the next argument, which is the filename
                 }
                 else if (f_CompilerArg == "--debug")
                 {
@@ -471,7 +526,7 @@ namespace BongoJam {
                         continue;
                     }
 
-                    fp_CompilerConfigs.CompilerFlags = fp_CompilerConfigs.CompilerFlags | BongoCompilerFlags::DEBUG;
+                    pm_CurrentProject.Project.LastUsedCompilerConfigs.CompilerFlags |= BongoCompilerFlags::DEBUG;
                     f_IsBuildTypeSpecified = true;
                 }
                 else if (f_CompilerArg == "--release")
@@ -482,17 +537,17 @@ namespace BongoJam {
                         continue;
                     }
 
-                    fp_CompilerConfigs.CompilerFlags = fp_CompilerConfigs.CompilerFlags | BongoCompilerFlags::RELEASE;
+                    pm_CurrentProject.Project.LastUsedCompilerConfigs.CompilerFlags |= BongoCompilerFlags::RELEASE;
                     f_IsBuildTypeSpecified = true;
                 }
                 else if (f_CompilerArg == "--compilerun")
                 {
-                    if (fp_CompilerConfigs.CompilerFlags & BongoCompilerFlags::BUILD_DYNAMIC_LIBRARY)
+                    if (pm_CurrentProject.Project.LastUsedCompilerConfigs.CompilerFlags & BongoCompilerFlags::BUILD_DYNAMIC_LIBRARY)
                     {
                         bongo_logger->Warning("INCOMPATIBLE BUILD TYPE SELECTED: tried to pass --compilerun when build_dynamic was already selected, cannot create static lib and executable at the same time", "ParseArguments");
                         continue;
                     }
-                    else if (fp_CompilerConfigs.CompilerFlags & BongoCompilerFlags::BUILD_STATIC_LIBRARY)
+                    else if (pm_CurrentProject.Project.LastUsedCompilerConfigs.CompilerFlags & BongoCompilerFlags::BUILD_STATIC_LIBRARY)
                     {
                         bongo_logger->Warning("INCOMPATIBLE BUILD TYPE SELECTED: tried to pass --compilerun when build_static was already selected, cannot create static lib and executable at the same time", "ParseArguments");
                         continue;
@@ -500,7 +555,7 @@ namespace BongoJam {
                     else
                     {
                         f_IsCompileRun = true;
-                        fp_CompilerConfigs.CompilerFlags = fp_CompilerConfigs.CompilerFlags | BongoCompilerFlags::BUILD_EXECUTABLE;
+                        pm_CurrentProject.Project.LastUsedCompilerConfigs.CompilerFlags = pm_CurrentProject.Project.LastUsedCompilerConfigs.CompilerFlags | BongoCompilerFlags::BUILD_EXECUTABLE;
                         f_IsOutputTypeSpecified = true;
                     }
                 }
@@ -517,7 +572,7 @@ namespace BongoJam {
                         continue;
                     }
 
-                    fp_CompilerConfigs.CompilerFlags = fp_CompilerConfigs.CompilerFlags | BongoCompilerFlags::BUILD_STATIC_LIBRARY;
+                    pm_CurrentProject.Project.LastUsedCompilerConfigs.CompilerFlags |= BongoCompilerFlags::BUILD_STATIC_LIBRARY;
                     f_IsOutputTypeSpecified = true;
                 }
                 else if (f_CompilerArg == "--build_dynamic")
@@ -533,7 +588,7 @@ namespace BongoJam {
                         continue;
                     }
 
-                    fp_CompilerConfigs.CompilerFlags = fp_CompilerConfigs.CompilerFlags | BongoCompilerFlags::BUILD_DYNAMIC_LIBRARY;
+                    pm_CurrentProject.Project.LastUsedCompilerConfigs.CompilerFlags |= BongoCompilerFlags::BUILD_DYNAMIC_LIBRARY;
 
                     f_IsOutputTypeSpecified = true;
                 }
@@ -555,7 +610,7 @@ namespace BongoJam {
                 return BONGO_NO_BUILD_TYPE_SPECIFIED;
             }
 
-            return RunCommands(fp_CompilerConfigs, f_IsCompileRun); //if its not BONGO_OK or whatever then rip uwu cant do anything ab it at this point OwO >O<
+            return RunCommands(pm_CurrentProject.Project.LastUsedCompilerConfigs, f_IsCompileRun); //if its not BONGO_OK or whatever then rip uwu cant do anything ab it at this point OwO >O<
         }
 
         int
@@ -617,14 +672,14 @@ namespace BongoJam {
         }
 
         int
-            ScanCwdRecursivelyForScripts(const filesystem::path& fp_RootPath = filesystem::current_path())
+            ScanDirectoryRecursivelyForScripts(const filesystem::path& fp_RootPath)
         {
             for (const auto& entry : filesystem::recursive_directory_iterator(fp_RootPath))
             {
                 string f_FileName = entry.path().filename().string();
                 size_t f_Dot = f_FileName.rfind('.');
 
-                if (entry.is_regular_file())
+                if (entry.is_regular_file() and f_Dot != string::npos)
                 {
                     if(f_FileName == "main.bj")
                     {
@@ -634,6 +689,10 @@ namespace BongoJam {
                     else if (f_FileName.substr(f_Dot) == ".bj")
                     {
                         pm_CurrentProjectSources.emplace_back(entry.path());
+                    }
+                    else if (f_FileName.substr(f_Dot) == ".bsproj") //only assumes one .bsproj in the directory atm will just use the last one found as the bsproj currently
+                    {
+                        pm_CurrentProject.pm_CurrentBongoProjectFilePath = entry;
                     }
                 }
             }
@@ -662,6 +721,8 @@ namespace BongoJam {
         int
             StartCompilationOfProject(const CompilerConfigs& fp_CompilerConfigs)
         {
+            pm_CompilerThreadPool.BONGO_COMPILE_SUCCESS = true; //set flag to true and worker threads will set to false if failed uwu
+
             //read file paths into a job queue
 
             pm_CompilerThreadPool.EnqueueTask({ pm_FoundMains[0].FilePath.string() , pm_FoundMains[0].CompiledUnit.get() });
@@ -676,15 +737,11 @@ namespace BongoJam {
 
             pm_CompilerThreadPool.WaitUntilAllTasksComplete();
 
-            if (not BONGO_COMPILE_SUCCESS)
+            if (not pm_CompilerThreadPool.BONGO_COMPILE_SUCCESS)
             {
 
                 return EXIT_FAILURE;
             }
-
-            /////// THIS IS ONLY FOR TESTING UWU
-            pm_Linker->WriteBytecodeToFile(pm_FoundMains[0].CompiledUnit->CompiledByteCode, fp_CompilerConfigs.OutputDirectory, fp_CompilerConfigs.OutputFileName);
-            return BONGO_OK;
 
             pm_CurrentProjectSources.push_back(move(pm_FoundMains[0])); //put entry point as last item
 

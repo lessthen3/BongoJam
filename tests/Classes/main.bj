@@ -28,7 +28,7 @@ public:
 
 func main() -----------> int
 {
-    var Ryan->Character = Character({6, 9}); //typical class creation, typical heap value
+    var Ryan->Character = Character({6, 9}); //typical class creation and always heap allocated
 
     Ryan.CurrentPosition();
 

@@ -39,8 +39,7 @@ int
     {
         std::unique_ptr<BongoJam::BongoManager<1>> bongo_manager = std::make_unique<BongoJam::BongoManager<1>>();
 
-        BongoJam::CompilerConfigs f_CompilerFlags;
-        int result = bongo_manager->ParseArguments(fp_ArgCount, fp_ArgVector, f_CompilerFlags);
+        int result = bongo_manager->ParseArguments(fp_ArgCount, fp_ArgVector);
 
         if (result != BongoJam::BONGO_OK)
         {

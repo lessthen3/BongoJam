@@ -51,9 +51,17 @@ namespace BongoJam {
             );
 
         int
-            LinkCompilationUnits(vector<BongoScriptUnit>&& fp_CompiledUnits, vector<uint8_t>& fp_FinalByteCode);
+            LinkCompilationUnits
+            (
+                vector<BongoScriptUnit>&& fp_CompiledUnits, 
+                vector<uint8_t>& fp_FinalByteCode
+            );
+
+        bool
+            ResolveSymbol();
 
     private:
         unique_ptr<Logger> linker_logger = nullptr;
+        unordered_map<string, uint64_t> pm_CompilationUnitByteOffsets;
     };
 }

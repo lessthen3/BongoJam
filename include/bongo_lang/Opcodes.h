@@ -22,64 +22,11 @@ namespace BongoJam
 {
     using namespace std;
 
-    enum class ValueType : uint8_t
-    {
-        I32, F32, HEAP_REF, INVALID
-    };
-
-    struct Value
-    {
-        ValueType Type;
-        union
-        {
-            int32_t i32;
-            float   f32;
-            void* ref;
-            uint64_t raw;
-        } u;
-
-        Value(ValueType fp_Type, int32_t fp_Value) : Type(fp_Type) { u.i32 = fp_Value; }
-        Value(ValueType fp_Type, float   fp_Value) : Type(fp_Type) { u.f32 = fp_Value; }
-        Value(ValueType fp_Type, void* fp_Value) : Type(fp_Type) { u.ref = fp_Value; }
-
-        void
-            DebugPrintOut()
-        {
-            //do smth idk
-        }
-    };
-
-    struct CallFrame
-    {
-        //Function* FunctionPtr;
-        size_t ReturnIP;
-        size_t StackBase; // where this frame starts in m_Stack
-    };
-
-    enum HeapTag { STRING, LIST, DICTIONARY, ARRAY, TYPE, INVALID };
-
-    struct HeapObject
-    {
-        unordered_map<string, Value> Fields; // class/struct members
-
-        HeapTag Tag = HeapTag::INVALID;
-        uint32_t Generation = 0;
-
-        union
-        {
-            string* StringPtr; //strings uwu
-            Value* ArrayPtr[2]; //heap allocated static lists are important for multi threaded access, since array's wont invalidate iterators upon resize since it doesn't resize uwu
-            vector<Value>* ListPtr; //vector, so bj list's are guaranteed contiguous blocks (in virutal memory >w<)
-            map<Value, Value>* DictionaryPtr; //hash map, don't require strong ordering of types just matches values since dictionaries don't have begin() and end() iterators so ye
-            void* TypePtr; //classes/structs
-        } u;
-    };
-
     //////////////////////////////////////////////
     // Opcodes Lookup for Translation
     //////////////////////////////////////////////
 
-    enum OPCODES : uint8_t //these opcodes are flags that indicate to the interpreter what information is going to follow it in the byte stream
+    enum BJ_OP : uint8_t //these opcodes are flags that indicate to the interpreter what information is going to follow it in the byte stream
     {
         NOP = 0x00,
 
@@ -203,7 +150,7 @@ namespace BongoJam
 
     struct SSAInstruction
     {
-        OPCODES OP = OPCODES::NOP;
+        BJ_OP OP = BJ_OP::NOP;
         string DEST;
         vector<string> SRC;
     };

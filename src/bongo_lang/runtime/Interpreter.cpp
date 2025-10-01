@@ -134,7 +134,7 @@ namespace BongoJam {
         // Reserve space for locals
         if (m_StackTop + localCount >= MAX_STACK_SIZE)
         {
-            throw std::runtime_error("Stack overflow in PushFrame");
+            throw runtime_error("Stack overflow in PushFrame");
         }
 
         m_StackTop += localCount;
@@ -145,7 +145,7 @@ namespace BongoJam {
     {
         if (CallStack.empty())
         {
-            throw std::runtime_error("CallStack underflow in PopFrame");
+            throw runtime_error("CallStack underflow in PopFrame");
         }
 
         auto f_Frame = CallStack.back();
@@ -221,7 +221,6 @@ namespace BongoJam {
         (*fp_Offset) += (length - 1); // -1 so we end on the last byte of the decoded string
         return _s;
     }
-
 
     float
         BongoJamInterpreter::DecodeFloat(const vector<uint8_t>* fp_ByteCode, size_t* fp_Offset)
@@ -325,6 +324,8 @@ namespace BongoJam {
 
         uint32_t STACK_POINTER = 0;
 
+        size_t BASE_POINTER = 0;
+
         for (size_t _p = 0; _p < f_Size; _p++)
         {
             switch (f_ByteCode[_p])
@@ -357,6 +358,14 @@ namespace BongoJam {
             case POP:
 
                 break;
+            case JUMP:
+            {
+                _p++;
+                Value sv_JmpOffset = Pop();
+
+                _p += sv_JmpOffset.u.i32; //offset is signed so can go backwards or forwards
+            }
+            break;
             case STORE_LOCAL: 
             {
                 uint8_t slot = f_ByteCode[_p++];
@@ -375,7 +384,8 @@ namespace BongoJam {
             {
                 uint8_t slot = f_ByteCode[_p++];
                 size_t addr = CallStack.back().StackBase + slot;
-                if (addr >= MAX_STACK_SIZE) {
+                if (addr >= MAX_STACK_SIZE) 
+                {
                     throw runtime_error("Stack overflow trying to write to local");
                 }
 
@@ -408,7 +418,7 @@ namespace BongoJam {
                 Value b = Pop();
                 Value a = Pop();
 
-                if (a.Type == ValueType::I32 && b.Type == ValueType::I32)
+                if (a.Type == ValueType::I32 and b.Type == ValueType::I32)
                 {
                     Push(Value{ ValueType::I32, a.u.i32 - b.u.i32 });
                 }
@@ -423,7 +433,7 @@ namespace BongoJam {
                 Value b = Pop();
                 Value a = Pop();
 
-                if (a.Type == ValueType::I32 && b.Type == ValueType::I32)
+                if (a.Type == ValueType::I32 and b.Type == ValueType::I32)
                 {
                     Push(Value{ ValueType::I32, a.u.i32 * b.u.i32 });
                 }
@@ -438,7 +448,7 @@ namespace BongoJam {
                 Value b = Pop();
                 Value a = Pop();
 
-                if (a.Type == ValueType::I32 && b.Type == ValueType::I32)
+                if (a.Type == ValueType::I32 and b.Type == ValueType::I32)
                 {
                     Push(Value{ ValueType::I32, a.u.i32 / b.u.i32 });
                 }
@@ -447,7 +457,166 @@ namespace BongoJam {
                     throw runtime_error("Invalid types for DIV");
                 }
             }
-                break;
+            break;
+            case CMP_EQ:
+            {
+                Value b = Pop();
+                Value a = Pop();
+
+                if (a.Type == ValueType::I32 and b.Type == ValueType::I32)
+                {
+                    Push(Value{ ValueType::BOOL, a.u.i32 == b.u.i32 });
+                }
+                else if (a.Type == ValueType::F32 and b.Type == ValueType::F32)
+                {
+                    Push(Value{ ValueType::BOOL, a.u.i32 == b.u.i32 });
+                }
+                else
+                {
+                    throw runtime_error("Invalid types for ADD");
+                }
+            }
+            break;
+            case CMP_NE:
+            {
+                Value b = Pop();
+                Value a = Pop();
+
+                if (a.Type == ValueType::I32 and b.Type == ValueType::I32)
+                {
+                    Push(Value{ ValueType::BOOL, a.u.i32 != b.u.i32 });
+                }
+                else if (a.Type == ValueType::F32 and b.Type == ValueType::F32)
+                {
+                    Push(Value{ ValueType::BOOL, a.u.i32 != b.u.i32 });
+                }
+                else
+                {
+                    throw runtime_error("Invalid types for ADD");
+                }
+            }
+            break;
+            case CMP_GE:
+            {
+                Value b = Pop();
+                Value a = Pop();
+
+                if (a.Type == ValueType::I32 and b.Type == ValueType::I32)
+                {
+                    Push(Value{ ValueType::BOOL, a.u.i32 >= b.u.i32 });
+                }
+                else if (a.Type == ValueType::F32 and b.Type == ValueType::F32)
+                {
+                    Push(Value{ ValueType::BOOL, a.u.i32 >= b.u.i32 });
+                }
+                else
+                {
+                    throw runtime_error("Invalid types for ADD");
+                }
+            }
+            break;
+            case CMP_GT:
+            {
+                Value b = Pop();
+                Value a = Pop();
+
+                if (a.Type == ValueType::I32 and b.Type == ValueType::I32)
+                {
+                    Push(Value{ ValueType::BOOL, a.u.i32 > b.u.i32 });
+                }
+                else if (a.Type == ValueType::F32 and b.Type == ValueType::F32)
+                {
+                    Push(Value{ ValueType::BOOL, a.u.i32 > b.u.i32 });
+                }
+                else
+                {
+                    throw runtime_error("Invalid types for ADD");
+                }
+            }
+            break;
+            case CMP_LE:
+            {
+                Value b = Pop();
+                Value a = Pop();
+
+                if (a.Type == ValueType::I32 and b.Type == ValueType::I32)
+                {
+                    Push(Value{ ValueType::BOOL, a.u.i32 <= b.u.i32 });
+                }
+                else if (a.Type == ValueType::F32 and b.Type == ValueType::F32)
+                {
+                    Push(Value{ ValueType::BOOL, a.u.i32 <= b.u.i32 });
+                }
+                else
+                {
+                    throw runtime_error("Invalid types for ADD");
+                }
+            }
+            break;
+            case CMP_LT:
+            {
+                Value b = Pop();
+                Value a = Pop();
+
+                if (a.Type == ValueType::I32 and b.Type == ValueType::I32)
+                {
+                    Push(Value{ ValueType::BOOL, a.u.i32 < b.u.i32 });
+                }
+                else if (a.Type == ValueType::F32 and b.Type == ValueType::F32)
+                {
+                    Push(Value{ ValueType::BOOL, a.u.i32 < b.u.i32 });
+                }
+                else
+                {
+                    throw runtime_error("Invalid types for ADD");
+                }
+            }
+            break;
+            case AND:
+            {
+                Value b = Pop();
+                Value a = Pop();
+
+                if (a.Type == ValueType::I32 and b.Type == ValueType::I32)
+                {
+                    Push(Value{ ValueType::I32, a.u.i32 & b.u.i32 });
+                }
+                else
+                {
+                    throw runtime_error("Invalid types for AND");
+                }
+            }
+            break;
+            case OR:
+            {
+                Value b = Pop();
+                Value a = Pop();
+
+                if (a.Type == ValueType::I32 and b.Type == ValueType::I32)
+                {
+                    Push(Value{ ValueType::I32, a.u.i32 | b.u.i32 });
+                }
+                else
+                {
+                    throw runtime_error("Invalid types for AND");
+                }
+            }
+            break;
+            case XOR:
+            {
+                Value b = Pop();
+                Value a = Pop();
+
+                if (a.Type == ValueType::I32 and b.Type == ValueType::I32)
+                {
+                    Push(Value{ ValueType::I32, a.u.i32 ^ b.u.i32 });
+                }
+                else
+                {
+                    throw runtime_error("Invalid types for AND");
+                }
+            }
+            break;
             case LABEL: //function call
             {
                 _p++;
@@ -472,8 +641,6 @@ namespace BongoJam {
                 _p++; //shift program pointer to the next byte so that we can read the string
                 _p++; //shift past STRING_VALUE byte cause idk havent implemented memory arenas yet, probs store after creation for constant strings
                 cout << ListOfDecodedStrings[Decode32BitInt(&f_ByteCode, &_p)];
-
-                continue;
             }
             break;
             case NATIVE_CALL:

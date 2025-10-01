@@ -200,12 +200,10 @@ namespace BongoJam {
         Token m_IncludePath;
     };
 
-    struct NameSpaceBlock : public StatementNode
+    struct NamespaceDeclaration : public StatementNode
     {
-        NameSpaceBlock(): StatementNode(SyntaxNodeType::NameSpace) {}
+        NamespaceDeclaration(): StatementNode(SyntaxNodeType::NameSpace) {}
         Token m_Name;
-
-        unique_ptr<StatementBlock> CodeBlock;
     };
 
     struct ReturnStatement : public StatementNode

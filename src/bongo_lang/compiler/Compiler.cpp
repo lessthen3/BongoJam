@@ -178,7 +178,49 @@ void
     uint32_t boolAsInt = fp_Bool ? 1 : 0; // Convert boolean to 32-bit integer
     Encode32BitInt(fp_ByteCode, boolAsInt);
 }
+
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool
+BongoCompiler::CompileFuncCall
+(
+    FunctionCallExpr* fp_VarDeclaration,
+    CompilationUnit* fp_CompilationUnit
+)
+{
+
+    return true;
+}
+
+//this function parses expression trees recursively to produce bytecode consistent with operation order and programmer's expected output
+bool
+BongoCompiler::CompileRegularExpr //this is gonna be recursive i bet -check 
+(
+    Expr* fp_Expression,
+    CompilationUnit* fp_CompilationUnit
+)
+{
+    switch (fp_Expression->m_Domain)
+    {
+    case SyntaxNodeType::SingleValueExpr: //each operator 
+    {
+
+    }
+    break;
+    case SyntaxNodeType::ParenExpr: //each operator 
+    {
+
+    }
+    break;
+    case SyntaxNodeType::FunctionCallExpr:
+    {
+
+    }
+    break;
+    default:
+        return false;
+    }
+}
 
 bool
     BongoCompiler::CompilePrintFunction
@@ -214,10 +256,53 @@ bool
 }
 
 bool
+    BongoCompiler::CompileIfStatement
+    (
+        IfDeclaration* fp_VarDeclaration,
+        CompilationUnit* fp_CompilationUnit
+    )
+{
+    //////////////////////////////////////////////////////////// Bytecode ////////////////////////////////////////////////////////////
+
+    //////////////////////////////////////////////////////////// SSA ////////////////////////////////////////////////////////////////
+
+    return true;
+}
+
+bool
+    BongoCompiler::CompileWhileLoop
+    (
+        WhileLoopDeclaration* fp_VarDeclaration,
+        CompilationUnit* fp_CompilationUnit
+    )
+{
+    //////////////////////////////////////////////////////////// Bytecode ////////////////////////////////////////////////////////////
+
+    //////////////////////////////////////////////////////////// SSA ////////////////////////////////////////////////////////////////
+
+    return true;
+}
+
+bool
+    BongoCompiler::CompileForLoop
+    (
+        ForLoopDeclaration* fp_VarDeclaration,
+        CompilationUnit* fp_CompilationUnit
+    )
+{
+    //////////////////////////////////////////////////////////// Bytecode ////////////////////////////////////////////////////////////
+
+    //////////////////////////////////////////////////////////// SSA ////////////////////////////////////////////////////////////////
+
+    return true;
+}
+
+bool
     BongoCompiler::CompileDeclaredFunction
 (
     FuncDeclaration* fp_FuncDeclaration,
-    CompilationUnit* fp_CompilationUnit
+    CompilationUnit* fp_CompilationUnit,
+    const string& fp_NameSpace
 )
 {
     unique_ptr<StatementNode> f_CurrentProgramStatement = nullptr;
@@ -255,7 +340,13 @@ bool
         break;
         case SyntaxNodeType::IfDeclaration:
         {
+            IfDeclaration* f_IfDec = dynamic_cast<IfDeclaration*>(f_CurrentProgramStatement.get());
 
+            if (not CompileIfStatement(f_IfDec, fp_CompilationUnit))
+            {
+
+                return false;
+            }
         }
         break;
         case SyntaxNodeType::WhileLoopDeclaration:
@@ -270,7 +361,7 @@ bool
         break;
         default:
             compiler_logger->Error(format("Invalid statement unknown to compiler found inside the declaration of function: '{}' ", fp_FuncDeclaration->m_FuncName.m_Value), "BongoCompiler");
-            break;
+            return false;
         }
     }
 
@@ -278,20 +369,87 @@ bool
 }
 
 bool
-    BongoCompiler::CompileStructDeclaration
-(
-    StructDeclaration* fp_StructDec,
-    CompilationUnit* fp_CompilationUnit
-)
+    BongoCompiler::CompileVarReassignment //this is gonna be recursive i bet -check 
+    (
+        VariableReassignmentExpr* fp_Expression,
+        CompilationUnit* fp_CompilationUnit
+    )
 {
+    size_t f_EntryOffset = GetCurrentByteOffset(fp_CompilationUnit);
 
-    for (auto& lv_Constructor : fp_StructDec->Constructors) //structs are only allowed to have constructors thats it uwu - maybeeeee idk
+    switch (fp_Expression->EvaluatesTo)
     {
-        if (not CompileDeclaredFunction(&lv_Constructor, fp_CompilationUnit))
-        {
+    case TokenType::Int: 
+    {
 
-            return false;
-        }
+    }
+    break;
+    case TokenType::Float: 
+    {
+
+    }
+    break;
+    case TokenType::Double: 
+    {
+
+    }
+    break;
+    case TokenType::UnsignedInt: 
+    {
+
+    }
+    break;
+    case TokenType::String:
+    {
+
+    }
+    break;
+    case TokenType::Char:
+    {
+
+    }
+    break;
+    case TokenType::UserIdentifier: //user defined type 
+    {
+
+    }
+    break;
+    default:
+        return false;
+    }
+
+    string f_VarName = fp_Expression->VariableName.m_Value;
+
+    //if the var is part of the current compilation unit then grab its symbol, otherwise var is calling to external compilation unit so the linker will resolve the symbol
+    if (fp_CompilationUnit->SymbolTable.find(f_VarName) == fp_CompilationUnit->SymbolTable.end())
+    {
+        Symbol f_UnresolvedSymbol;
+
+        f_UnresolvedSymbol.Name = f_VarName;
+        f_UnresolvedSymbol.Type = fp_Expression->EvaluatesTo; //linker will check for type mistmatching uwu
+        f_UnresolvedSymbol.OffsetInBytecode = f_EntryOffset; //record where it happened inside compilation unit uwu
+
+        fp_CompilationUnit->UnresolvedSymbolTable.insert({ f_VarName, f_UnresolvedSymbol });
+
+        return true;
+    }
+
+    Symbol  f_Symbol = fp_CompilationUnit->SymbolTable.at(f_VarName);
+
+    if (f_Symbol.Type != fp_Expression->EvaluatesTo) //if the types dont match for storing and doing ops w uwu
+    {
+
+        return false;
+    }
+
+
+    if (f_Symbol.Flags & SymbolFlag::IS_HEAP)
+    {
+        fp_CompilationUnit->CompiledByteCode.push_back(STORE_GLOBAL);
+    }
+    else
+    {
+        fp_CompilationUnit->CompiledByteCode.push_back(STORE_LOCAL);
     }
 
     return true;
@@ -301,9 +459,34 @@ bool
     BongoCompiler::CompileVarDeclaration
     (
         VarDeclaration* fp_VarDeclaration,
-        CompilationUnit* fp_CompilationUnit
+        CompilationUnit* fp_CompilationUnit,
+        const string& fp_NameSpace
     )
 {
+    fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::PUSH); //push new valus
+
+    switch (fp_VarDeclaration->Type.m_Type)
+    {
+    case TokenType::Float:
+        fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::FLOAT_VALUE);
+        break;
+    case TokenType::Int:
+        fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::INT_VALUE);
+        break;
+    case TokenType::UnsignedInt:
+        fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::UNSIGNED_INT_VALUE);
+        break;
+    }
+
+    if (not CompileRegularExpr(fp_VarDeclaration->DefaultValue.get(), fp_CompilationUnit))
+    {
+        compiler_logger->Error(format("Error at Line Number: {}, unable to compile default value of variable named: {}", fp_VarDeclaration->Name.m_SourceCodeLineNumber, fp_VarDeclaration->Name.m_Value), "Compiler");
+        return false;
+    }
+
+    fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::STORE_LOCAL); //push new valus
+    Encode32BitInt(fp_CompilationUnit->CompiledByteCode, pm_NextAvailableStackSlot); //WARNING: idk if this stack slot is working atm needa do a rbp style system where i set offsets from the stack frame
+
 
     return true;
 }
@@ -393,10 +576,29 @@ bool
     return true;
 }
 
-void
-    BongoCompiler::UpdateThreadOwner()
+bool
+    BongoCompiler::CompileDeclaredStruct
+    (
+        StructDeclaration* fp_StructDec,
+        CompilationUnit* fp_CompilationUnit,
+        const string& fp_NameSpace
+    )
 {
-    compiler_logger->UpdateThreadOwner();
+    //////////////////////////////////////////////////////////// Bytecode ////////////////////////////////////////////////////////////
+
+    for (auto& lv_Constructor : fp_StructDec->Constructors) //structs are only allowed to have constructors thats it uwu - maybeeeee idk
+    {
+        if (not CompileDeclaredFunction(&lv_Constructor, fp_CompilationUnit))
+        {
+
+            return false;
+        }
+    }
+
+    //////////////////////////////////////////////////////////// SSA ////////////////////////////////////////////////////////////////
+
+
+    return true;
 }
 
 //////////////////////////////////////////////
@@ -431,18 +633,17 @@ int
         return EXIT_FAILURE;
     }
 
-    // 
-    //////////////////// READ AND HANDLE INCLUDES HERE ////////////////////
-
     //////////////////// Define Main Loop Variables ////////////////////
 
     size_t f_ProgramCounter = 0; //idk why but ill keep track of where we are -- future ryan: was hella useful for bytecode offset uwu but useless in parser since its a tree OwO
 
     bool f_ShouldShift = true;
 
+    string f_CurrentNamespace; //track current namespace uwu
+
     unique_ptr<StatementNode> f_CurrentProgramStatement;
 
-    //////////////////// Main Compile Loop ////////////////////
+    //////////////////////////////////////////////////////////// Main Compile Loop ////////////////////////////////////////////////////////////
 
     while (f_BongoProgram->ParsedScript.size() > 0) //compiling the main function code body
     {
@@ -455,7 +656,7 @@ int
         {
             unique_ptr<FuncDeclaration> f_FuncDec = unique_dynamic_cast<FuncDeclaration>(move(f_CurrentProgramStatement));
             
-            if (not CompileDeclaredFunction(f_FuncDec.get(), fp_CompilationUnit))
+            if (not CompileDeclaredFunction(f_FuncDec.get(), fp_CompilationUnit, f_CurrentNamespace))
             {
 
                 return EXIT_FAILURE;
@@ -466,7 +667,7 @@ int
         {
             unique_ptr<ClassDeclaration> f_ClassDec = unique_dynamic_cast<ClassDeclaration>(move(f_CurrentProgramStatement));
 
-            if(not CompileDeclaredClass(f_ClassDec.get(), fp_CompilationUnit))
+            if(not CompileDeclaredClass(f_ClassDec.get(), fp_CompilationUnit, f_CurrentNamespace))
             {
 
                 return EXIT_FAILURE;
@@ -477,7 +678,7 @@ int
         {
             unique_ptr<StructDeclaration> f_StructDec = unique_dynamic_cast<StructDeclaration>(move(f_CurrentProgramStatement));
 
-            if (not CompileStructDeclaration(f_StructDec.get(), fp_CompilationUnit))
+            if (not CompileDeclaredStruct(f_StructDec.get(), fp_CompilationUnit, f_CurrentNamespace))
             {
 
                 return EXIT_FAILURE;
@@ -486,29 +687,32 @@ int
         break;
         case SyntaxNodeType::NameSpace:
         {
-            unique_ptr<StructDeclaration> f_StructDec = unique_dynamic_cast<StructDeclaration>(move(f_CurrentProgramStatement));
+            unique_ptr<NamespaceDeclaration> f_Namespace = unique_dynamic_cast<NamespaceDeclaration>(move(f_CurrentProgramStatement));
 
-            if (not CompileStructDeclaration(f_StructDec.get(), fp_CompilationUnit))
-            {
-
-                return EXIT_FAILURE;
-            }
+            f_CurrentNamespace = f_Namespace->m_Name.m_Value;
         }
         break;
         case SyntaxNodeType::VarDeclaration:
         {
-            unique_ptr<StructDeclaration> f_StructDec = unique_dynamic_cast<StructDeclaration>(move(f_CurrentProgramStatement));
+            unique_ptr<VarDeclaration> f_VarDec = unique_dynamic_cast<VarDeclaration>(move(f_CurrentProgramStatement));
 
-            if (not CompileStructDeclaration(f_StructDec.get(), fp_CompilationUnit))
+            if (not CompileVarDeclaration(f_VarDec.get(), fp_CompilationUnit, f_CurrentNamespace))
             {
 
                 return EXIT_FAILURE;
             }
         }
         break;
+        case SyntaxNodeType::IncludeStatement:
+        {
+            unique_ptr<IncludeStatement> f_VarDec = unique_dynamic_cast<IncludeStatement>(move(f_CurrentProgramStatement));
+
+            fp_CompilationUnit->Includes.push_back(f_VarDec->m_IncludePath.m_Value);
+        }
+        break;
         default:
             compiler_logger->Fatal(format("FATAL COMPILATION ERROR: Compiler tried processing an invalid StatementNode either produced improperly by Parser, or Compiler should know the statement but hasnt been updated properly\n COMPILER ID: {}\n", pm_CompilerID), "Compiler");
-            break;
+            return EXIT_FAILURE;
         }
 
     }

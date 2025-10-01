@@ -489,9 +489,11 @@ namespace BongoJam {
                 return nullptr;
             }
 
+            fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift off of end paren since reg expr ends on last token that was part of the expression and stops as a base case at ')' and others uwu
+
             if (fp_CurrentToken.m_Type != TokenType::CloseParen)
             {
-                parser_logger->Error(format("found : '{}', when ')' was expected at line number: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
+                parser_logger->Error(format("Error at Line Number: {}, Unterminated parenthesis, expected ')' but found : '{}'", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
                 return nullptr;
             }
 
@@ -811,6 +813,8 @@ namespace BongoJam {
                 break;
                 case TokenType::Const:
                 {
+                    f_EntryToken = fp_CurrentToken;
+
                     auto sv_ConstStatement = ParseConstant(fp_CurrentToken, fp_ProgramTokens);
 
                     if (not sv_ConstStatement)
@@ -822,6 +826,21 @@ namespace BongoJam {
                     f_StatementBloc->CodeBody.push_back(move(sv_ConstStatement));
                 }
                 break;
+                case TokenType::Static:
+                {
+                    f_EntryToken = fp_CurrentToken;
+
+                    auto sv_StaticStatement = ParseStatic(fp_CurrentToken, fp_ProgramTokens);
+
+                    if (not sv_StaticStatement)
+                    {
+                        parser_logger->Error(format("Parsing Error at line:'{}', couldn't parse static whatever ", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                        return nullptr;
+                    }
+
+                    f_StatementBloc->CodeBody.push_back(move(sv_StaticStatement)); //scoped static var idk should only be used in functions but whatever
+                }
+                break; //should shiftforward at top of loop at work fine uwu
                 default:
                     parser_logger->Error(format("Error at Line Number: {}, found : '{}', when statement was expected inside a code block", to_string(fp_CurrentToken.m_SourceCodeLineNumber), fp_CurrentToken.m_Value), "Parser");
                     return nullptr;
@@ -1677,42 +1696,6 @@ namespace BongoJam {
             return move(f_ScopeDec);
         }
 
-        unique_ptr<NameSpaceBlock>
-            ParseNameSpace
-            (
-                Token& fp_CurrentToken,
-                vector<Token>& fp_ProgramTokens
-            )
-        {
-            Token f_EntryToken = fp_CurrentToken;
-
-            unique_ptr<NameSpaceBlock> f_NameSpace = make_unique<NameSpaceBlock>();
-
-            fp_CurrentToken = ShiftForward(fp_ProgramTokens); //look for namespace name uwu
-
-            if (fp_CurrentToken.m_Type != TokenType::UserIdentifier) 
-            {
-
-                return nullptr;
-            }
-
-            f_NameSpace->m_Name = fp_CurrentToken;
-
-            {
-                auto sv_NameBlock = ParseStatementBlock(fp_CurrentToken, fp_ProgramTokens, false);
-
-                if (not sv_NameBlock)
-                {
-
-                    return nullptr;
-                }
-
-                f_NameSpace->CodeBlock = move(sv_NameBlock);
-            }
-
-            return move(f_NameSpace);
-        }
-
         unique_ptr<ListDeclaration>
             ParseListDeclaration()
         {
@@ -2131,13 +2114,17 @@ namespace BongoJam {
                 {
                     f_EntryToken = f_CurrentToken;
 
-                    auto sv_NameSpace = ParseNameSpace(f_CurrentToken, fp_ProgramTokens);
+                    unique_ptr<NamespaceDeclaration> sv_NameSpace = make_unique<NamespaceDeclaration>();
 
-                    if (not sv_NameSpace)
+                    f_CurrentToken = ShiftForward(fp_ProgramTokens); //look for namespace name uwu
+
+                    if (f_CurrentToken.m_Type != TokenType::UserIdentifier)
                     {
-                        parser_logger->Error(format("Error at Line Number: {}, invalid code inside namespace", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                        parser_logger->Error(format("Parsing Error at line:'{}', expected name identifier when declaring a namespace but found: '{}' instead owo", f_EntryToken.m_SourceCodeLineNumber, f_CurrentToken.m_Value), "Parser");
                         return nullptr;
                     }
+
+                    sv_NameSpace->m_Name = f_CurrentToken;
 
                     f_Program->ParsedScript.push_back(move(sv_NameSpace));
                 }
