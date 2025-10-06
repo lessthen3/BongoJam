@@ -101,7 +101,11 @@ bool
 //////////////////////////////////////////////
 
 void
-    BongoCompiler::Encode32BitInt(vector<uint8_t>& fp_ByteCode, uint32_t fp_Int)
+    BongoCompiler::Encode32BitInt
+    (
+        vector<uint8_t>& fp_ByteCode, 
+        const uint32_t fp_Int
+    )
 {
     fp_ByteCode.push_back((fp_Int >> 24) & 0xFF); // High byte
     fp_ByteCode.push_back((fp_Int >> 16) & 0xFF);
@@ -110,7 +114,11 @@ void
 }
 
 void
-    BongoCompiler::Encode64BitInt(vector<uint8_t>& fp_ByteCode, uint64_t fp_Int)
+    BongoCompiler::Encode64BitInt
+    (
+        vector<uint8_t>& fp_ByteCode, 
+        const uint64_t fp_Int
+    )
 {
     fp_ByteCode.push_back((fp_Int >> 56) & 0xFF); // High byte
     fp_ByteCode.push_back((fp_Int >> 48) & 0xFF);
@@ -123,7 +131,11 @@ void
 }
 
 void
-    BongoCompiler::EncodeUTF8String(vector<uint8_t>& fp_ByteCode, const string& fp_String)
+    BongoCompiler::EncodeUTF8String
+    (
+        vector<uint8_t>& fp_ByteCode, 
+        const string& fp_String
+    )
 {
     vector<uint8_t> f_EncodedBytes; // Temporary buffer to hold encoded bytes
     uint32_t f_SizeOfString = fp_String.size();
@@ -159,11 +171,27 @@ void
 }
 
 void
-    BongoCompiler::EncodeFloat(vector<uint8_t>& fp_ByteCode, float fp_Float)
+    BongoCompiler::EncodeFloat
+    (
+        vector<uint8_t>& fp_ByteCode, 
+        float fp_Float
+    )
 {
     uint32_t asInt;
     memcpy(&asInt, &fp_Float, sizeof(float)); // Copy the float into an uint32_t bit pattern
     Encode32BitInt(fp_ByteCode, asInt);      // Reuse the integer encoding function
+}
+
+void
+    BongoCompiler::EncodeDouble
+    (
+        vector<uint8_t>& fp_ByteCode, 
+        const double fp_DoubleVal
+    )
+{
+    uint64_t asInt;
+    memcpy(&asInt, &fp_DoubleVal, sizeof(double)); // Copy the double into a uint64_t bit pattern
+    Encode64BitInt(fp_ByteCode, asInt);      // Reuse the integer encoding function
 }
 
 void
@@ -194,17 +222,44 @@ BongoCompiler::CompileFuncCall
 
 //this function parses expression trees recursively to produce bytecode consistent with operation order and programmer's expected output
 bool
-BongoCompiler::CompileRegularExpr //this is gonna be recursive i bet -check 
-(
-    Expr* fp_Expression,
-    CompilationUnit* fp_CompilationUnit
-)
+    BongoCompiler::CompileRegularExpr //this is gonna be recursive i bet -check 
+    (
+        Expr* fp_Expression,
+        CompilationUnit* fp_CompilationUnit
+    )
 {
     switch (fp_Expression->m_Domain)
     {
     case SyntaxNodeType::SingleValueExpr: //each operator 
     {
+        SingleValueExpr* sv_SingleValueExpr = dynamic_cast<SingleValueExpr*>(fp_Expression);
 
+        switch (sv_SingleValueExpr->m_Value.m_Type)
+        {
+        case TokenType::IntNumber:
+        {
+            Encode32BitInt(fp_CompilationUnit->CompiledByteCode, stoi(sv_SingleValueExpr->m_Value.m_Value));
+        }
+        break;
+        case TokenType::FloatNumber:
+        {
+            EncodeFloat(fp_CompilationUnit->CompiledByteCode, stof(sv_SingleValueExpr->m_Value.m_Value));
+        }
+        break;
+        case TokenType::StringLiteral:
+        {
+            EncodeUTF8String(fp_CompilationUnit->CompiledByteCode, sv_SingleValueExpr->m_Value.m_Value);
+        }
+        break;
+        case TokenType::UserIdentifier:
+        {
+            //USED for variable w access levels like 'myObject.myVal + 2;'
+        }
+        break;
+        default:
+            //THROW ERROR: 
+            return false;
+        }
     }
     break;
     case SyntaxNodeType::ParenExpr: //each operator 
@@ -217,9 +272,21 @@ BongoCompiler::CompileRegularExpr //this is gonna be recursive i bet -check
 
     }
     break;
+    case SyntaxNodeType::BinaryOperationExpr:
+    {
+
+    }
+    break;
+    case SyntaxNodeType::UnaryOperatorExpr:
+    {
+
+    }
+    break;
     default:
         return false;
     }
+
+    return true; //return true since compiler knows the expression uwu
 }
 
 bool
@@ -417,8 +484,29 @@ bool
     default:
         return false;
     }
+    //WARNING THIS WONT WORK ATM 
+    string f_VarName;
 
-    string f_VarName = fp_Expression->VariableName.m_Value;
+    switch (fp_Expression->VariableName->m_Domain)
+    {
+    case SyntaxNodeType::SingleValueExpr:
+    {
+        auto sv_RecastedSingleValExpr = dynamic_cast<SingleValueExpr*>(fp_Expression->VariableName.get()); 
+
+        f_VarName = sv_RecastedSingleValExpr->m_Value.m_Value;
+    }
+    break;
+    case SyntaxNodeType::ContainerIndexedAccessExpr:
+    {
+        auto sv_RecastedContainerAcess = dynamic_cast<ContainerIndexedAccessExpr*>(fp_Expression->VariableName.get()); 
+
+        f_VarName = sv_RecastedContainerAcess->ContainerName.m_Value;
+    }
+    break;
+    default:
+
+        return false;
+    }
 
     //if the var is part of the current compilation unit then grab its symbol, otherwise var is calling to external compilation unit so the linker will resolve the symbol
     if (fp_CompilationUnit->SymbolTable.find(f_VarName) == fp_CompilationUnit->SymbolTable.end())

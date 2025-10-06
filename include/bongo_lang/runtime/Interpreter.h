@@ -32,7 +32,7 @@ namespace BongoJam {
 
     enum class ValueType : uint8_t
     {
-        I32, F32, BOOL, STRING, CLASS_REF, STRUCT_REF, INVALID
+        I32, I64, F32, F64, BOOL, STRING, CLASS_REF, STRUCT_REF, INVALID
     };
 
     struct Value
@@ -42,7 +42,9 @@ namespace BongoJam {
         union
         {
             int32_t i32;
+            int64_t i64;
             float   f32;
+            double f64;
             void* ref;
             uint64_t raw;
             bool boolean;
@@ -68,16 +70,19 @@ namespace BongoJam {
             return val;
         }
 
-        void DebugPrintOut() const {
+        void 
+            DebugPrintOut() 
+            const 
+        {
             switch (Type)
             {
-            case ValueType::I32:      printf("int: %d\n", u.i32); break;
-            case ValueType::F32:      printf("float: %f\n", u.f32); break;
-            case ValueType::BOOL:     printf("bool: %s\n", u.boolean ? "true" : "false"); break;
-            case ValueType::STRING:   printf("string ptr: %p\n", u.ref); break;
-            case ValueType::CLASS_REF:printf("class ref: %p\n", u.ref); break;
-            case ValueType::STRUCT_REF:printf("struct ref: %p\n", u.ref); break;
-            default: printf("invalid or uninitialized value\n");
+                case ValueType::I32:      printf("int: %d\n", u.i32); break;
+                case ValueType::F32:      printf("float: %f\n", u.f32); break;
+                case ValueType::BOOL:     printf("bool: %s\n", u.boolean ? "true" : "false"); break;
+                case ValueType::STRING:   printf("string ptr: %p\n", u.ref); break;
+                case ValueType::CLASS_REF:printf("class ref: %p\n", u.ref); break;
+                case ValueType::STRUCT_REF:printf("struct ref: %p\n", u.ref); break;
+                default: printf("invalid or uninitialized value\n");
             }
         }
     };
@@ -122,8 +127,11 @@ namespace BongoJam {
         BongoJamInterpreter
     {
     public:
-        typedef typename function<Value(BongoJamInterpreter&)> NATIVE_FUNCTION;
+        using NATIVE_FUNCTION = function<Value(BongoJamInterpreter&)>;
 
+    //////////////////////////////////////////////
+    // Private Class Members
+    //////////////////////////////////////////////
     private:
         unordered_map<string, RuntimeSymbol> LocalSymbols;
 
@@ -140,6 +148,8 @@ namespace BongoJam {
         bool STATUS_REGISTER = false;
 
         unordered_map<string, NATIVE_FUNCTION> NativeFunctions;
+
+        vector<string> ListOfDecodedStrings;
 
     public:
         BongoJamInterpreter();
@@ -167,37 +177,50 @@ namespace BongoJam {
         // Decoding Functions
         //////////////////////////////////////////////
 
-        uint32_t
+        int32_t
             Decode32BitInt(const vector<uint8_t>* fp_ByteCode, size_t* fp_Offset);
+
+        int64_t
+            Decode64BitInt
+            (
+                const vector<uint8_t>* fp_ByteCode,
+                size_t* fp_Offset
+            );
 
         string
             DecodeUTF8String(const vector<uint8_t>* fp_ByteCode, size_t* fp_Offset);
 
-
         float
             DecodeFloat(const vector<uint8_t>* fp_ByteCode, size_t* fp_Offset);
 
+        double
+            DecodeDoubleUwU(const vector<uint8_t>* fp_ByteCode, size_t* fp_Offset);
+        
         char
             Decode32BitChar(const vector<uint8_t>* fp_ByteCode, size_t* fp_Offset);
 
         bool
             DecodeBool(const vector<uint8_t>* fp_ByteCode, size_t* fp_Offset);
 
+        void
+            DecodeAndStoreUTF8Strings(vector<uint8_t>* fp_ByteCode);
+
         //////////////////////////////////////////////
         // Utility Functions
         //////////////////////////////////////////////
 
         void
-            Encode32BitInt(vector<uint8_t>* fp_ByteCode, uint32_t fp_Int);
-
-        void
-            DecodeAndStoreUTF8Strings(vector<uint8_t>* fp_ByteCode);
-
-        //////////////////////////////////////////////
-        // Class Members
-        //////////////////////////////////////////////
-
-        vector<string> ListOfDecodedStrings;
+            Encode32BitUnsignedInt
+            (
+                vector<uint8_t>* fp_ByteCode,
+                const uint32_t fp_Int
+            )
+        {
+            fp_ByteCode->push_back((fp_Int >> 24) & 0xFF); // High byte
+            fp_ByteCode->push_back((fp_Int >> 16) & 0xFF);
+            fp_ByteCode->push_back((fp_Int >> 8) & 0xFF);
+            fp_ByteCode->push_back(fp_Int & 0xFF);         // Low byte
+        }
 
         //////////////////////////////////////////////
         // Utility Functions
@@ -207,7 +230,7 @@ namespace BongoJam {
             PushNewStackFrame();
 
         void
-            PopCurrentStack();
+            PopCurrentStackFrame();
 
         void
             Push(Value fp_Value);
@@ -234,7 +257,7 @@ namespace BongoJam {
 
 
     public:
-        uint32_t
-            RunBongoScript(const string& fp_BongoScriptName);
+        int64_t
+            BongoTime(const string& fp_BongoScriptName);
     };
 }

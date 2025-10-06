@@ -11,6 +11,9 @@
 **************************************************************************/
 #pragma once
 
+///BongoJam
+#include "../Logger.h"
+
 ///STL
 #include <cstdint>
 #include <cstdlib>
@@ -21,63 +24,68 @@
 
 namespace BongoJam {
 
-    using namespace std;
-
     struct BumpAllocator
     {
     private:
-        uint8_t* m_Buffer = nullptr;
-        size_t m_Capacity = 0;
-        size_t m_Offset = 0;
+        uint8_t* pm_Buffer = nullptr;
+        size_t pm_Capacity = 0;
+        size_t pm_Offset = 0;
 
     public:
         BumpAllocator(size_t bytes)
         {
-            m_Buffer = static_cast<uint8_t*>(malloc(bytes));
-            if (not m_Buffer) throw bad_alloc();
-            m_Capacity = bytes;
-            m_Offset = 0;
+            pm_Buffer = static_cast<uint8_t*>(malloc(bytes));
+
+            if (not pm_Buffer) 
+            {
+                throw bad_alloc();
+            }
+
+            pm_Capacity = bytes;
+            pm_Offset = 0;
         }
 
         ~BumpAllocator()
         {
-            free(m_Buffer);
-            m_Buffer = nullptr;
-            m_Capacity = 0;
-            m_Offset = 0;
+            free(pm_Buffer);
+            pm_Buffer = nullptr;
+            pm_Capacity = 0;
+            pm_Offset = 0;
         }
 
         void* 
             Allocate(size_t size, size_t alignment = alignof(max_align_t))
         {
-            size_t alignedOffset = (m_Offset + alignment - 1) & ~(alignment - 1);
-            if (alignedOffset + size > m_Capacity)
+            size_t f_AlignedOffset = (pm_Offset + alignment - 1) & ~(alignment - 1);
+
+            if (f_AlignedOffset + size > pm_Capacity)
             {
                 throw bad_alloc();
             }
 
-            void* ptr = m_Buffer + alignedOffset;
-            m_Offset = alignedOffset + size;
-            return ptr;
+            void* f_Ptr = pm_Buffer + f_AlignedOffset;
+            pm_Offset = f_AlignedOffset + size;
+
+            return f_Ptr;
         }
 
         template<typename T, typename... Args>
         T* 
             Construct(Args&&... args)
         {
-            void* ptr = Allocate(sizeof(T), alignof(T));
-            return new (ptr) T(forward<Args>(args)...);
+            void* f_Ptr = Allocate(sizeof(T), alignof(T));
+            return new (f_Ptr) T(forward<Args>(args)...);
         }
 
         void 
             Reset()
         {
-            m_Offset = 0;
+            pm_Offset = 0;
         }
 
-        size_t Used() const { return m_Offset; }
-        size_t Remaining() const { return m_Capacity - m_Offset; }
-        size_t Capacity() const { return m_Capacity; }
+        size_t Used() const { return pm_Offset; }
+        size_t Remaining() const { return pm_Capacity - pm_Offset; }
+        size_t Capacity() const { return pm_Capacity; }
     };
 
 } //namespace BongoJam

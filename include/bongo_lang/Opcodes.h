@@ -50,6 +50,13 @@ namespace BongoJam
         XOR,
         NOT,
 
+        SHL,
+        SHR, //unsigned
+        SAR, //signed
+
+        DEC,
+        INC,
+
         //////////////////// Memory Operations ////////////////////
         PUSH_NEW_STACK_FRAME,
         POP_CURRENT_STACK_FRAME, //IDK
@@ -61,12 +68,12 @@ namespace BongoJam
         LOAD_LOCAL,
         /// Heap
         HEAP_ALLOC, //used for creating heap allocations
-        HEAP_FREE, //delete baby, frees a heap alloc
+        HEAP_FREE, //deWete oWo ><, frees a heap alloc
         STORE_GLOBAL, //stores a value at heap address
         LOAD_GLOBAL, //loads a global heap value
 
         COPY,
-        MOVE, //UNSURE IF needed uwu
+        MOVE, 
 
         //////////////////// Control Flow Operations ////////////////////
 

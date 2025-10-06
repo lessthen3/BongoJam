@@ -161,7 +161,7 @@ namespace BongoJam {
 
                     if (result != BONGO_OK)
                     {
-                        f_CompilerLogger->Error(format("Failed to compile : '{}', with compiler exit code : '{}' ", f_Task.FilePath, result), "Worker");
+                        f_CompilerLogger->Error(format("Failed to compile : '{}', with compiler exit code : {} ", f_Task.FilePath, result), "Worker");
                         BONGO_COMPILE_SUCCESS = false;
                     }
                     else

@@ -151,8 +151,7 @@ namespace BongoJam {
         auto f_Frame = CallStack.back();
         CallStack.pop_back();
 
-        // Rewind stack to previous base
-        m_StackTop = f_Frame.StackBase;
+        m_StackTop = f_Frame.StackBase; // Rewind stack to previous base
     }
 
 
@@ -160,18 +159,44 @@ namespace BongoJam {
     // Decoding Functions
     //////////////////////////////////////////////
 
-    uint32_t
-        BongoJamInterpreter::Decode32BitInt(const vector<uint8_t>* fp_ByteCode, size_t* fp_Offset)
+    int32_t
+        BongoJamInterpreter::Decode32BitInt
+        (
+            const vector<uint8_t>* fp_ByteCode, 
+            size_t* fp_Offset
+        )
     {
-        uint32_t value =
-            (static_cast<uint32_t>((*fp_ByteCode)[*fp_Offset]) << 24) |
-            (static_cast<uint32_t>((*fp_ByteCode)[*fp_Offset + 1]) << 16) |
-            (static_cast<uint32_t>((*fp_ByteCode)[*fp_Offset + 2]) << 8) |
-            (static_cast<uint32_t>((*fp_ByteCode)[*fp_Offset + 3]));
+        int32_t f_Value =
+            (static_cast<int32_t>((*fp_ByteCode)[*fp_Offset]) << 24) |
+            (static_cast<int32_t>((*fp_ByteCode)[*fp_Offset + 1]) << 16) |
+            (static_cast<int32_t>((*fp_ByteCode)[*fp_Offset + 2]) << 8) |
+            (static_cast<int32_t>((*fp_ByteCode)[*fp_Offset + 3]));
 
         *fp_Offset += 3; // Move the offset forward by the number of bytes read - 1 because the pointer should sit on the last decoded byte
 
-        return value;
+        return f_Value;
+    }
+
+    int64_t
+        BongoJamInterpreter::Decode64BitInt
+        (
+            const vector<uint8_t>* fp_ByteCode, 
+            size_t* fp_Offset
+        )
+    {
+        int64_t f_Value =
+            (static_cast<int64_t>((*fp_ByteCode)[*fp_Offset]) << 56) |
+            (static_cast<int64_t>((*fp_ByteCode)[*fp_Offset + 1]) << 48) |
+            (static_cast<int64_t>((*fp_ByteCode)[*fp_Offset + 2]) << 40) |
+            (static_cast<int64_t>((*fp_ByteCode)[*fp_Offset + 3]) << 32) |
+            (static_cast<int64_t>((*fp_ByteCode)[*fp_Offset + 4]) << 24) |
+            (static_cast<int64_t>((*fp_ByteCode)[*fp_Offset + 5]) << 16) |
+            (static_cast<int64_t>((*fp_ByteCode)[*fp_Offset + 6]) << 8) |
+            (static_cast<int64_t>((*fp_ByteCode)[*fp_Offset + 7]));
+
+        *fp_Offset += 7; // Move the offset forward by the number of bytes read - 1 because the pointer should sit on the last decoded byte
+
+        return f_Value;
     }
 
     string
@@ -225,10 +250,19 @@ namespace BongoJam {
     float
         BongoJamInterpreter::DecodeFloat(const vector<uint8_t>* fp_ByteCode, size_t* fp_Offset)
     {
-        uint32_t asInt = Decode32BitInt(fp_ByteCode, fp_Offset);
-        float value;
-        memcpy(&value, &asInt, sizeof(float)); // Copy the bits into a float
-        return value;
+        uint32_t f_AsInt = Decode32BitInt(fp_ByteCode, fp_Offset); //decode as an int since we can just memcpy the bits into a float
+        float f_Val;
+        memcpy(&f_Val, &f_AsInt, sizeof(float)); // Copy the bits into a float
+        return f_Val;
+    }
+
+    double
+        BongoJamInterpreter::DecodeDoubleUwU(const vector<uint8_t>* fp_ByteCode, size_t* fp_Offset)
+    {
+        int64_t f_AsInt = Decode64BitInt(fp_ByteCode, fp_Offset); //decode as an int since we can just memcpy the bits into a double
+        double f_Val;
+        memcpy(&f_Val, &f_AsInt, sizeof(double)); // Copy the bits into a float
+        return f_Val;
     }
 
     char
@@ -241,19 +275,6 @@ namespace BongoJam {
         BongoJamInterpreter::DecodeBool(const vector<uint8_t>* fp_ByteCode, size_t* fp_Offset)
     {
         return Decode32BitInt(fp_ByteCode, fp_Offset) != 0;
-    }
-
-    //////////////////////////////////////////////
-    // Utility Functions
-    //////////////////////////////////////////////
-
-    void
-        BongoJamInterpreter::Encode32BitInt(vector<uint8_t>* fp_ByteCode, uint32_t fp_Int)
-    {
-        fp_ByteCode->push_back((fp_Int >> 24) & 0xFF); // High byte
-        fp_ByteCode->push_back((fp_Int >> 16) & 0xFF);
-        fp_ByteCode->push_back((fp_Int >> 8) & 0xFF);
-        fp_ByteCode->push_back(fp_Int & 0xFF);         // Low byte
     }
 
     void
@@ -274,7 +295,7 @@ namespace BongoJam {
 
                 //encode the uint32_t that represents the index of the string
                 vector<uint8_t> f_IndexBytes;
-                Encode32BitInt(&f_IndexBytes, ListOfDecodedStrings.size() - 1);
+                Encode32BitUnsignedInt(&f_IndexBytes, ListOfDecodedStrings.size() - 1);
 
                 //erase the encoded string bytes, _p should be sitting on the last byte of the encoded string
                 fp_ByteCode->erase(fp_ByteCode->begin() + f_InitialIndex, fp_ByteCode->begin() + _p + 1);
@@ -295,7 +316,7 @@ namespace BongoJam {
     //////////////////////////////////////////////
 
     void
-        BongoJamInterpreter::PopCurrentStack()
+        BongoJamInterpreter::PopCurrentStackFrame()
     {
 
     }
@@ -306,8 +327,8 @@ namespace BongoJam {
 
     }
 
-    uint32_t
-        BongoJamInterpreter::RunBongoScript(const string& fp_BongoScriptName)
+    int64_t
+        BongoJamInterpreter::BongoTime(const string& fp_BongoScriptName)
     {
         vector<uint8_t> f_ByteCode;
 
@@ -322,7 +343,7 @@ namespace BongoJam {
 
         size_t _l = 0; //line counter
 
-        uint32_t STACK_POINTER = 0;
+        size_t STACK_POINTER = 0;
 
         size_t BASE_POINTER = 0;
 
@@ -339,15 +360,21 @@ namespace BongoJam {
                 {
                 case INT_VALUE:
                 {
-                    int32_t intValue = static_cast<int32_t>(Decode32BitInt(&f_ByteCode, &_p));
-                    Push(Value{ ValueType::I32, intValue });
+                    int32_t f_IntVal = static_cast<int32_t>(Decode32BitInt(&f_ByteCode, &_p));
+                    Push(Value{ ValueType::I32, f_IntVal });
                 } 
                 break;
                 case FLOAT_VALUE:
                 {
-                    float floatValue = DecodeFloat(&f_ByteCode, &_p);
-                    Push(Value{ ValueType::F32,  floatValue });
+                    float f_FloatVal = DecodeFloat(&f_ByteCode, &_p);
+                    Push(Value{ ValueType::F32,  f_FloatVal });
                 } 
+                break;
+                case DOUBLE_VALUE:
+                {
+                    float f_DoubleVal = DecodeDoubleUwU(&f_ByteCode, &_p);
+                    Push(Value{ ValueType::F64,  f_DoubleVal });
+                }
                 break;
                 default:
                     cout << "BAD PUSH UWU" << endl;

@@ -55,7 +55,7 @@ namespace BongoJam {
         string Name;
 
         SymbolKind Kind = SymbolKind::INVALID; // FUNCTION, STRUCT, CLASS, GLOBAL_VAR
-        TokenType Type; // optional, for future type-checking
+        TokenType Type = TokenType::NO_TOKEN_VALUE; // optional, for future type-checking
 
         size_t OffsetInBytecode = 0; // Offset based off the compilation unit the compilationunit base offset will be recorded by the linker for resolving symbols
 
@@ -137,6 +137,13 @@ namespace BongoJam {
 
         void
             EncodeFloat(vector<uint8_t>& fp_ByteCode, float fp_Float);
+
+        void
+            EncodeDouble
+            (
+                vector<uint8_t>& fp_ByteCode,
+                const double fp_DoubleVal
+            );
 
         void
             Encode32BitChar(vector<uint8_t>& fp_ByteCode, uint32_t character);

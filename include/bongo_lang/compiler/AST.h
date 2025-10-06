@@ -76,13 +76,14 @@ namespace BongoJam {
 
         ParenExpr,
 
-        MethodCallExpr,
         FunctionCallExpr,
+        IdentifierExpr,
 
         ClassCallExpr,
         StructCallExpr,
 
         VariableReassignmentExpr,
+        ContainerIndexedAccessExpr,
 
         FmtdStringExpr,
 
@@ -233,9 +234,7 @@ namespace BongoJam {
 
     };
 
-    //////////////////////////////////////////////
-    // Variable assignment and re-assignment
-    //////////////////////////////////////////////
+    //=========================================================================================== Modifier Flags for Variables/Classes/Funcs/Structs ===========================================================================================//
 
     enum ModifierFlags : uint8_t
     {
@@ -246,6 +245,8 @@ namespace BongoJam {
         STATIC = 1 << 3,
         CONSTANT = 1 << 4
     };
+
+    //=========================================================================================== Variable assignment and re-assignment ===========================================================================================//
 
     struct VarDeclaration : public Expr //gets its symbol resolved at compilation
     {
@@ -263,14 +264,57 @@ namespace BongoJam {
     struct VariableReassignmentExpr : public Expr
     {
         VariableReassignmentExpr() { m_Domain = SyntaxNodeType::VariableReassignmentExpr; }
-        Token VariableName;
+        unique_ptr<Expr> VariableName; //IMPORTANT: this is an expr for chained var calls and index access eg. 'myClass.field or myList[69]'
         TokenType Operator = TokenType::NO_TOKEN_VALUE;
-        unique_ptr<Expr> NewValue;
+        unique_ptr<Expr> NewValue = nullptr;
     };
 
-    //////////////////////////////////////////////
-    // Declarations Involving Multiple Expressions
-    //////////////////////////////////////////////
+    //=========================================================================================== Special User Identifier Based Calls ===========================================================================================//
+    
+    struct InPlaceStructConstruction : public Expr
+    {
+        InPlaceStructConstruction() { m_Domain = SyntaxNodeType::InPlaceStructConstruction; }
+        vector<unique_ptr<Expr>> Arguments; //indices here and in argument names should match, just argument names is optional so no map uwu
+        vector<string> ArgumentNames; //string for ".field =" in place construction
+    };
+
+    struct ContainerIndexedAccessExpr : public Expr //myList[0]
+    {
+        ContainerIndexedAccessExpr() { m_Domain = SyntaxNodeType::ContainerIndexedAccessExpr; }
+        Token ContainerName;
+
+        unique_ptr<Expr> DesiredIndex = nullptr;
+        unique_ptr<Expr> ChainedExpr = nullptr;
+    };
+
+    struct FunctionCallExpr : public Expr  //idk how to get maybe after parsing we do a grammar check uwu everything could be spelt right but not make perfect sense
+    {
+        FunctionCallExpr() { m_Domain = SyntaxNodeType::FunctionCallExpr; }
+
+        Token FuncName;
+
+        vector<unique_ptr<Expr>> Arguments; //vector cause multiple arguments unknown size, expr because it could get crazy uwu
+
+        //WARNING: ChainedIdentifier can be null so null checks are MANDATORY
+        unique_ptr<Expr> ChainedIdentifier = nullptr; //in a call chain this is ...MyFunc().MyClass.................
+    };
+
+    struct IdentifierExpr : public Expr
+    {
+        IdentifierExpr(Token fp_IdentifierToken) 
+        { 
+            m_Domain = SyntaxNodeType::IdentifierExpr; 
+            Identifier = fp_IdentifierToken;
+        }
+
+        IdentifierExpr() { m_Domain = SyntaxNodeType::IdentifierExpr; }
+
+        Token Identifier;
+        unique_ptr<Expr> ChainedExpr = nullptr; //reg expr because could be chained to one of the other two expressions above
+    };
+
+    //=========================================================================================== Control Flow ===========================================================================================//
+
 
     struct ElseDeclaration : public StatementBlock
     {
@@ -351,13 +395,6 @@ namespace BongoJam {
         vector <unique_ptr<VarDeclaration>> Members; //all struct members are public always so no accessor levels, and structs dont use inheritance uwu just aliasing
     };
 
-    struct InPlaceStructConstruction : public Expr
-    {
-        InPlaceStructConstruction() { m_Domain = SyntaxNodeType::InPlaceStructConstruction; }
-        vector<unique_ptr<Expr>> Arguments; //indices here and in argument names should match, just argument names is optional so no map uwu
-        vector<string> ArgumentNames; //string for ".field =" in place construction
-    };
-
     struct ScopeDeclaration : public StatementBlock
     {
         ScopeDeclaration() { m_Domain = SyntaxNodeType::ScopeDeclaration; }
@@ -388,18 +425,6 @@ namespace BongoJam {
     //////////////////////////////////////////////
     // Numeric Expressions
     //////////////////////////////////////////////
-
-    struct FunctionCallExpr : public Expr  //idk how to get maybe after parsing we do a grammar check uwu everything could be spelt right but not make perfect sense
-    {
-        FunctionCallExpr() { m_Domain = SyntaxNodeType::FunctionCallExpr; }
-
-        Token FuncName;
-
-        vector<unique_ptr<Expr>> Arguments; //vector cause multiple arguments unknown size, expr because it could get crazy uwu
-
-        //WARNING: ChainedIdentifier can be null so null checks are MANDATORY
-        unique_ptr<Expr> ChainedIdentifier = nullptr; //in a call chain this is ...MyFunc().MyClass.................
-    };
 
     struct FmtdStringExpr : public Expr //this expr is meant to be traversed in order since f"hello {plant} i love you" gets parsed as three tokens
     {

@@ -626,15 +626,15 @@ namespace BongoJam {
             {
                 if(fp_CompilerConfigs.CompilerFlags & BongoCompilerFlags::DEBUG)
                 {
-                    auto BongoJam_Timer_Start = chrono::high_resolution_clock::now();
-                    pm_Interpreter->RunBongoScript(fp_CompilerConfigs.OutputDirectory + "/" + fp_CompilerConfigs.OutputFileName + ".bongo");
-                    auto BongoJam_Timer_Stop = chrono::high_resolution_clock::now();
+                    const auto BongoJam_Timer_Start = chrono::high_resolution_clock::now();
+                    pm_Interpreter->BongoTime(fp_CompilerConfigs.OutputDirectory + "/" + fp_CompilerConfigs.OutputFileName + ".bongo");
+                    const auto BongoJam_Timer_Stop = chrono::high_resolution_clock::now();
 
-                    auto BongoJam_Runtime_Duration = chrono::duration_cast<chrono::microseconds>(BongoJam_Timer_Stop - BongoJam_Timer_Start);
+                    const auto BongoJam_Runtime_Duration = chrono::duration_cast<chrono::microseconds>(BongoJam_Timer_Stop - BongoJam_Timer_Start);
                 }
                 else
                 {
-                    pm_Interpreter->RunBongoScript(fp_CompilerConfigs.OutputDirectory + "/" + fp_CompilerConfigs.OutputFileName + ".bongo");
+                    pm_Interpreter->BongoTime(fp_CompilerConfigs.OutputDirectory + "/" + fp_CompilerConfigs.OutputFileName + ".bongo");
                 }
             }
 
