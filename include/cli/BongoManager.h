@@ -399,6 +399,15 @@ namespace BongoJam {
 
                     return BONGO_OK;
                 }
+                else if (f_CompilerArg == "-r")
+                {
+                    cout
+                        << CreateColouredText("Current BongoJam Compiler Version: ", Colours::BrightMagenta) << CreateColouredText(BONGO_COMPILER_VERSION, Colours::BrightCyan) << "\n"
+                        << CreateColouredText("Current BongoJam Compiler Version: ", Colours::BrightMagenta) << CreateColouredText(BONGO_RUNTIME_VERSION, Colours::BrightCyan) << "\n"
+                        ;
+
+                    return BONGO_OK;
+                }
             }
 
             for (int _i = 1; _i < fp_ArgCount; ++_i)
@@ -764,32 +773,46 @@ namespace BongoJam {
             return BONGO_OK;
         }
 
-        //void
-        //    CompileRunProject
-        //    (
-        //        const string& fp_MainFilePath,
-        //        const string& fp_OutputFileName,
-        //        const string& fp_OutputDirectory
-        //    )
-        //{
-        //    Configs.PrintConfigsToConsole();
+#ifdef BONGO_DEBUG
+        int
+            RunTest(const string& fp_ScriptPath)
+        {
+            pm_CompilerThreadPool.BONGO_COMPILE_SUCCESS = true; //set flag to true and worker threads will set to false if failed uwu
 
-        //    StartCompilationOfProject();
-        //    
+            BongoScriptUnit fp_TestScript;
 
-        //    auto BongoJam_Timer_Start = chrono::high_resolution_clock::now();
-        //    //pm_Interpreter->RunBongoScript(Configs.m_BongoFileOutputDirectory + "/" + Configs.m_OutputFileName + ".bongo");
-        //    auto BongoJam_Timer_Stop = chrono::high_resolution_clock::now();
+            //read file paths into a job queue
 
-        //    auto BongoJam_Runtime_Duration = chrono::duration_cast<chrono::microseconds>(BongoJam_Timer_Stop - BongoJam_Timer_Start);
+            pm_CompilerThreadPool.EnqueueTask({ fp_ScriptPath , fp_TestScript.CompiledUnit.get() });
 
-        //    // Output the time taken by bongojam
-        //    cout
-        //        << CreateColouredText("\nTime taken by bongojam interpreter: ", Colours::BrightYellow)
-        //        << BongoJam_Runtime_Duration.count()
-        //        << CreateColouredText(" microseconds", Colours::BrightBlue)
-        //        << "\n\n\n";
-        //}
+            pm_CompilerThreadPool.WaitUntilAllTasksComplete();
 
+            if (not pm_CompilerThreadPool.BONGO_COMPILE_SUCCESS)
+            {
+
+                return EXIT_FAILURE;
+            }
+
+            pm_CurrentProjectSources.push_back(move(fp_TestScript)); //put entry point as last item
+
+            //////////////////// every script was validated and compiled into a CompilationUnit, Linker time baby ////////////////////
+            // also need to find precompiled CompilationUnits via configs for external deps
+            //link together compilationunits, assuming everything was checked properly, every script unit should have a corresponding compilationunit attached to it uwu
+            //run linker to resolve symbols, and return error if found fingys cwossed >w<  
+
+            vector<uint8_t> f_FullBongoProgram;
+            pm_Linker->LinkCompilationUnits(move(pm_CurrentProjectSources), f_FullBongoProgram);
+
+            //////////////////// Write fully assembled BongoJam program that is ready to be run >O< ////////////////////
+            if (not pm_Linker->WriteBytecodeToFile(f_FullBongoProgram, "./", "rawr_uwu"))
+            {
+
+                return EXIT_FAILURE;
+            }
+
+            //after successfully writing bytecode to a file return BONGO_OK
+            return pm_Interpreter->BongoTime("./rawr_uwu.bongo");
+        }
+#endif
     };
 }//namespace BongoJam

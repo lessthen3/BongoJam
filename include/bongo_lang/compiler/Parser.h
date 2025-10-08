@@ -528,6 +528,16 @@ namespace BongoJam {
                 );
             }
             break;
+            case TokenType::MinusMinusOperator:
+            case TokenType::PlusPlusOperator:
+            {
+                return make_unique<UnaryOperatorExpr>
+                (
+                    f_NameToken,
+                    make_unique<IdentifierExpr>(fp_CurrentToken)
+                );
+            }
+            break;
             default:
                 parser_logger->Error(format("Error at Line Number: {}, failed to parse regular expression, expected a value but found something very different! COME ON BROTHER!", f_NameToken.m_SourceCodeLineNumber), "Parser");
                 return nullptr;
@@ -1046,7 +1056,8 @@ namespace BongoJam {
             (
                 Token& fp_CurrentToken,
                 vector<Token>& fp_ProgramTokens,
-                bool fp_IsInLoop
+                bool fp_IsInLoop,
+                bool fp_IsInsideElseIf = false
             )
         {
             Token f_EntryToken = fp_CurrentToken;
@@ -1059,16 +1070,7 @@ namespace BongoJam {
             
             if (fp_CurrentToken.m_Type != TokenType::OpenParen) //THROW ERROR
             {
-                parser_logger->Error(format("Error at Line Number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
-                parser_logger->Warning("Something bad happened while declaring your if statement brother! Try looking at your brackets on the if-statement", "Parser");
-                return nullptr;
-            }
-            
-            fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shiftforwards to find a valid value entry including user identifiers
-            
-            if (not (IsValue(fp_CurrentToken) or IsUnaryOperator(fp_CurrentToken))) //did not find a valid entry //THROW ERROR
-            {
-                parser_logger->Error(format("Error at Line Number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
+                parser_logger->Error(format("Error at Line Number: {}, expected '(' when parsing if-statement, try checking your if-statement condition", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
                 parser_logger->Warning("Something bad happened while declaring your if statement brother! Try looking at your brackets on the if-statement", "Parser");
                 return nullptr;
             }
@@ -1082,15 +1084,17 @@ namespace BongoJam {
                 parser_logger->Error(format("Error at Line Number: {}, couldn't parse the condition for your if statement~~ nyah", f_EntryToken.m_SourceCodeLineNumber), "Parser");
                 return nullptr;
             }
-            else if (f_ConditionExpr->EvaluatesTo != TokenType::Bool) //make sure condition evaluates to a proper condition uwu
-            {
-                parser_logger->Error(format("Error occured at line: {}, if-statement condition doesn't evaluate to a bool, wtf man?", f_EntryToken.m_SourceCodeLineNumber), "Parser");
-                return nullptr;
-            }
+            //else if (f_ConditionExpr->EvaluatesTo != TokenType::Bool) //make sure condition evaluates to a proper condition uwu
+            //{
+            //    parser_logger->Error(format("Error occured at line: {}, if-statement condition doesn't evaluate to a bool, wtf man?", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+            //    return nullptr;
+            //}
 
             f_IfDec->m_Condition = move(f_ConditionExpr);
 
-            //assume shift forward assuming that the last token should be the end of the expression still so if(..."text") <-- current token should = ')' rn since the close paren shouldnt parse 
+            //needa shift forward because the last token should be the end of the expression still so if(..."text") <-- current token should = 'text' rn since the close paren shouldnt parse 
+
+            fp_CurrentToken = ShiftForward(fp_ProgramTokens);
 
             if (fp_CurrentToken.m_Type != TokenType::CloseParen)
             {
@@ -1111,35 +1115,42 @@ namespace BongoJam {
 
             f_IfDec->CodeBody = move(f_CodeBlock->CodeBody);
             
-            //end of processing code block
+            //end of processing code block, ParseStatementBlock exits on '}' so fp_CurrentToken = '}'
 
-            fp_CurrentToken = ShiftForward(fp_ProgramTokens); //we can shift now since we"re sitting on "(" right now, and have handled it"s logic
-            
-            //idk wtf i had here before but yeah keep looping while else if's are found uwu
-            while (fp_CurrentToken.m_Type == TokenType::Elif)
+            if(not fp_IsInsideElseIf)
             {
-                auto sv_FallThroughCondition = ParseIfBlock(fp_CurrentToken, fp_ProgramTokens, fp_IsInLoop);
-
-                if (not sv_FallThroughCondition)
+                //idk wtf i had here before but yeah keep looping while else if's are found uwu
+                while (Peek(fp_ProgramTokens).m_Type == TokenType::Elif)
                 {
-                    parser_logger->Error(format("Error at Line Number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
-                    return nullptr;
+                    fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift onto elif token
+
+                    Token f_ElseIfEntryToken = fp_CurrentToken;
+
+                    auto sv_FallThroughCondition = ParseIfBlock(fp_CurrentToken, fp_ProgramTokens, fp_IsInLoop, true);
+
+                    if (not sv_FallThroughCondition)
+                    {
+                        parser_logger->Error(format("Error at Line Number: {}, unable to parse else-if statement >w<", f_ElseIfEntryToken.m_SourceCodeLineNumber), "Parser");
+                        return nullptr;
+                    }
+
+                    f_IfDec->m_ElseIfStatements.push_back(move(sv_FallThroughCondition));
                 }
 
-                f_IfDec->m_ElseIfStatements.push_back(move(sv_FallThroughCondition));
-            }
-
-            if (fp_CurrentToken.m_Type == TokenType::Else)
-            {
-                auto f_ElseStatement = ParseElseBlock(fp_CurrentToken, fp_ProgramTokens, fp_IsInLoop);
-
-                if (not f_ElseStatement)
+                if (Peek(fp_ProgramTokens).m_Type == TokenType::Else)
                 {
-                    parser_logger->Error(format("Error while defining an else statement at Line Number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
-                    return nullptr;
-                }
+                    fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift onto else token
 
-                f_IfDec->m_ElseStatement = move(f_ElseStatement);
+                    auto f_ElseStatement = ParseElseBlock(fp_CurrentToken, fp_ProgramTokens, fp_IsInLoop);
+
+                    if (not f_ElseStatement)
+                    {
+                        parser_logger->Error(format("Error while defining an else statement at Line Number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
+                        return nullptr;
+                    }
+
+                    f_IfDec->m_ElseStatement = move(f_ElseStatement);
+                }
             }
 
             return move(f_IfDec);
@@ -1267,6 +1278,14 @@ namespace BongoJam {
             if (not f_Expr)
             {
                 parser_logger->Error(format("Error at Line Number: {}, unable to parse return expression", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                return nullptr;
+            }
+            
+            fp_CurrentToken = ShiftForward(fp_ProgramTokens);
+
+            if (fp_CurrentToken.m_Type != TokenType::SemiDot)
+            {
+                parser_logger->Error(format("Error at Line Number: {}, imporperly terminated return statement, did you forget a ';' at the end of your return statement?", f_EntryToken.m_SourceCodeLineNumber), "Parser");
                 return nullptr;
             }
 

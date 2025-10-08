@@ -58,8 +58,8 @@ namespace BongoJam
         INC,
 
         //////////////////// Memory Operations ////////////////////
-        PUSH_NEW_STACK_FRAME,
-        POP_CURRENT_STACK_FRAME, //IDK
+        ENTER,
+        LEAVE, //IDK
 
         ///Stack
         PUSH, //stack allocates a var

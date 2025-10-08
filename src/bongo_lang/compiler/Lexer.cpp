@@ -181,6 +181,14 @@ namespace BongoJam {
                 break; //just iterate as normal, and make sure the equals character isn't double counted
             }
 
+            if (Peek(fp_Src) == '+')
+            {
+                fp_CurrentChar = ShiftForward(fp_Src); //look for an pos sign for the "++" operator                
+                f_PlusString += fp_CurrentChar;
+                fp_ProgramTokens.emplace_back(f_PlusString, TokenType::PlusPlusOperator, fp_CurrentLineNumber);
+                break; //just iterate as normal, and make sure the equals character isn't double counted
+            }
+
             fp_ProgramTokens.emplace_back(f_PlusString, TokenType::AdditionOperator, fp_CurrentLineNumber);
             break; //otherwise the continue will just move the current over-stepped character back to the top of the lexer's logical flow
         }
@@ -213,8 +221,21 @@ namespace BongoJam {
 
             if (Peek(fp_Src) != '>' and Peek(fp_Src) != '=') //fuck it we ball, we deal with minus here BROTHERS
             {
-                fp_ProgramTokens.emplace_back(f_TypeArrow, TokenType::NegativeOperator, fp_CurrentLineNumber);
-                break; //start loop again or hit error u choose owo
+                if(f_TypeArrow.size() == 1)
+                {
+                    fp_ProgramTokens.emplace_back(f_TypeArrow, TokenType::NegativeOperator, fp_CurrentLineNumber);
+                    break; //start loop again or hit error u choose owo
+                }
+                else if (f_TypeArrow.size() == 2)
+                {
+                    fp_ProgramTokens.emplace_back(f_TypeArrow, TokenType::MinusMinusOperator, fp_CurrentLineNumber);
+                    break; //start loop again or hit error u choose owo
+                }
+                else
+                {
+                    logger->Error(format("Error at Line Number: {}, too many '-' minus signs brother pick 1 for subtraction or 2 for the decrement operator uwu", fp_CurrentLineNumber), "Lexer");
+                    return false;
+                }
             }
 
             fp_CurrentChar = ShiftForward(fp_Src); //look for equals or arrow tip uwu

@@ -227,23 +227,18 @@ namespace BongoJam {
         //////////////////////////////////////////////
 
         void
-            PushNewStackFrame();
-
-        void
-            PopCurrentStackFrame();
-
-        void
             Push(Value fp_Value);
 
         Value
             Pop();
 
         void 
-            PushFrame(size_t returnIP, size_t localCount);
+            PushStackFrame(size_t returnIP, size_t localCount);
 
         void 
-            PopFrame();
+            PopStackFrame();
 
+    public:
         void 
             DumpStack()
         {
@@ -255,8 +250,6 @@ namespace BongoJam {
             }
         }
 
-
-    public:
         int64_t
             BongoTime(const string& fp_BongoScriptName);
     };

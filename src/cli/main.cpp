@@ -10,6 +10,7 @@
  *        primarily intended for embedding within game engines.
 **************************************************************************/
 #define BONGO_USING_TERMINAL
+#define BONGO_DEBUG
 
 #include "../../include/cli/BongoManager.h"
 
@@ -39,7 +40,9 @@ int
     {
         std::unique_ptr<BongoJam::BongoManager<1>> bongo_manager = std::make_unique<BongoJam::BongoManager<1>>();
 
-        int result = bongo_manager->ParseArguments(fp_ArgCount, fp_ArgVector);
+        //int result = bongo_manager->ParseArguments(fp_ArgCount, fp_ArgVector);
+
+        int result = bongo_manager->RunTest("D:/Game Development/All Things Bongo/BongoJam/tests/Variables/main.bj");
 
         if (result != BongoJam::BONGO_OK)
         {

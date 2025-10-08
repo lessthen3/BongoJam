@@ -66,6 +66,9 @@ namespace BongoJam {
         MultEqualsOperator,
         DivEqualsOperator,
 
+        MinusMinusOperator,
+        PlusPlusOperator,
+
         ModuloEqualsOperator,
 
         BitshiftRightOperator,

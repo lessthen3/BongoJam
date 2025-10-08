@@ -372,6 +372,8 @@ bool
     const string& fp_NameSpace
 )
 {
+    fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::ENTER); //Create new stack frame
+
     unique_ptr<StatementNode> f_CurrentProgramStatement = nullptr;
 
     while (fp_FuncDeclaration->CodeBody.size() > 0) //compiling the main function code body
@@ -431,6 +433,8 @@ bool
             return false;
         }
     }
+
+    fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::LEAVE); //pop stack frame
 
     return true;
 }
@@ -556,25 +560,42 @@ bool
     switch (fp_VarDeclaration->Type.m_Type)
     {
     case TokenType::Float:
+    {
         fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::FLOAT_VALUE);
-        break;
+
+        SingleValueExpr* sv_FloatVal = dynamic_cast<SingleValueExpr*>(fp_VarDeclaration->DefaultValue.get());
+        EncodeFloat(fp_CompilationUnit->CompiledByteCode, stof(sv_FloatVal->m_Value.m_Value));
+    }
+    break;
     case TokenType::Int:
+    {
         fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::INT_VALUE);
-        break;
+
+        SingleValueExpr* sv_IntVal = dynamic_cast<SingleValueExpr*>(fp_VarDeclaration->DefaultValue.get());
+        EncodeFloat(fp_CompilationUnit->CompiledByteCode, stoi(sv_IntVal->m_Value.m_Value));
+    }
+    break;
+    case TokenType::StringLiteral:
+    {
+        fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::STRING_VALUE);
+
+        SingleValueExpr* sv_IntVal = dynamic_cast<SingleValueExpr*>(fp_VarDeclaration->DefaultValue.get());
+        EncodeUTF8String(fp_CompilationUnit->CompiledByteCode, sv_IntVal->m_Value.m_Value);
+    }
+    break;
     case TokenType::UnsignedInt:
         fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::UNSIGNED_INT_VALUE);
         break;
     }
 
-    if (not CompileRegularExpr(fp_VarDeclaration->DefaultValue.get(), fp_CompilationUnit))
-    {
-        compiler_logger->Error(format("Error at Line Number: {}, unable to compile default value of variable named: {}", fp_VarDeclaration->Name.m_SourceCodeLineNumber, fp_VarDeclaration->Name.m_Value), "Compiler");
-        return false;
-    }
+    //if (not CompileRegularExpr(fp_VarDeclaration->DefaultValue.get(), fp_CompilationUnit))
+    //{
+    //    compiler_logger->Error(format("Error at Line Number: {}, unable to compile default value of variable named: {}", fp_VarDeclaration->Name.m_SourceCodeLineNumber, fp_VarDeclaration->Name.m_Value), "Compiler");
+    //    return false;
+    //}
 
     fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::STORE_LOCAL); //push new valus
-    Encode32BitInt(fp_CompilationUnit->CompiledByteCode, pm_NextAvailableStackSlot); //WARNING: idk if this stack slot is working atm needa do a rbp style system where i set offsets from the stack frame
-
+    //Encode32BitInt(fp_CompilationUnit->CompiledByteCode, pm_NextAvailableStackSlot); //WARNING: idk if this stack slot is working atm needa do a rbp style system where i set offsets from the stack frame
 
     return true;
 }

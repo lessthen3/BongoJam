@@ -120,28 +120,29 @@ namespace BongoJam {
     }
 
     void
-        BongoJamInterpreter::PushFrame
+        BongoJamInterpreter::PushStackFrame
         (
-            size_t returnIP, 
-            size_t localCount
+            size_t fp_ReturnAddress, 
+            size_t fp_LocalCount
         )
     {
-        CallFrame f_Frame;
-        f_Frame.ReturnIP = returnIP;
-        f_Frame.StackBase = m_StackTop;
-        CallStack.push_back(f_Frame);
-
         // Reserve space for locals
-        if (m_StackTop + localCount >= MAX_STACK_SIZE)
+        if (m_StackTop + fp_LocalCount >= MAX_STACK_SIZE)
         {
             throw runtime_error("Stack overflow in PushFrame");
         }
 
-        m_StackTop += localCount;
+        CallFrame f_Frame;
+        f_Frame.ReturnIP = fp_ReturnAddress;
+        f_Frame.StackBase = m_StackTop;
+
+        CallStack.push_back(f_Frame);
+
+        m_StackTop += fp_LocalCount;
     }
 
     void 
-        BongoJamInterpreter::PopFrame()
+        BongoJamInterpreter::PopStackFrame()
     {
         if (CallStack.empty())
         {
@@ -315,18 +316,6 @@ namespace BongoJam {
     // Runtime Functions
     //////////////////////////////////////////////
 
-    void
-        BongoJamInterpreter::PopCurrentStackFrame()
-    {
-
-    }
-
-    void
-        BongoJamInterpreter::PushNewStackFrame()
-    {
-
-    }
-
     int64_t
         BongoJamInterpreter::BongoTime(const string& fp_BongoScriptName)
     {
@@ -356,24 +345,34 @@ namespace BongoJam {
                 _p++; // Skip past PUSH opcode
                 uint8_t valueType = f_ByteCode[_p++];
 
-                switch (valueType)
+                switch (valueType) //decoding starts on the offset passed, so the program pointer has to be shifted onto the first byte val of the number uwu
                 {
                 case INT_VALUE:
                 {
+                    _p++; // Skip past INT_VALUE opcode
                     int32_t f_IntVal = static_cast<int32_t>(Decode32BitInt(&f_ByteCode, &_p));
                     Push(Value{ ValueType::I32, f_IntVal });
                 } 
                 break;
                 case FLOAT_VALUE:
                 {
+                    _p++; // Skip past FLOAT_VALUE opcode
                     float f_FloatVal = DecodeFloat(&f_ByteCode, &_p);
                     Push(Value{ ValueType::F32,  f_FloatVal });
                 } 
                 break;
                 case DOUBLE_VALUE:
                 {
+                    _p++; // Skip past DOUBLE_VALUE opcode
                     float f_DoubleVal = DecodeDoubleUwU(&f_ByteCode, &_p);
                     Push(Value{ ValueType::F64,  f_DoubleVal });
+                }
+                break;
+                case STRING_VALUE:
+                {
+                    _p++; // Skip past DOUBLE_VALUE opcode
+                    string sv_StringVal = DecodeUTF8String(&f_ByteCode, &_p);
+                    Push(Value{ ValueType::STRING,  new string(sv_StringVal) });
                 }
                 break;
                 default:
@@ -383,8 +382,20 @@ namespace BongoJam {
             }
             break;
             case POP:
+            {
 
-                break;
+            }
+            break;
+            case ENTER:
+            {
+                PushStackFrame(_p, 1);
+            }
+            break;
+            case LEAVE:
+            {
+                PopStackFrame();
+            }
+            break;
             case JUMP:
             {
                 _p++;
