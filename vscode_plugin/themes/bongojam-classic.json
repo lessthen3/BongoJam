@@ -1,0 +1,37 @@
+{
+    "name": "BongoJam Dark",
+    "type": "dark",
+    "colors": {
+        "editor.background": "#111116",
+        "editor.foreground": "#E0E0E0",
+        "editorCursor.foreground": "#FFB86C",
+        "editorLineNumber.foreground": "#555",
+        "editorLineNumber.activeForeground": "#FFC561"
+    },
+    "tokenColors": [
+        {
+            "scope": "keyword.control.bongojam",
+            "settings": { "foreground": "#C678DD", "fontStyle": "bold" }
+        },
+        {
+            "scope": "storage.type.bongojam",
+            "settings": { "foreground": "#61AFEF" }
+        },
+        {
+            "scope": "constant.language.bongojam",
+            "settings": { "foreground": "#E5C07B" }
+        },
+        {
+            "scope": "support.function.builtin.bongojam",
+            "settings": { "foreground": "#98C379" }
+        },
+        {
+            "scope": "string.quoted.double.bongojam",
+            "settings": { "foreground": "#A3BE8C" }
+        },
+        {
+            "scope": "comment.line.bongojam",
+            "settings": { "foreground": "#5C6370", "fontStyle": "italic" }
+        }
+    ]
+}

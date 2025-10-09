@@ -11,11 +11,7 @@
 **************************************************************************/
 #pragma once
 
-#include <cstring> // for memcpy
-
 #include "AST.h"
-
-#include <unordered_map>
 
 namespace BongoJam {
     

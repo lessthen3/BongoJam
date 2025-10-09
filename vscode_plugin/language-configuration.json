@@ -3,6 +3,7 @@
         "lineComment": "//",
         "blockComment": ["/*", "*/"]
     },
+    
     "brackets": [
         ["{", "}"],
         ["[", "]"],

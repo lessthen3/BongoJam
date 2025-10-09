@@ -3,7 +3,7 @@ func main() -> int
 {
     print("UwU", "bright red");
 
-    //const var f_UwU->string = ">O<" + "UwU" + "OwO"; //+ ("1" + ("2" + "3")); 
+    const var f_UwU->string = ">O<" + "UwU" + "OwO"; //+ ("1" + ("2" + "3")); 
 
     //static var f_OwO->int = -(1/3+2/3);
 

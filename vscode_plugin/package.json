@@ -1,0 +1,20 @@
+{
+    "name": "bongojam-language-support",
+    "displayName": "BongoJam Language Support",
+    "description": "Syntax highlighting, Runtime, Compiler and debug tools for BongoJam UwU",
+    "version": "0.0.1",
+    "publisher": "lessthen3",
+    "main": "./bongo_lang.js",
+    "engines": { "vscode": "^1.80.0" },
+    "contributes": {
+        "languages": [
+            { "id": "bongojam", "aliases": ["BongoJam", "bongojam"], "extensions": [".bj", ".bongo"], "configuration": "./language-configuration.json" }
+        ],
+        "grammars": [
+            { "language": "bongojam", "scopeName": "source.bongojam", "path": "./syntaxes/bongojam.tmLanguage.json" }
+        ],
+        "commands": [
+        { "command": "bongojam.runFile", "title": "Run BongoJam Script" }
+        ]
+    }
+}

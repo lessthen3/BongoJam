@@ -722,7 +722,16 @@ int
         const bool fp_IsDebug
     )
 {
+    //////////////////// Catch nullptr ref ////////////////////
+
+    if (not fp_CompilationUnit)
+    {
+        compiler_logger->Fatal(format("Tried to pass nullptr reference for CompilationUnit during attempted compilation of script: '{}'", fp_BongoScriptFilePath), "BongoCompiler");
+        return EXIT_FAILURE;
+    }
+
     //////////////////// Read .bj file, Tokenize and Parse it ////////////////////
+
     string f_SourceCode;
     if (not ReadFileIntoString(&f_SourceCode, fp_BongoScriptFilePath))
     {
@@ -763,51 +772,51 @@ int
         {
         case SyntaxNodeType::FuncDeclaration:
         {
-            unique_ptr<FuncDeclaration> f_FuncDec = unique_dynamic_cast<FuncDeclaration>(move(f_CurrentProgramStatement));
+            unique_ptr<FuncDeclaration> sv_FuncDec = unique_dynamic_cast<FuncDeclaration>(move(f_CurrentProgramStatement));
             
-            if (not CompileDeclaredFunction(f_FuncDec.get(), fp_CompilationUnit, f_CurrentNamespace))
+            if (not CompileDeclaredFunction(sv_FuncDec.get(), fp_CompilationUnit, f_CurrentNamespace))
             {
-
+                compiler_logger->Error(format("Invalid statement unknown to compiler found inside the declaration of function: '{}' ", sv_FuncDec->m_FuncName.m_Value), "BongoCompiler");
                 return EXIT_FAILURE;
             }
         }
         break;
         case SyntaxNodeType::ClassDeclaration:
         {
-            unique_ptr<ClassDeclaration> f_ClassDec = unique_dynamic_cast<ClassDeclaration>(move(f_CurrentProgramStatement));
+            unique_ptr<ClassDeclaration> sv_ClassDec = unique_dynamic_cast<ClassDeclaration>(move(f_CurrentProgramStatement));
 
-            if(not CompileDeclaredClass(f_ClassDec.get(), fp_CompilationUnit, f_CurrentNamespace))
+            if(not CompileDeclaredClass(sv_ClassDec.get(), fp_CompilationUnit, f_CurrentNamespace))
             {
-
+                compiler_logger->Error(format("Invalid statement unknown to compiler found inside the declaration of class: '{}' ", sv_ClassDec->ClassName.m_Value), "BongoCompiler");
                 return EXIT_FAILURE;
             }
         }
         break;
         case SyntaxNodeType::StructDeclaration:
         {
-            unique_ptr<StructDeclaration> f_StructDec = unique_dynamic_cast<StructDeclaration>(move(f_CurrentProgramStatement));
+            unique_ptr<StructDeclaration> sv_StructDec = unique_dynamic_cast<StructDeclaration>(move(f_CurrentProgramStatement));
 
-            if (not CompileDeclaredStruct(f_StructDec.get(), fp_CompilationUnit, f_CurrentNamespace))
+            if (not CompileDeclaredStruct(sv_StructDec.get(), fp_CompilationUnit, f_CurrentNamespace))
             {
-
+                compiler_logger->Error(format("Invalid statement unknown to compiler found inside the declaration of class: '{}' ", sv_StructDec->StructName.m_Value), "BongoCompiler");
                 return EXIT_FAILURE;
             }
         }
         break;
         case SyntaxNodeType::NameSpace:
         {
-            unique_ptr<NamespaceDeclaration> f_Namespace = unique_dynamic_cast<NamespaceDeclaration>(move(f_CurrentProgramStatement));
+            unique_ptr<NamespaceDeclaration> sv_Namespace = unique_dynamic_cast<NamespaceDeclaration>(move(f_CurrentProgramStatement));
 
-            f_CurrentNamespace = f_Namespace->m_Name.m_Value;
+            f_CurrentNamespace = sv_Namespace->m_Name.m_Value;
         }
         break;
         case SyntaxNodeType::VarDeclaration:
         {
-            unique_ptr<VarDeclaration> f_VarDec = unique_dynamic_cast<VarDeclaration>(move(f_CurrentProgramStatement));
+            unique_ptr<VarDeclaration> sv_VarDec = unique_dynamic_cast<VarDeclaration>(move(f_CurrentProgramStatement));
 
-            if (not CompileVarDeclaration(f_VarDec.get(), fp_CompilationUnit, f_CurrentNamespace))
+            if (not CompileVarDeclaration(sv_VarDec.get(), fp_CompilationUnit, f_CurrentNamespace))
             {
-
+                compiler_logger->Error(format("Invalid statement unknown to compiler found during the declaration of variable: '{}' ", sv_VarDec->Name.m_Value), "BongoCompiler");
                 return EXIT_FAILURE;
             }
         }
@@ -823,7 +832,6 @@ int
             compiler_logger->Fatal(format("FATAL COMPILATION ERROR: Compiler tried processing an invalid StatementNode either produced improperly by Parser, or Compiler should know the statement but hasnt been updated properly\n COMPILER ID: {}\n", pm_CompilerID), "Compiler");
             return EXIT_FAILURE;
         }
-
     }
 
     return BONGO_OK;

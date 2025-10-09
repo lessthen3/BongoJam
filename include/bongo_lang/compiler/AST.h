@@ -13,19 +13,11 @@
 
 #include "Lexer.h"
 
-#include <variant>
 #include <array>
 #include <vector>
 #include <unordered_map>
 #include <memory>
 
-#define BONGO_PRIMITIVE_VALUE variant \
-< \
-    int8_t, int16_t, int32_t, int64_t, \
-    uint8_t, uint16_t, uint32_t, uint64_t, \
-    float, double, \
-    char, string \
->
 
 namespace BongoJam {
     //////////////////////////////////////// SyntaxNodes Used for Parsing ////////////////////////////////////////

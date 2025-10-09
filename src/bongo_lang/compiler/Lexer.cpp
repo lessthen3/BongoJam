@@ -271,7 +271,9 @@ namespace BongoJam {
         {
             string f_DivString = "/";
 
-            if (Peek(fp_Src) == '=')
+            char sv_Peek = Peek(fp_Src);
+
+            if (sv_Peek == '=')
             {
                 fp_CurrentChar = ShiftForward(fp_Src); //look for an equals sign for the "+=" operator
                 f_DivString += fp_CurrentChar;
@@ -279,10 +281,32 @@ namespace BongoJam {
 
                 break; //just iterate as normal, and make sure the equals character isn't double counted
             }
-            else if (Peek(fp_Src) == '/')
+            else if (sv_Peek == '/')
             {
                 fp_CurrentChar = ShiftForward(fp_Src); //get on '/' character then start parsing comment
                 fp_IsCurrentlyInsideComment = true;
+                break;
+            }
+            else if (sv_Peek == '*')
+            {
+                while (1)
+                {
+                    fp_CurrentChar = ShiftForward(fp_Src); //get on '/' character then start parsing comment
+
+                    if (fp_CurrentChar == '*' and Peek(fp_Src) == '/')
+                    {
+                        break;
+                    }
+                    else if (fp_CurrentChar == '\0')
+                    {
+                        logger->Error(format("Error at Line Number: {}, unterminated comment block found UwU", fp_CurrentLineNumber), "Lexer");
+                        return false;
+                    }
+                    else if (fp_CurrentChar == '\n')
+                    {
+                        fp_CurrentLineNumber++;
+                    }
+                }
                 break;
             }
 
@@ -701,6 +725,7 @@ namespace BongoJam {
             {
                 continue;
             }
+
             //////////////////////////////////////////////////////////// Special Tokens ////////////////////////////////////////////////////////////
 
             switch (f_CurrentChar)

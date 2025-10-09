@@ -25,7 +25,7 @@ namespace BongoJam {
     struct CompilationTask
     {
         string FilePath;
-        CompilationUnit* Output;
+        CompilationUnit* Output = nullptr;
     };
 
     template<size_t pm_ThreadCount>

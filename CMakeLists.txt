@@ -52,36 +52,6 @@ add_library(bongo_core ${BONGO_BUILD_TYPE}
 
 set_target_properties(bongo_core PROPERTIES POSITION_INDEPENDENT_CODE ON) #make PIC friendly UwU
 
-####################################### Language Server Project
-
-#Find all sources, and check for changes every run
-file(
-    GLOB_RECURSE 
-    LANGUAGE_SERVER_SOURCES 
-    CONFIGURE_DEPENDS 
-    "language_server/LanguageServer.cpp" 
-    "language_server/LanguageServer.h"
-)
-
-#Create Library
-add_library(bongo_server ${BONGO_BUILD_TYPE} 
-
-    ${LANGUAGE_SERVER_SOURCES}
-)
-
-#get pybind11 included into project
-target_include_directories(bongo_server PUBLIC 
-    ${PROJECT_SOURCE_DIR}/language_server/third_party
-    ${PROJECT_SOURCE_DIR}/include/bongo_lang
-)
-
-# Link server against compiler
-target_link_libraries(bongo_server PRIVATE 
-    bongo_core
-)
-
-set_target_properties(bongo_server PROPERTIES POSITION_INDEPENDENT_CODE ON) #make PIC friendly UwU
-
 ####################################### Executable Target for CLI Tool
 
 #Find all sources, and check for changes every run
@@ -112,10 +82,6 @@ target_compile_definitions(bongo_core PRIVATE
     $<$<CONFIG:Debug>:BONGO_DEBUG>
 )
 
-target_compile_definitions(bongo_server PRIVATE 
-    $<$<CONFIG:Debug>:BONGO_DEBUG>
-)
-
 target_compile_definitions(bongo PRIVATE 
     $<$<CONFIG:Debug>:BONGO_DEBUG>
 )
@@ -138,10 +104,6 @@ if(MSVC)
     endif()
 
         target_compile_options(bongo_core PRIVATE
-            $<$<CONFIG:Debug>:${MSVCRT_DEBUG_TYPE}>
-            $<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>,$<CONFIG:MinSizeRel>>:${MSVCRT_RELEASE_TYPE}>
-        ) 
-        target_compile_options(bongo_server PRIVATE
             $<$<CONFIG:Debug>:${MSVCRT_DEBUG_TYPE}>
             $<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>,$<CONFIG:MinSizeRel>>:${MSVCRT_RELEASE_TYPE}>
         ) 

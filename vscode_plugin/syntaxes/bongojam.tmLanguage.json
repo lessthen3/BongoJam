@@ -1,0 +1,75 @@
+{
+    "scopeName": "source.bongojam",
+    "fileTypes": ["bj", "bongo"],
+    "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#keywords" },
+    { "include": "#types" },
+    { "include": "#functions" },
+    { "include": "#operators" }
+    ],
+    "repository": {
+    "comments": {
+        "patterns": [
+        { "match": "//.*$", "name": "comment.line.bongojam" },
+        { "begin": "/\\*", "end": "\\*/", "name": "comment.block.bongojam" }
+        ]
+    },
+    "strings": {
+        "patterns": [
+        { "match": "\".*?\"", "name": "string.quoted.double.bongojam" }
+        ]
+    },
+    "numbers": {
+        "patterns": [
+        { "match": "\\b\\d+(\\.\\d+)?\\b", "name": "constant.numeric.bongojam" }
+        ]
+    },
+    "keywords": {
+        "patterns": [
+        {
+            "match": "\\b(if|elif|else|for|while|do|match|break|continue|try|catch|scope)\\b",
+            "name": "keyword.control.bongojam"
+        },
+        {
+            "match": "\\b(var|const|static|public|protected|private|threadsafe)\\b",
+            "name": "storage.modifier.bongojam"
+        },
+        {
+            "match": "\\b(func|return|class|struct|enum|interface|new|delete)\\b",
+            "name": "storage.type.bongojam"
+        },
+        {
+            "match": "\\b(true|false|and|or|not|is)\\b",
+            "name": "constant.language.bongojam"
+        }
+        ]
+    },
+    "types": {
+        "patterns": [
+        {
+            "match": "\\b(int|float|double|bool|string|Vec2|Vec3|Vec4|Mat2|Mat3|Mat4|List|Dictionary|Thread|event)\\b",
+            "name": "storage.type.primitive.bongojam"
+        }
+        ]
+    },
+    "functions": {
+        "patterns": [
+        {
+            "match": "\\b(print|input|colourize|clock|sizeof|typeof|pow|sin|cos|tan|sqrt|exp|log|factorial)\\b",
+            "name": "support.function.builtin.bongojam"
+        }
+        ]
+    },
+    "operators": {
+        "patterns": [
+        {
+            "match": "(\\+|-|\\*|/|==|!=|>=|<=|=)",
+            "name": "keyword.operator.bongojam"
+        }
+        ]
+    }
+    }
+}

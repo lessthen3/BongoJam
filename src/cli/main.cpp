@@ -53,7 +53,7 @@ int
     {
         BongoJam::PrintError(std::format("Unhandled exception: {}", Exception.what()));
 
-        return EXIT_FAILURE;
+        return -69;
     }
 
     return EXIT_SUCCESS;
