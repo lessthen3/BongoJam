@@ -396,7 +396,7 @@ namespace BongoJam {
                 PopStackFrame();
             }
             break;
-            case JUMP:
+            case JMP:
             {
                 _p++;
                 Value sv_JmpOffset = Pop();

@@ -17,6 +17,12 @@
 
 #include "../Logger.h"
 
+#include <numbers>
+
+#define BONGO_PI std::numbers::pi
+#define BONGO_EULERS_NUMBER std::numbers::e
+
+
 namespace BongoJam {
 
     //////////////////////////////////////////////
@@ -320,11 +326,10 @@ namespace BongoJam {
 
         {"const", TokenType::Const},
         {"static", TokenType::Static},
-        {"public", TokenType::Public}, //there was a stupid comment here uwu bro evn in the classes in bongojam i use private explicitly idk maybe i assumed different formatting
         {"protected", TokenType::Protected},
         {"private", TokenType::Private},
-        {"as", TokenType::As},
-        {"in", TokenType::In},
+        {"as", TokenType::As}, //type cast operator
+        {"in", TokenType::In}, //for list/dict searches uwu
         {"extends", TokenType::Extends},
         {"single", TokenType::Single}, //explicit singleton keyword
         {"template", TokenType::Template}, //func's or class' or var's can be templated, this is the replacement for virtual.
@@ -332,9 +337,6 @@ namespace BongoJam {
         {"parent", TokenType::Parent}, //used as the stand-in for super, because super is a retarded name for the keyword
         {"this", TokenType::This},
         {"big", TokenType::Big}, //used for expanding float or int container size to 64 or 128 bits
-
-        {"new", TokenType::New}, //used for heap-allocations
-        {"delete", TokenType::Delete}, //used for clearing heap-allocations
 
         {"threadsafe", TokenType::ThreadSafe}, // used as a stand in for atomic, we copy the value for paralell, try to queue all actions done on it and execute it in a non-sequence breaking order
         //we guess how many copies will be needed, if our guess is wrong we increase it, sequence breaking isnt a big deal, but it is for ppl who expect a consistent behaviour which is me
@@ -363,10 +365,6 @@ namespace BongoJam {
         {"Thread", TokenType::Thread},
 
         {"event", TokenType::Event},
-        {"leash", TokenType::Leash}, //unique_ptr, however no get(), and no default initializer to nullptr, because null doesnt exist uwu
-        {"reader", TokenType::Watcher}, //readonly ptr
-        {"move", TokenType::Move}, //regular move semantic
-        {"bounce", TokenType::Bounce}, //used to move a leash A to leash B but the semantic is that when leash B leaves a scope it returns the value back to leash A
 
         {"Vec2", TokenType::Vector2},
         {"Vec3", TokenType::Vector3},
@@ -383,15 +381,10 @@ namespace BongoJam {
         {"sizeof", TokenType::SizeOf}, //needed for allocs
         {"print", TokenType::Print},
         {"input", TokenType::Input},
-        {"colourize", TokenType::Colourize},
 
         {"clock", TokenType::Clock},
         {"typeof", TokenType::TypeOf},
-
-        {"up_cast", TokenType::UpCast}, //used for dynamically casting to a parent type
-        {"down_cast", TokenType::DownCast}, //used for dynamically casting to a child type
-        {"static_cast", TokenType::StaticCast},
-
+        
         {"len", TokenType::Length},
 
         // math functions

@@ -36,7 +36,7 @@ inline constexpr bool always_false_v = false;
 
 /// back to reality >W<
 
-namespace BongoJam {
+namespace BongoJam::Utils {
 
     struct Serializer
     {
@@ -188,7 +188,7 @@ namespace BongoJam {
                 Logger* logger
             )
         {
-            size_t f_CurrentLineNumber = 1;
+            size_t f_CurrentLineNumber = 1; //line numbers start at 1 uwu
 
             char f_CurrentChar;
 
@@ -349,7 +349,6 @@ namespace BongoJam {
                 }
                 f_ShouldShift = false; //ensures we don't skip any crucial branch-logic for the over-stepped character
                 break;
-
                 case '"': //VERY IMPORTANT THAT WE PROCESS THIS BEFORE '/' otherwise '/' mentioned inside of strings might be ignored
                 {
                     string f_CurrentStringLiteral = "";

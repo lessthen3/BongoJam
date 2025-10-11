@@ -58,8 +58,9 @@ namespace BongoJam
         INC,
 
         //////////////////// Memory Operations ////////////////////
+
         ENTER,
-        LEAVE, //IDK
+        LEAVE, //ye owo
 
         ///Stack
         PUSH, //stack allocates a var
@@ -77,10 +78,10 @@ namespace BongoJam
 
         //////////////////// Control Flow Operations ////////////////////
 
-        JUMP,
-        JUMP_IF,
-        JUMP_NZ,
-        JUMP_NE,
+        JMP,
+        JE,
+        JNE,
+        JNZ,
 
         CMP_SIGNED,
         CMP_UNSIGNED, //unsigned integer compar

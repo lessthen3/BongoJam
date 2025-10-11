@@ -256,6 +256,13 @@ namespace BongoJam {
                 CompilationUnit* fp_CompilationUnit
             );
 
+        bool
+            CompileUserIdentifier
+            (
+                Expr* fp_SymbolExpr,
+                CompilationUnit* fp_CompilationUnit
+            );
+
         void
             UpdateThreadOwner()
             const

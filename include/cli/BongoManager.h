@@ -17,10 +17,6 @@
 #include "Serializer.h"
 #include "compiler/CompilerThreadPool.h"
 
-///STL
-#include <array>
-#include <assert.h>
-
 //"Assertion: %s @ %s:%d (pid:%d)", #x, __FILE__, __LINE__, Platform::GetProcessID()
 #define BONGO_ARRAY_SIZE(x) sizeof(x) / sizeof(x[0])
 
@@ -280,7 +276,7 @@ namespace BongoJam {
         vector<BongoScriptUnit> pm_CurrentProjectSources;
         vector<BongoScriptUnit> pm_FoundMains;
 
-        Serializer pm_Serializer;
+        Utils::Serializer pm_Serializer;
 
         CurrentBongoProject pm_CurrentProject;
 
@@ -410,12 +406,74 @@ namespace BongoJam {
                 }
             }
 
-            for (int _i = 1; _i < fp_ArgCount; ++_i)
+            bool f_UsingSpecifiedScripts = false;
+
+            for (int _i = 1; _i < fp_ArgCount; ++_i) //start at one, bongo is the first arg uwu
             {
                 string f_CompilerArg = fp_ArgVector[_i];
 
+                //if (_i == 1) // first arg is always named scripts, if they just use -cwd or smth it'll be caught by falling through
+                //{
+                //    _i++; //advance forward onemore step
+
+                //    if (not (_i < fp_ArgCount)) //check for bounds
+                //    {
+                //        bongo_logger->Fatal("No files input for compiler, try -cwd if you're looking for automatic script searching in the current working directory ~w~ ~~nyah", "ParseArguments");
+                //        return NO_SCRIPTS_GIVEN;
+                //    }
+
+                //    f_CompilerArg = string(fp_ArgVector[_i]);
+                //    size_t f_Dot = f_CompilerArg.rfind('.');
+
+                //    if (f_Dot != string::npos and f_CompilerArg.substr(f_Dot) == ".bsproj")
+                //    {
+                //        pm_CurrentProject.Project.LastUsedCompilerConfigs.BongoScripts.clear(); //just in case some dumbass does "script script proj script"
+                //        LoadProject(f_CompilerArg, pm_CurrentProject.Project.LastUsedCompilerConfigs); //assuming the proj file is passed as ../../somefolder/name.bsproj i dont think thats a bold assumption
+
+                //        continue;
+                //    }
+                //    
+                //    while (_i + 1 < fp_ArgCount) //parse forever uwu
+                //    {
+                //        ++_i;
+
+                //        f_CompilerArg = string(fp_ArgVector[_i]);
+                //        BongoScriptFile f_Script;
+
+                //        f_Script.ScriptName = f_CompilerArg;
+                //        size_t f_Dot = f_Script.ScriptName.rfind('.');
+
+                //        f_Script.ScriptFilePath = "./" + f_Script.ScriptName; // we add before hand because we want a bj here :^)
+
+                //        if (not filesystem::exists(f_Script.ScriptName))
+                //        {
+                //            PrintError("No script with name: " + f_Script.ScriptName + " found at specified file path OwO", Colours::Magenta);
+                //            return SCRIPT_DOES_NOT_EXIST;
+                //        }
+
+                //        if (f_Dot != string::npos and f_Script.ScriptName.substr(f_Dot) == ".bj")
+                //        {
+                //            f_Script.ScriptName = f_Script.ScriptName.substr(0, f_Dot);
+                //        }
+                //        else
+                //        {
+                //            PrintError("Invalid script target found, please only try to compile .bj files only", Colours::Magenta);
+                //            return INVALID_SCRIPT_TARGET;
+                //        }
+
+                //        pm_CurrentProject.Project.LastUsedCompilerConfigs.BongoScripts.push_back(f_Script); //add script to current compiler configs
+                //    }
+
+                //    f_UsingSpecifiedScripts = true;
+                //}//
+
                 if (f_CompilerArg == "-cwd")
                 {
+                    if (f_UsingSpecifiedScripts)
+                    {
+                        bongo_logger->Fatal("No files input for compiler after '-sp' flag was used, try -cwd if you're looking for automatic script searching", "ParseArguments");
+                        return INVALID_SCRIPT_TARGET;
+                    }
                     //////////////////// find main function and scripts path - check ////////////////////
 
                     int result = ScanDirectoryRecursivelyForScripts(filesystem::current_path());
@@ -429,70 +487,6 @@ namespace BongoJam {
 
                     pm_CurrentProject.Project.LastUsedCompilerConfigs.OutputFileName = "rawr_uwu"; //quick extension substitution (later at compile time)
                 }
-                else if (f_CompilerArg == "-sp") // sp = specified, for scripts specified individually
-                {
-                    _i++; //advance forward onemore step
-
-                    if (not (_i < fp_ArgCount)) //check for bounds
-                    {
-                        bongo_logger->Fatal("No files input for compiler after '-sp' flag was used, try -cwd if you're looking for automatic script searching", "ParseArguments");
-                        return NO_SCRIPTS_GIVEN;
-                    }
-
-                    f_CompilerArg = string(fp_ArgVector[_i]);
-                    size_t f_Dot = f_CompilerArg.rfind('.');
-
-                    if (f_Dot != string::npos and f_CompilerArg.substr(f_Dot) == ".bsproj")
-                    {
-                        pm_CurrentProject.Project.LastUsedCompilerConfigs.BongoScripts.clear(); //just in case some dumbass does "script script proj script"
-                        LoadProject(f_CompilerArg, pm_CurrentProject.Project.LastUsedCompilerConfigs); //assuming the proj file is passed as ../../somefolder/name.bsproj i dont think thats a bold assumption
-
-                        continue;
-                    }
-
-                    if (f_CompilerArg != "[")
-                    {
-                        bongo_logger->Fatal("No files input for compiler after '-sp' flag was used, try -cwd if you're looking for automatic script searching", "ParseArguments");
-                        return NO_SCRIPTS_GIVEN;
-                    }
-
-                    while (_i + 1 < fp_ArgCount and f_CompilerArg != "]")
-                    {
-                        ++_i;
-                        f_CompilerArg = string(fp_ArgVector[_i]);
-                        BongoScriptFile f_Script;
-
-                        f_Script.ScriptName = f_CompilerArg;
-                        size_t f_Dot = f_Script.ScriptName.rfind('.');
-
-                        f_Script.ScriptFilePath = "./" + f_Script.ScriptName; // we add before hand because we want a bj here :^)
-
-                        if (not filesystem::exists(f_Script.ScriptName))
-                        {
-                            PrintError("No script with name: " + f_Script.ScriptName + " found in top-level directory", Colours::Magenta);
-                            return SCRIPT_DOES_NOT_EXIST;
-                        }
-
-                        if (f_Dot != string::npos and f_Script.ScriptName.substr(f_Dot) == ".bj")
-                        {
-                            f_Script.ScriptName = f_Script.ScriptName.substr(0, f_Dot);
-                        }
-                        else
-                        {
-                            PrintError("Invalid script target found, please only try to compile .bj files only", Colours::Magenta);
-                            return INVALID_SCRIPT_TARGET;
-                        }
-
-                        pm_CurrentProject.Project.LastUsedCompilerConfigs.BongoScripts.push_back(f_Script); //add script to current compiler configs
-                    }
-
-                    if (f_CompilerArg != "]")
-                    {
-                        bongo_logger->Fatal("No ']' found terminating list of scripts after -sp command", "ParseArguments");
-                        return NO_SCRIPTS_GIVEN;
-                    }
-
-                }//
                 else if (f_CompilerArg == "--build_exe")
                 {
                     if (pm_CurrentProject.Project.LastUsedCompilerConfigs.CompilerFlags & BongoCompilerFlags::BUILD_DYNAMIC_LIBRARY)
@@ -521,7 +515,7 @@ namespace BongoJam {
                 {
                     if (not (_i + 1 < fp_ArgCount)) //check for bounds
                     {
-                        bongo_logger->Fatal("No output file name was input after '-o' flag was used, please input a valid string after [-o] is used", "ParseArguments");
+                        bongo_logger->Fatal("No output file name was input after '-o' flag was used, please input a valid file name after [-o] is used", "ParseArguments");
                         return NO_OUTPUT_FILE_NAME_GIVEN;
                     }
 
@@ -657,26 +651,26 @@ namespace BongoJam {
                 << CreateColouredText("{Usage}: bongo <file> [options]...\n", Colours::BrightMagenta)
 
                 << CreateColouredText("Compiler Options:\n  ", Colours::BrightYellow) //oh it's because i put two spaces after each \n lmao
-                << CreateColouredText("  -o <filename>\t{Usage}:Set output filename\n  ", Colours::Cyan) //this needs an extra two spaces at the beginning for god knows what reason ?_? !!
-                << CreateColouredText("  -d <directory>\t{Usage}:Set output directory\n  ", Colours::Cyan)
+                << CreateColouredText("  -o <filename>\tSet output filename\n  ", Colours::Cyan) //this needs an extra two spaces at the beginning for god knows what reason ?_? !!
+                << CreateColouredText("  -d <directory>\tSet output directory\n  ", Colours::Cyan)
 
-                << CreateColouredText("  --compile-run\t{Usage}:If used, the script will be compiled and ran immediately\n  ", Colours::Cyan)
-                << CreateColouredText("  --debug\t{Usage}:Compile in debug mode\n  ", Colours::Cyan)
-                << CreateColouredText("  --pedantic\t{Usage}:Compile with all warnings turned on\n  ", Colours::Cyan)
+                << CreateColouredText("  --compile-run\tIf used, the script will be compiled and ran immediately\n  ", Colours::Cyan)
+                << CreateColouredText("  --debug\t\tCompile in debug mode\n  ", Colours::Cyan)
+                << CreateColouredText("  --pedantic\t\tCompile with all warnings turned on\n  ", Colours::Cyan)
 
-                << CreateColouredText("  --clear-logs\t{Usage}: Clears Desired Log Files\n", Colours::Cyan)
+                << CreateColouredText("  --clear-logs\tClears Desired Log Files\n", Colours::Cyan)
                 << CreateColouredText("\t  [option 1] LOG_LEVEL_MINOR - LOG_LEVEL_MAJOR\n", Colours::BrightGreen)
                 << CreateColouredText("\t  [option 2] LOG_LEVEL_1, LOG_LEVEL_2 . . .\n  ", Colours::BrightGreen)
 
-                << CreateColouredText("  --set LOG_LEVEL_FILTER\t{Usage}: Filters Log Output\n  ", Colours::Cyan) //disable/enable internal logs, and set the min and max log level, one arg is min, two args is both
+                << CreateColouredText("  --set LOG_LEVEL_FILTER\t Filters Log Output\n  ", Colours::Cyan) //disable/enable internal logs, and set the min and max log level, one arg is min, two args is both
                 << CreateColouredText("\t  [option 1] LOG_LEVEL_MINOR - LOG_LEVEL_MAJOR\n", Colours::BrightGreen)
                 << CreateColouredText("\t  [option 2] LOG_LEVEL_1, LOG_LEVEL_2 . . .\n  ", Colours::BrightGreen)
 
-                << CreateColouredText("  --set LOG_OUTPUT_DIRECTORY <directory>\t{Usage}:Sets Working Log Output Directory\n  ", Colours::Cyan)
-                << CreateColouredText("  --set DEFAULT_OUTPUT_DIRECTORY <directory>\t{Usage}:Sets Default Log Output Directory\n  ", Colours::Cyan)
+                << CreateColouredText("  --set LOG_OUTPUT_DIRECTORY <directory>\tSets Working Log Output Directory\n  ", Colours::Cyan)
+                << CreateColouredText("  --set DEFAULT_OUTPUT_DIRECTORY <directory>\tSets Default Log Output Directory\n  ", Colours::Cyan)
 
-                << CreateColouredText("  -h, --help\t{Usage}:Display this help and exit\n  ", Colours::Cyan)
-                << CreateColouredText("  --version\t{Usage}:Get the currently installed compiler version\n  ", Colours::Cyan)
+                << CreateColouredText("  -h, --help\tDisplay this help and exit\n  ", Colours::Cyan)
+                << CreateColouredText("  --version\tGet the currently installed compiler version\n  ", Colours::Cyan)
                 ;
         }
 

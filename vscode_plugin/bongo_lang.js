@@ -16,7 +16,9 @@ function activate(context) {
             const term = vscode.window.createTerminal('BongoJam');
 
             term.show();
-            term.sendText(`bongo "${file}" --compilerun --debug`);
+            term.sendText(`bongo -cwd --compilerun --debug`);
+            //term.sendText(`bongo "${file}" --compilerun --debug`);
+
         }
     );
 

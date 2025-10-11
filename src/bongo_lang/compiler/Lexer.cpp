@@ -295,6 +295,7 @@ namespace BongoJam {
 
                     if (fp_CurrentChar == '*' and Peek(fp_Src) == '/')
                     {
+                        fp_CurrentChar = ShiftForward(fp_Src); //move onto '/' so loop can shift onto new token uwu
                         break;
                     }
                     else if (fp_CurrentChar == '\0')

@@ -228,6 +228,8 @@ bool
         CompilationUnit* fp_CompilationUnit
     )
 {
+    //Print(format("Current Expr type: {}", static_cast<int>(fp_Expression->m_Domain)), Colours::Magenta);
+
     switch (fp_Expression->m_Domain)
     {
     case SyntaxNodeType::SingleValueExpr: //each operator 
@@ -236,29 +238,30 @@ bool
 
         switch (sv_SingleValueExpr->m_Value.m_Type)
         {
-        case TokenType::IntNumber:
-        {
-            Encode32BitInt(fp_CompilationUnit->CompiledByteCode, stoi(sv_SingleValueExpr->m_Value.m_Value));
-        }
-        break;
-        case TokenType::FloatNumber:
-        {
-            EncodeFloat(fp_CompilationUnit->CompiledByteCode, stof(sv_SingleValueExpr->m_Value.m_Value));
-        }
-        break;
-        case TokenType::StringLiteral:
-        {
-            EncodeUTF8String(fp_CompilationUnit->CompiledByteCode, sv_SingleValueExpr->m_Value.m_Value);
-        }
-        break;
-        case TokenType::UserIdentifier:
-        {
-            //USED for variable w access levels like 'myObject.myVal + 2;'
-        }
-        break;
-        default:
-            //THROW ERROR: 
-            return false;
+            case TokenType::FloatNumber:
+            {
+                fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::FLOAT_VALUE);
+                EncodeFloat(fp_CompilationUnit->CompiledByteCode, stof(sv_SingleValueExpr->m_Value.m_Value));
+            }
+            break;
+            case TokenType::IntNumber:
+            {
+                fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::INT_VALUE);
+                Encode32BitInt(fp_CompilationUnit->CompiledByteCode, stoi(sv_SingleValueExpr->m_Value.m_Value));
+            }
+            break;
+            case TokenType::StringLiteral:
+            {
+                fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::STRING_VALUE);
+                EncodeUTF8String(fp_CompilationUnit->CompiledByteCode, sv_SingleValueExpr->m_Value.m_Value);
+            }
+            break;
+            case TokenType::UnsignedIntNumber:
+                fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::UNSIGNED_INT_VALUE);
+                break;
+            default: //THROW ERROR:
+                compiler_logger->Error(format("Error at Line: {}, Invalid value found while compiling a single value expression OwO", sv_SingleValueExpr->m_Value.m_SourceCodeLineNumber), "BongoCompiler");
+                return false;
         }
     }
     break;
@@ -272,17 +275,77 @@ bool
 
     }
     break;
-    case SyntaxNodeType::BinaryOperationExpr:
+    case SyntaxNodeType::IdentifierExpr:
     {
 
+    }
+    break;
+    case SyntaxNodeType::BinaryOperationExpr:
+    {
+        BinaryOperationExpr* sv_BinaryOp = dynamic_cast<BinaryOperationExpr*>(fp_Expression);
+
+        switch (sv_BinaryOp->m_Operator.m_Type)
+        {
+        case TokenType::AdditionOperator:
+        {
+
+        }
+        break;
+        case TokenType::NegativeOperator:
+        {
+
+        }
+        break;
+        case TokenType::DivisionOperator:
+        {
+
+        }
+        break;
+        case TokenType::MultiplicationOperator:
+        {
+
+        }
+        break;
+        case TokenType::ModulusOperator:
+        {
+
+        }
+        break;
+        default: //THROW ERROR: 
+            
+            return false;
+        }
     }
     break;
     case SyntaxNodeType::UnaryOperatorExpr:
     {
+        UnaryOperatorExpr* sv_BinaryOp = dynamic_cast<UnaryOperatorExpr*>(fp_Expression);
 
+        switch (sv_BinaryOp->m_Operator.m_Type)
+        {
+        case TokenType::NegativeOperator:
+        {
+
+        }
+        break;
+        case TokenType::MinusMinusOperator:
+        {
+
+        }
+        break;
+        case TokenType::PlusPlusOperator:
+        {
+
+        }
+        break;
+        default: //THROW ERROR:
+             
+            return false;
+        }
     }
     break;
-    default:
+    default: //THROW ERROR:
+
         return false;
     }
 
@@ -440,6 +503,17 @@ bool
 }
 
 bool
+    BongoCompiler::CompileUserIdentifier //this is gonna be recursive i bet -check 
+    (
+        Expr* fp_SymbolExpr,
+        CompilationUnit* fp_CompilationUnit
+    )
+{
+
+    return true;
+}
+
+bool
     BongoCompiler::CompileVarReassignment //this is gonna be recursive i bet -check 
     (
         VariableReassignmentExpr* fp_Expression,
@@ -448,44 +522,47 @@ bool
 {
     size_t f_EntryOffset = GetCurrentByteOffset(fp_CompilationUnit);
 
-    switch (fp_Expression->EvaluatesTo)
+    //fp_CompilationUnit->SymbolTable.insert({ fp_Expression->VariableName-> });
+
+    switch (fp_Expression->Operator)
     {
-    case TokenType::Int: 
+    case TokenType::PlusEqualsOperator: 
     {
 
     }
     break;
-    case TokenType::Float: 
+    case TokenType::MinusEqualsOperator: 
     {
 
     }
     break;
-    case TokenType::Double: 
+    case TokenType::DivEqualsOperator: 
     {
 
     }
     break;
-    case TokenType::UnsignedInt: 
+    case TokenType::MultEqualsOperator: 
     {
 
     }
     break;
-    case TokenType::String:
+    case TokenType::ModuloEqualsOperator:
     {
 
     }
     break;
-    case TokenType::Char:
+    case TokenType::BitAndEquals:
     {
 
     }
     break;
-    case TokenType::UserIdentifier: //user defined type 
+    case TokenType::BitOrEquals: //user defined type 
     {
 
     }
     break;
-    default:
+    default: //THROW ERROR: 
+
         return false;
     }
     //WARNING THIS WONT WORK ATM 
@@ -557,45 +634,13 @@ bool
 {
     fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::PUSH); //push new valus
 
-    switch (fp_VarDeclaration->Type.m_Type)
+    if (not CompileRegularExpr(fp_VarDeclaration->DefaultValue.get(), fp_CompilationUnit))
     {
-    case TokenType::Float:
-    {
-        fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::FLOAT_VALUE);
-
-        SingleValueExpr* sv_FloatVal = dynamic_cast<SingleValueExpr*>(fp_VarDeclaration->DefaultValue.get());
-        EncodeFloat(fp_CompilationUnit->CompiledByteCode, stof(sv_FloatVal->m_Value.m_Value));
+        compiler_logger->Error(format("Error at Line Number: {}, unable to compile default value of variable named: {}", fp_VarDeclaration->Name.m_SourceCodeLineNumber, fp_VarDeclaration->Name.m_Value), "Compiler");
+        return false;
     }
-    break;
-    case TokenType::Int:
-    {
-        fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::INT_VALUE);
-
-        SingleValueExpr* sv_IntVal = dynamic_cast<SingleValueExpr*>(fp_VarDeclaration->DefaultValue.get());
-        EncodeFloat(fp_CompilationUnit->CompiledByteCode, stoi(sv_IntVal->m_Value.m_Value));
-    }
-    break;
-    case TokenType::StringLiteral:
-    {
-        fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::STRING_VALUE);
-
-        SingleValueExpr* sv_IntVal = dynamic_cast<SingleValueExpr*>(fp_VarDeclaration->DefaultValue.get());
-        EncodeUTF8String(fp_CompilationUnit->CompiledByteCode, sv_IntVal->m_Value.m_Value);
-    }
-    break;
-    case TokenType::UnsignedInt:
-        fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::UNSIGNED_INT_VALUE);
-        break;
-    }
-
-    //if (not CompileRegularExpr(fp_VarDeclaration->DefaultValue.get(), fp_CompilationUnit))
-    //{
-    //    compiler_logger->Error(format("Error at Line Number: {}, unable to compile default value of variable named: {}", fp_VarDeclaration->Name.m_SourceCodeLineNumber, fp_VarDeclaration->Name.m_Value), "Compiler");
-    //    return false;
-    //}
 
     fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::STORE_LOCAL); //push new valus
-    //Encode32BitInt(fp_CompilationUnit->CompiledByteCode, pm_NextAvailableStackSlot); //WARNING: idk if this stack slot is working atm needa do a rbp style system where i set offsets from the stack frame
 
     return true;
 }
@@ -790,6 +835,16 @@ int
                 compiler_logger->Error(format("Invalid statement unknown to compiler found inside the declaration of class: '{}' ", sv_ClassDec->ClassName.m_Value), "BongoCompiler");
                 return EXIT_FAILURE;
             }
+
+            Symbol f_Symbol; //symbol for a globally defined var within the namespace
+
+            f_Symbol.Name = f_CurrentNamespace + sv_ClassDec->ClassName.m_Value;
+            f_Symbol.OffsetInBytecode = GetCurrentByteOffset(fp_CompilationUnit);
+            f_Symbol.Type = TokenType::UserIdentifier;
+            f_Symbol.Kind = SymbolKind::Class;
+            //f_Symbol.Flags = SymbolFlag::
+
+            fp_CompilationUnit->SymbolTable.insert({ sv_ClassDec->ClassName.m_Value, f_Symbol });
         }
         break;
         case SyntaxNodeType::StructDeclaration:
@@ -810,7 +865,7 @@ int
             f_CurrentNamespace = sv_Namespace->m_Name.m_Value;
         }
         break;
-        case SyntaxNodeType::VarDeclaration:
+        case SyntaxNodeType::VarDeclaration: //global var
         {
             unique_ptr<VarDeclaration> sv_VarDec = unique_dynamic_cast<VarDeclaration>(move(f_CurrentProgramStatement));
 
@@ -819,6 +874,16 @@ int
                 compiler_logger->Error(format("Invalid statement unknown to compiler found during the declaration of variable: '{}' ", sv_VarDec->Name.m_Value), "BongoCompiler");
                 return EXIT_FAILURE;
             }
+
+            Symbol f_Symbol; //symbol for a globally defined var within the namespace
+
+            f_Symbol.Name = f_CurrentNamespace + sv_VarDec->Name.m_Value;
+            f_Symbol.OffsetInBytecode = GetCurrentByteOffset(fp_CompilationUnit);
+            f_Symbol.Type = sv_VarDec->Type.m_Type;
+            f_Symbol.Kind = SymbolKind::Variable;
+            //f_Symbol.Flags = SymbolFlag::
+
+            fp_CompilationUnit->SymbolTable.insert({ sv_VarDec->Name.m_Value, f_Symbol });
         }
         break;
         case SyntaxNodeType::IncludeStatement:

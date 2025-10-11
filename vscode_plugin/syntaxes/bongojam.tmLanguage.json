@@ -34,11 +34,11 @@
             "name": "keyword.control.bongojam"
         },
         {
-            "match": "\\b(var|const|static|public|protected|private|threadsafe)\\b",
+            "match": "\\b(var|const|static|public|protected|private|threadsafe|extends|parent|single|template|this)\\b",
             "name": "storage.modifier.bongojam"
         },
         {
-            "match": "\\b(func|return|class|struct|enum|interface|new|delete)\\b",
+            "match": "\\b(func|return|class|struct|enum|interface|as|assert|big|include|namespace)\\b",
             "name": "storage.type.bongojam"
         },
         {
@@ -50,7 +50,7 @@
     "types": {
         "patterns": [
         {
-            "match": "\\b(int|float|double|bool|string|Vec2|Vec3|Vec4|Mat2|Mat3|Mat4|List|Dictionary|Thread|event)\\b",
+            "match": "\\b(int|void|decimal|double|bool|text|Vec|Vec2|Vec3|Vec4|Mat2|Mat3|Mat4|Mat|List|Dictionary|Thread|event|exception)\\b",
             "name": "storage.type.primitive.bongojam"
         }
         ]
@@ -58,7 +58,7 @@
     "functions": {
         "patterns": [
         {
-            "match": "\\b(print|input|colourize|clock|sizeof|typeof|pow|sin|cos|tan|sqrt|exp|log|factorial)\\b",
+            "match": "\\b(print|input|in|panic|clock|sizeof|typeof|pow|sin|cos|tan|arccos|arcsin|arctan|sinh|cosh|tanh|sqrt|exp|log|factorial|len|round_down|round_up)\\b",
             "name": "support.function.builtin.bongojam"
         }
         ]
