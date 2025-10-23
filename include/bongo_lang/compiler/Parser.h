@@ -184,7 +184,8 @@ namespace BongoJam {
             ParseString //assuming the current token == StringLiteral
             (
                 Token& fp_CurrentToken,
-                vector<Token>& fp_ProgramTokens
+                vector<Token>& fp_ProgramTokens,
+                TokenType fp_Decorator = TokenType::NO_TOKEN_VALUE
             )
         {
             Token f_EntryToken = fp_CurrentToken;
@@ -199,7 +200,7 @@ namespace BongoJam {
             case TokenType::Comma:
             case TokenType::CloseBracket:
             case TokenType::CloseSquareBracket:
-                return make_unique<SingleValueExpr>(f_EntryToken); //entry token is the value, situation is . . . "string"; we're pointing at ';' rn so take the stashed entry token as val
+                return make_unique<SingleValueExpr>(f_EntryToken, fp_Decorator); //entry token is the value, situation is . . . "string"; we're pointing at ';' rn so take the stashed entry token as val
             }
 
             fp_CurrentToken = ShiftForward(fp_ProgramTokens); //Shift confidently to look for an operator
@@ -225,7 +226,7 @@ namespace BongoJam {
                 return make_unique<BinaryOperationExpr>
                     (
                         f_OperatorToken,
-                        make_unique<SingleValueExpr>(f_EntryToken),
+                        make_unique<SingleValueExpr>(f_EntryToken, fp_Decorator),
                         move(f_RegExpr)
                     );
             }
@@ -235,7 +236,7 @@ namespace BongoJam {
             case TokenType::NegativeOperator:
             case TokenType::MultiplicationOperator:
             {
-                parser_logger->Error(format("Math operation used improperly, tried to use an operation that wasn't '+' on a string at line: {}", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                parser_logger->Error(format("Math operation used improperly, tried to use operator: '{}' on a string at line: {}", fp_CurrentToken.m_Value, f_EntryToken.m_SourceCodeLineNumber), "Parser");
                 return nullptr;
             }
             break;
@@ -254,7 +255,8 @@ namespace BongoJam {
             ParseUserIdentifier //called when current token = user identifier, so it handles shifting
             (
                 Token& fp_CurrentToken, 
-                vector<Token>& fp_ProgramTokens
+                vector<Token>& fp_ProgramTokens,
+                TokenType fp_Decorator = TokenType::NO_TOKEN_VALUE
             )
         {
             Token f_NameToken = fp_CurrentToken; //used for tracking the user identifier used
@@ -758,19 +760,32 @@ namespace BongoJam {
             }
             break;
             case TokenType::Colourize:
-            {
-                if (Peek(fp_ProgramTokens).m_Type == TokenType::StringLiteral)
+            {   
+                switch(Peek(fp_ProgramTokens).m_Type)
                 {
+                    case TokenType::StringLiteral:
+                    {
+                        TokenType sv_ColourType = fp_CurrentToken.m_Type;
+                        fp_CurrentToken = ShiftForward(fp_ProgramTokens);
 
-                }
-                else if (Peek(fp_ProgramTokens).m_Type == TokenType::UserIdentifier)
-                {
+                        auto sv_StringExpr = ParseString(fp_CurrentToken, fp_ProgramTokens, sv_ColourType);
 
-                }
-                else
-                {
-                    parser_logger->Error(format("found : '{}', when user identifier or string literal was expected after colourize expression at line number: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
-                    return nullptr;
+                        return move(sv_StringExpr);
+                    }
+                    break;
+                    case TokenType::UserIdentifier:
+                    {
+
+                    }
+                    break;
+                    case TokenType::FormattedStringLiteralStart:
+                    {
+
+                    }
+                    break;
+                    default:
+                        parser_logger->Error(format("found : '{}', when user identifier or string literal was expected after colourize expression at line number: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
+                        return nullptr;
                 }
             }
             break;
@@ -1611,7 +1626,32 @@ namespace BongoJam {
                 break;
                 case TokenType::Static:
                 {
+                    auto sv_StaticDeclaration = ParseStatic(fp_CurrentToken, fp_ProgramTokens);
+                    
+                    if (not sv_StaticDeclaration)
+                    {
+                        parser_logger->Error(format("Parsing Error at line: {}, couldn't parse static whatever ", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                        return nullptr;
+                    }
 
+                    switch (sv_StaticDeclaration->m_Domain)
+                    {
+                    case SyntaxNodeType::FuncDeclaration:
+                    {
+                        auto sv_RecastedFuncDec = unique_dynamic_cast<FuncDeclaration>(move(sv_StaticDeclaration));
+                        f_ClassDec->Methods.push_back(move(sv_RecastedFuncDec)); //global static var
+                    }
+                    break;
+                    case SyntaxNodeType::VarDeclaration:
+                    {
+                        auto sv_RecastedVarDec = unique_dynamic_cast<VarDeclaration>(move(sv_StaticDeclaration));
+                        f_ClassDec->Fields.push_back(move(sv_RecastedVarDec)); //global static var
+                    }
+                    break;
+                    default:
+                        parser_logger->Error(format("Error at Line: {}, found invalid declaration inside class named: '{}'", f_EntryToken.m_SourceCodeLineNumber, f_ClassDec->ClassName.m_Value), "Parser");
+                        return nullptr;
+                    }
                 }
                 break;
                 case TokenType::Struct:
@@ -2014,28 +2054,55 @@ namespace BongoJam {
                 break;
                 case TokenType::Const: //parse as regular var and just add const decorator on top of static
                 {
-                    auto sv_StaticConstVarDec = ParseVarDeclaration(fp_CurrentToken, fp_ProgramTokens);
-
-                    if (not sv_StaticConstVarDec)
+                    if(Peek(fp_ProgramTokens).m_Type == TokenType::Func)
                     {
-                        parser_logger->Error
-                        (
-                            format("Parsing Error: failed to parse variable declaration, found: '{}' instead in source code at line: {}", fp_CurrentToken.m_Value, to_string(fp_CurrentToken.m_SourceCodeLineNumber)),
-                            "Parser"
-                        );
+                        auto sv_StaticConstFuncDec = ParseFuncDeclaration(fp_CurrentToken, fp_ProgramTokens);
 
+                        if (not sv_StaticConstFuncDec)
+                        {
+                            parser_logger->Error
+                            (
+                                format("Parsing Error: failed to parse variable declaration, found: '{}' instead in source code at line: {}", fp_CurrentToken.m_Value, to_string(fp_CurrentToken.m_SourceCodeLineNumber)),
+                                "Parser"
+                            );
+
+                            return nullptr;
+                        }
+
+                        sv_StaticConstFuncDec->Modifiers |= ModifierFlags::STATIC | ModifierFlags::CONSTANT;
+
+                        return move(sv_StaticConstFuncDec);
+                    }
+                    else if(Peek(fp_ProgramTokens).m_Type == TokenType::Var)
+                    {
+                        auto sv_StaticConstVarDec = ParseVarDeclaration(fp_CurrentToken, fp_ProgramTokens);
+
+                        if (not sv_StaticConstVarDec)
+                        {
+                            parser_logger->Error
+                            (
+                                format("Parsing Error: failed to parse variable declaration, found: '{}' instead in source code at line: {}", fp_CurrentToken.m_Value, to_string(fp_CurrentToken.m_SourceCodeLineNumber)),
+                                "Parser"
+                            );
+
+                            return nullptr;
+                        }
+
+                        sv_StaticConstVarDec->Modifiers |= ModifierFlags::STATIC | ModifierFlags::CONSTANT;
+
+                        return move(sv_StaticConstVarDec);
+                    }
+                    else //TODO: add a way to convert from token type -> string for error messages
+                    {
+                        parser_logger->Error(format("Error at Line: {}, expected function or var definition but found: '{}' instead", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
                         return nullptr;
                     }
-
-                    sv_StaticConstVarDec->Modifiers |= ModifierFlags::STATIC | ModifierFlags::CONSTANT;
-
-                    return move(sv_StaticConstVarDec);
                 }
                 break;
                 default:
                     parser_logger->Error
                     (
-                        format("Parsing Error: expected var when using static, eg . 'static var ~~', but found: '{}' instead in source code at line: {}", fp_CurrentToken.m_Value, to_string(fp_CurrentToken.m_SourceCodeLineNumber)),
+                        format("Parsing Error: expected var when using static, eg . 'static var ~~', but found: '{}' instead in source code at line: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber),
                         "Parser"
                     );
             }
@@ -2097,22 +2164,49 @@ namespace BongoJam {
             break;
             case TokenType::Static: //parse as regular var and just add const decorator on top of static
             {
-                auto sv_StaticConstVarDec = ParseVarDeclaration(fp_CurrentToken, fp_ProgramTokens);
-
-                if (not sv_StaticConstVarDec)
+                if(Peek(fp_ProgramTokens).m_Type == TokenType::Func)
                 {
-                    parser_logger->Error
-                    (
-                        format("Parsing Error: failed to parse variable declaration, found: '{}' instead in source code at line: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber),
-                        "Parser"
-                    );
+                    auto sv_StaticConstFuncDec = ParseFuncDeclaration(fp_CurrentToken, fp_ProgramTokens);
 
+                    if (not sv_StaticConstFuncDec)
+                    {
+                        parser_logger->Error
+                        (
+                            format("Parsing Error: failed to parse variable declaration, found: '{}' instead in source code at line: {}", fp_CurrentToken.m_Value, to_string(fp_CurrentToken.m_SourceCodeLineNumber)),
+                            "Parser"
+                        );
+
+                        return nullptr;
+                    }
+
+                    sv_StaticConstFuncDec->Modifiers |= ModifierFlags::STATIC | ModifierFlags::CONSTANT;
+
+                    return move(sv_StaticConstFuncDec);
+                }
+                else if(Peek(fp_ProgramTokens).m_Type == TokenType::Var)
+                {
+                    auto sv_StaticConstVarDec = ParseVarDeclaration(fp_CurrentToken, fp_ProgramTokens);
+
+                    if (not sv_StaticConstVarDec)
+                    {
+                        parser_logger->Error
+                        (
+                            format("Parsing Error: failed to parse variable declaration, found: '{}' instead in source code at line: {}", fp_CurrentToken.m_Value, to_string(fp_CurrentToken.m_SourceCodeLineNumber)),
+                            "Parser"
+                        );
+
+                        return nullptr;
+                    }
+
+                    sv_StaticConstVarDec->Modifiers |= ModifierFlags::STATIC | ModifierFlags::CONSTANT;
+
+                    return move(sv_StaticConstVarDec);
+                }
+                else //TODO: add a way to convert from token type -> string for error messages
+                {
+                    parser_logger->Error(format("Error at Line: {}, expected function or var definition but found: '{}' instead", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
                     return nullptr;
                 }
-
-                sv_StaticConstVarDec->Modifiers |= ModifierFlags::STATIC | ModifierFlags::CONSTANT;
-
-                return move(sv_StaticConstVarDec);
             }
             break;
             default:

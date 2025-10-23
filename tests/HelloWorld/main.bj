@@ -2,6 +2,6 @@
 
 func main() -> int
 {
-    print("Hello World", "blue");
+    print("Hello World", "magenta");
     return 0;
 }

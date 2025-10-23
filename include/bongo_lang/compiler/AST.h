@@ -130,10 +130,13 @@ namespace BongoJam {
     {
         Token m_Value;
 
-        SingleValueExpr(Token fp_ValueToken) 
+        TokenType Decorator = TokenType::NO_TOKEN_VALUE; //used primarily for @bgn or w/e
+
+        explicit SingleValueExpr(Token fp_ValueToken, TokenType fp_Decorator = TokenType::NO_TOKEN_VALUE) 
         {
             m_Domain = SyntaxNodeType::SingleValueExpr; 
             m_Value = fp_ValueToken;
+            Decorator = fp_Decorator;
         }
 
         SingleValueExpr() = default;
@@ -303,6 +306,8 @@ namespace BongoJam {
 
         Token Identifier;
         unique_ptr<Expr> ChainedExpr = nullptr; //reg expr because could be chained to one of the other two expressions above
+
+        TokenType Decorator = TokenType::NO_TOKEN_VALUE; //used primarily for @bgn or w/e
     };
 
     //=========================================================================================== Control Flow ===========================================================================================//

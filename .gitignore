@@ -10,6 +10,14 @@
 /ideas.txt
 /CMakeUserPresets.json
 
+#ignore BongoCompiler artifacts
+
+**.bongo
+
+#mac
+
+**.DS_Store
+
 # ignore llvm
 
 /static_libs
