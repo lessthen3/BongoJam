@@ -512,9 +512,32 @@ namespace BongoJam {
             
             //////////////////////////////////////////////////////////// Formatted Strings ////////////////////////////////////////////////////////////
 
-            else if (f_CurrentChar == 'f' and Peek(fp_SourceCode) == '"')
+            else if (f_CurrentChar == 'f' and (Peek(fp_SourceCode) == '"' or Peek(fp_SourceCode) == '@')) //only valid tokens after f if used for a formatted string, otherwise it'll fall down to the regular word/keyword checks uwu
             {
-                f_CurrentChar = ShiftForward(fp_SourceCode); //-->'"' 
+                f_CurrentChar = ShiftForward(fp_SourceCode); //-->'"' or '@'
+
+                if (f_CurrentChar == '@')
+                {
+                    f_CurrentChar = ShiftForward(fp_SourceCode); //--> alpha char hopefully uwu
+
+                    string f_ColourIdentifier = LexWord(fp_SourceCode, f_CurrentChar, fp_Tokens, f_CurrentLineNumber);
+
+                    if (find(ANSI_COLOURS.begin(), ANSI_COLOURS.end(), f_ColourIdentifier) == ANSI_COLOURS.end()) //if identifier is not a keyword then its just tokenized assuming its a var name or smth
+                    {
+                        logger->Error(format("Error at Line Number: {}, expected a colour identifier but found: {} instead >:(", f_CurrentLineNumber, "@" + f_ColourIdentifier), "Lexer");
+                        return false;
+                    }
+                    
+                    fp_Tokens.emplace_back(f_ColourIdentifier, TokenType::Colourize, f_CurrentLineNumber);
+
+                    f_CurrentChar = ShiftForward(fp_SourceCode); //--> '"' hopefully uwu, this'll fall through and shift again 
+
+                    if (f_CurrentChar != '"') //push back an empty string ig idk
+                    {
+                        logger->Error(format("Error at Line Number: {}, expected text after colour identifier: '{}' but found: {} instead >:(", f_CurrentLineNumber, "@" + f_ColourIdentifier, f_CurrentChar), "Lexer");
+                        return false;
+                    }
+                }
 
                 string f_FormattedString; //default val at ""
 
@@ -528,7 +551,6 @@ namespace BongoJam {
 
                 f_FormattedString += f_CurrentChar; //add letter knowing it isnt just f"" anymore uwu
 
-                bool f_IsEscapeCharacter = false;
                 bool f_IsStringStart = true;
 
                 //////////////////////////////////////////////////////////// Main Loop ////////////////////////////////////////////////////////////
@@ -536,6 +558,13 @@ namespace BongoJam {
                 while (fp_SourceCode.size() > 0 and f_CurrentChar != '"')
                 {
                     f_CurrentChar = ShiftForward(fp_SourceCode);
+
+                    //////////////////////////////////////////////////////////// Keep Track of Line Number UwU ////////////////////////////////////////////////////////////
+
+                    if (f_CurrentChar == '\n')
+                    {
+                        f_CurrentLineNumber++;
+                    }
 
                     //////////////////////////////////////////////////////////// Handle Escape Characters ////////////////////////////////////////////////////////////
 
@@ -595,8 +624,14 @@ namespace BongoJam {
                         {
                             f_CurrentChar = ShiftForward(fp_SourceCode);
 
-                            if (isspace(f_CurrentChar))
+                            if (isspace(f_CurrentChar)) //spaces can be ignored here since it's not part of the literal string uwu
                             {
+                                continue;
+                            }
+
+                            if (f_CurrentChar == '\n')
+                            {
+                                f_CurrentLineNumber++;
                                 continue;
                             }
 
@@ -634,7 +669,7 @@ namespace BongoJam {
 
                             if (f_IsCurrentlyInsideComment) //THROW ERROR: comment not allowed here uwu
                             {
-
+                                logger->Error(format("Error at Line Number: {}, found comment inside formatted string!", f_CurrentLineNumber), "Lexer");
                                 return false;
                             }
 
@@ -722,7 +757,7 @@ namespace BongoJam {
                 continue; //move to next iteration since
             }
 
-            if (LexOperator(fp_SourceCode, f_CurrentChar, fp_Tokens, f_CurrentLineNumber, f_IsCurrentlyInsideComment, logger)) //returns true for either lexed
+            if (LexOperator(fp_SourceCode, f_CurrentChar, fp_Tokens, f_CurrentLineNumber, f_IsCurrentlyInsideComment, logger)) //returns true for either lexed, will throw error in function w.e
             {
                 continue;
             }
@@ -771,16 +806,20 @@ namespace BongoJam {
             {
                 string f_CurrentStringLiteral = "";
 
-                // Shift to the next character to start capturing the string, not the opening quote
-                f_CurrentChar = ShiftForward(fp_SourceCode);
+                f_CurrentChar = ShiftForward(fp_SourceCode); // Shift to the next character to start capturing the string, not the opening quote
 
-                bool f_IsEscapeCharacter = false;
+                //////////////////////////////////////////////////////////// Main Loop ////////////////////////////////////////////////////////////
 
-                //////////////////// Main Loop ////////////////////
-
-                while (fp_SourceCode.size() > 0 and f_CurrentChar != '"')
+                while (not fp_SourceCode.empty() and f_CurrentChar != '"')
                 {
-                    //////////////////// Handle Escape Characters ////////////////////
+                    //////////////////////////////////////////////////////////// Keep Track of Line Number UwU ////////////////////////////////////////////////////////////
+
+                    if (f_CurrentChar == '\n')
+                    {
+                        f_CurrentLineNumber++;
+                    }
+
+                    //////////////////////////////////////////////////////////// Handle Escape Characters ////////////////////////////////////////////////////////////
 
                     if (f_CurrentChar == '\\')
                     {
@@ -825,7 +864,8 @@ namespace BongoJam {
                 
                 // Push the final string token without the quotes
                 fp_Tokens.emplace_back(f_CurrentStringLiteral, TokenType::StringLiteral, f_CurrentLineNumber);
-                //move to next iteration, we shift here because f_CurrentChar is pointing -> ' " ' 
+
+                //move to next iteration, we dont shift here because f_CurrentChar is pointing -> ' " ' 
             }
             break;
             case '$':
@@ -835,7 +875,26 @@ namespace BongoJam {
                 fp_Tokens.emplace_back(f_CurrentChar, TokenType::QuestionMark, f_CurrentLineNumber);
                 break;
             case '@':
+            {
+                if (isalpha(Peek(fp_SourceCode)))
+                {
+                    f_CurrentChar = ShiftForward(fp_SourceCode); //--> alpha char hopefully uwu
+
+                    string f_ColourIdentifier = LexWord(fp_SourceCode, f_CurrentChar, fp_Tokens, f_CurrentLineNumber);
+
+                    if (find(ANSI_COLOURS.begin(), ANSI_COLOURS.end(), f_ColourIdentifier) == ANSI_COLOURS.end()) //if identifier is not a keyword then its just tokenized assuming its a var name or smth
+                    {
+                        logger->Error(format("Error at Line Number: {}, expected a colour identifier but found: {} instead >:(", f_CurrentLineNumber, "@" + f_ColourIdentifier), "Lexer");
+                        return false;
+                    }
+
+                    fp_Tokens.emplace_back(f_ColourIdentifier, TokenType::Colourize, f_CurrentLineNumber);
+
+                    continue;
+                }
+
                 fp_Tokens.emplace_back(f_CurrentChar, TokenType::AtSign, f_CurrentLineNumber);
+            }
                 break;
             case '#':
                 fp_Tokens.emplace_back(f_CurrentChar, TokenType::HashTag, f_CurrentLineNumber);

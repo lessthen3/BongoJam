@@ -350,34 +350,30 @@ namespace BongoJam {
                 case INT_VALUE:
                 {
                     _p++; // Skip past INT_VALUE opcode
-                    int32_t f_IntVal = static_cast<int32_t>(Decode32BitInt(&f_ByteCode, &_p));
-                    Push(Value{ ValueType::I32, f_IntVal });
+                    Push(Value{ ValueType::I32, Decode32BitInt(&f_ByteCode, &_p) });
                 } 
                 break;
                 case FLOAT_VALUE:
                 {
                     _p++; // Skip past FLOAT_VALUE opcode
-                    float f_FloatVal = DecodeFloat(&f_ByteCode, &_p);
-                    Push(Value{ ValueType::F32,  f_FloatVal });
+                    Push(Value{ ValueType::F32, DecodeFloat(&f_ByteCode, &_p) });
                 } 
                 break;
                 case DOUBLE_VALUE:
                 {
                     _p++; // Skip past DOUBLE_VALUE opcode
-                    float f_DoubleVal = DecodeDoubleUwU(&f_ByteCode, &_p);
-                    Push(Value{ ValueType::F64,  f_DoubleVal });
+                    Push(Value{ ValueType::F64, DecodeDoubleUwU(&f_ByteCode, &_p) });
                 }
                 break;
                 case STRING_VALUE:
                 {
-                    _p++; // Skip past DOUBLE_VALUE opcode
-                    string sv_StringVal = DecodeUTF8String(&f_ByteCode, &_p);
-                    Push(Value{ ValueType::STRING,  new string(sv_StringVal) });
+                    _p++; // Skip past STRING_VALUE opcode
+                    Push(Value{ ValueType::STRING,  (void*) new string(DecodeUTF8String(&f_ByteCode, &_p)) });
                 }
                 break;
                 default:
-                    cout << "BAD PUSH UWU" << endl;
-                    break;
+
+                    throw runtime_error("BAD PUSH UWU");
                 }
             }
             break;
@@ -681,10 +677,40 @@ namespace BongoJam {
                 cout << ListOfDecodedStrings[Decode32BitInt(&f_ByteCode, &_p)];
             }
             break;
+            case STDIN:
+            {
+
+            }
+            break;
+            case STDERR:
+            {
+                //we're going to decode the utf8 string directly from the bytecode, however we should do a once-over and decode all function names for the lib versions of the compiled bytecode
+                _p++; //shift program pointer to the next byte so that we can read the string
+                _p++; //shift past STRING_VALUE byte cause idk havent implemented memory arenas yet, probs store after creation for constant strings
+                cerr << ListOfDecodedStrings[Decode32BitInt(&f_ByteCode, &_p)];
+            }
+            break;
+            case CEIL:
+            {
+                Value sv_Val = Pop();
+
+                int sv_Result = ceil(sv_Val.u.f64); //IMPORTANT: static analysis will prevent invalid values being pushed onto the stack here, and we just treat any value here as a double then recast after ig
+
+                Push(Value{ ValueType::I32, sv_Result });
+            }
+            break;
+            case FLOOR:
+            {
+                Value sv_Val = Pop();
+
+                int sv_Result = floor(sv_Val.u.f64); //IMPORTANT: static analysis will prevent invalid values being pushed onto the stack here, and we just treat any value here as a double then recast after ig
+
+                Push(Value{ ValueType::I32, sv_Result });
+            }
+            break;
             case NATIVE_CALL:
             {
-                _p++; //shift program pointer to the next byte so that we can read the string //AHH: THIS IS SO DUMB BUT WAHTEVER GETTING VARIABLES WORKING SOONISH
-                _p++; //shift past STRING_VALUE byte cause idk havent implemented memory arenas yet, probs store after creation for constant strings
+                _p++; //shift program pointer 
 
                 string sv_FuncName = ListOfDecodedStrings[Decode32BitInt(&f_ByteCode, &_p)];
 

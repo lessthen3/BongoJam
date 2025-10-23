@@ -96,7 +96,7 @@ namespace BongoJam
         LABEL,
         CALL,
 
-        //////////////////// Extern Call for C/C++ ////////////////////
+        //////////////////// C/C++ Function Calls ////////////////////
 
         NATIVE_CALL, //call into native code baked into runtime
         EXTERN_CALL, //call to dynamically loaded C/C++

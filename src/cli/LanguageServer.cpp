@@ -10,8 +10,4 @@
  *        primarily intended for embedding within game engines.
 **************************************************************************/
 #include "../../include/cli/LanguageServer.h"
-
-namespace BongoJam{
-
-    
-}
+#include "../../include/cli/BongoManager.h"

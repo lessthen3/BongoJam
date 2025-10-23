@@ -757,6 +757,23 @@ namespace BongoJam {
                 //current token should be '}' should be safe to shift  
             }
             break;
+            case TokenType::Colourize:
+            {
+                if (Peek(fp_ProgramTokens).m_Type == TokenType::StringLiteral)
+                {
+
+                }
+                else if (Peek(fp_ProgramTokens).m_Type == TokenType::UserIdentifier)
+                {
+
+                }
+                else
+                {
+                    parser_logger->Error(format("found : '{}', when user identifier or string literal was expected after colourize expression at line number: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
+                    return nullptr;
+                }
+            }
+            break;
             default:
                 parser_logger->Error(format("found : '{}', when regular expression was expected at line number: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
                 return nullptr;
@@ -1177,7 +1194,7 @@ namespace BongoJam {
             return move(f_ElseDec);
         }
 
-//================================================================================================= While/For Loops =================================================================================================//
+//================================================================================================= While Loop =================================================================================================//
 
         unique_ptr<WhileLoopDeclaration>
             ParseWhileBlock
@@ -1214,6 +1231,8 @@ namespace BongoJam {
 
             return move(f_WhileDec);
         }
+
+//================================================================================================= For Loop =================================================================================================//
 
         unique_ptr<ForLoopDeclaration>
             ParseForBlock
@@ -1258,6 +1277,8 @@ namespace BongoJam {
             return move(f_ForDec);
         }
 
+//================================================================================================= Function Return =================================================================================================//
+
         unique_ptr<ReturnStatement>
             ParseReturnStatement
             (
@@ -1287,6 +1308,8 @@ namespace BongoJam {
 
             return move(f_ReturnStatement);
         }
+
+//================================================================================================= Function Declaration =================================================================================================//
 
         unique_ptr<FuncDeclaration>
             ParseFuncDeclaration
@@ -1451,6 +1474,8 @@ namespace BongoJam {
             return move(f_FuncDec);
         }
 
+//================================================================================================= Function Call =================================================================================================//
+
         unique_ptr<FunctionCallExpr>
             ParseFunctionCall
             (
@@ -1500,6 +1525,7 @@ namespace BongoJam {
             return move(f_FuncCallExpr);
         }
 
+//================================================================================================= Class Declaration =================================================================================================//
         unique_ptr<ClassDeclaration>
             ParseClassDeclaration
             (
@@ -2117,7 +2143,7 @@ namespace BongoJam {
 
             if (fp_CurrentToken.m_Type != TokenType::OpenParen) //THROW ERROR
             {
-                parser_logger->Error(format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
+                parser_logger->Error(format("Error at Line Number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
                 parser_logger->Warning("Unexpected symbol found when '(' was expected during a print() call!", "Parser");
                 return nullptr;
             }
@@ -2190,6 +2216,7 @@ namespace BongoJam {
         {
             return true;
         }
+    
     public:
         //////////////////////////////////////////////
         // Main Processing Function
@@ -2214,11 +2241,18 @@ namespace BongoJam {
                 {
                 case TokenType::Func: //used for func and class method definitions
                 {
+                    string sv_FuncName;
+
+                    if (Peek(fp_ProgramTokens).m_Type == TokenType::UserIdentifier)
+                    {
+                        sv_FuncName = Peek(fp_ProgramTokens).m_Value;
+                    }
+
                     unique_ptr<FuncDeclaration> sv_FunctionDefintion = ParseFuncDeclaration(f_CurrentToken, fp_ProgramTokens);
 
                     if (not sv_FunctionDefintion)
                     {
-                        parser_logger->Error(format("Parsing Error at line:'{}', function named : '{}' declaration is invalid", f_EntryToken.m_SourceCodeLineNumber, "main uwu"), "Parser");
+                        parser_logger->Error(format("Parsing Error at line:'{}', function named : '{}' declaration is invalid", f_EntryToken.m_SourceCodeLineNumber, sv_FuncName), "Parser");
                         return nullptr;
                     }
                     

@@ -221,7 +221,6 @@ namespace BongoJam {
         SizeOf,
         Print,
         Input,
-        Colourize,
 
         Clock,
         TypeOf,
@@ -251,6 +250,8 @@ namespace BongoJam {
         Exp,
         NaturalLog,
         Factorial,
+
+        Colourize,
 
         NO_TOKEN_VALUE,
         ENDF
@@ -409,6 +410,31 @@ namespace BongoJam {
         {"exp", TokenType::Exp},
         {"log", TokenType::NaturalLog},
         {"factorial", TokenType::Factorial}
+    };
+
+    //////////////////////////////////////////////
+    // Colours Map for Easier Checking
+    //////////////////////////////////////////////
+
+    const vector<string> ANSI_COLOURS =
+    {
+        "bk",
+        "rd",
+        "gn",
+        "yw",
+        "be",
+        "ma",
+        "cn",  
+        "we", 
+
+        "bbk", 
+        "brd", 
+        "bgn", 
+        "byw",
+        "bbe", 
+        "bma", 
+        "bcn", 
+        "bwe"
     };
 
     [[nodiscard]] char

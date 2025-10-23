@@ -25,6 +25,7 @@
 ///STL
 #include <unordered_map>
 #include <functional>
+#include <cmath>
 
 constexpr const uint32_t MAX_STACK_SIZE = 8192;
 
@@ -52,6 +53,7 @@ namespace BongoJam {
 
         explicit Value(ValueType fp_Type, int32_t fp_Value) : Type(fp_Type) { u.i32 = fp_Value; }
         explicit Value(ValueType fp_Type, float   fp_Value) : Type(fp_Type) { u.f32 = fp_Value; }
+        explicit Value(ValueType fp_Type, double fp_Value) : Type(fp_Type) { u.f64 = fp_Value; }
         explicit Value(ValueType fp_Type, void* fp_Value) : Type(fp_Type) { u.ref = fp_Value; }
 
         Value() = default;
