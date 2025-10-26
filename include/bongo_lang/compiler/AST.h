@@ -94,6 +94,14 @@ namespace BongoJam {
         None
     };
 
+    const unordered_map<TokenType, string> STANDARD_FUNCTIONS =
+    {
+        {TokenType::Print, "print(arg)"},
+        {TokenType::Floor, "floor(arg)"},
+        {TokenType::Ceiling, "ceil(arg)"}
+
+    };
+
     //////////////////////////////////////////////
     // Utility Functions
     //////////////////////////////////////////////
@@ -130,9 +138,9 @@ namespace BongoJam {
     {
         Token m_Value;
 
-        TokenType Decorator = TokenType::NO_TOKEN_VALUE; //used primarily for @bgn or w/e
+        Token Decorator; //used primarily for @bgn or w/e
 
-        explicit SingleValueExpr(Token fp_ValueToken, TokenType fp_Decorator = TokenType::NO_TOKEN_VALUE) 
+        explicit SingleValueExpr(Token fp_ValueToken, Token fp_Decorator = Token()) 
         {
             m_Domain = SyntaxNodeType::SingleValueExpr; 
             m_Value = fp_ValueToken;
@@ -296,10 +304,11 @@ namespace BongoJam {
 
     struct IdentifierExpr : public Expr
     {
-        IdentifierExpr(Token fp_IdentifierToken) 
+        IdentifierExpr(Token fp_IdentifierToken, Token fp_Decorator = Token()) 
         { 
             m_Domain = SyntaxNodeType::IdentifierExpr; 
             Identifier = fp_IdentifierToken;
+            Decorator = fp_Decorator;
         }
 
         IdentifierExpr() { m_Domain = SyntaxNodeType::IdentifierExpr; }
@@ -307,7 +316,7 @@ namespace BongoJam {
         Token Identifier;
         unique_ptr<Expr> ChainedExpr = nullptr; //reg expr because could be chained to one of the other two expressions above
 
-        TokenType Decorator = TokenType::NO_TOKEN_VALUE; //used primarily for @bgn or w/e
+        Token Decorator; //used primarily for @bgn or w/e
     };
 
     //=========================================================================================== Control Flow ===========================================================================================//
@@ -416,7 +425,7 @@ namespace BongoJam {
     {
         PrintFunction() { m_Domain = SyntaxNodeType::PrintFunction; }
 
-        array<unique_ptr<Expr>, 2> m_FuncArgs; //will only ever be two arguments for now, adding a f"" format feature cause i like that
+        unique_ptr<Expr> PrintArg; //will only ever be two arguments for now, adding a f"" format feature cause i like that
     };
 
     //////////////////////////////////////////////

@@ -1,7 +1,7 @@
 
 func main() -> int
 {
-    print(@bgn"UwU", "bright red");
+    print(@ma"UwU");
     
     // const var f_UwU->string = ">O<" + "UwU" + "OwO"; //+ ("1" + ("2" + "3")); 
 

@@ -185,7 +185,7 @@ namespace BongoJam {
             (
                 Token& fp_CurrentToken,
                 vector<Token>& fp_ProgramTokens,
-                TokenType fp_Decorator = TokenType::NO_TOKEN_VALUE
+                Token fp_Decorator = Token()
             )
         {
             Token f_EntryToken = fp_CurrentToken;
@@ -256,7 +256,7 @@ namespace BongoJam {
             (
                 Token& fp_CurrentToken, 
                 vector<Token>& fp_ProgramTokens,
-                TokenType fp_Decorator = TokenType::NO_TOKEN_VALUE
+                Token fp_Decorator = Token()
             )
         {
             Token f_NameToken = fp_CurrentToken; //used for tracking the user identifier used
@@ -765,8 +765,9 @@ namespace BongoJam {
                 {
                     case TokenType::StringLiteral:
                     {
-                        TokenType sv_ColourType = fp_CurrentToken.m_Type;
-                        fp_CurrentToken = ShiftForward(fp_ProgramTokens);
+                        Token sv_ColourType = fp_CurrentToken;
+
+                        fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift --> StringLiteral since we used Peek() for the switch OwO oWo
 
                         auto sv_StringExpr = ParseString(fp_CurrentToken, fp_ProgramTokens, sv_ColourType);
 
@@ -2253,28 +2254,10 @@ namespace BongoJam {
                     return nullptr;
                 }
 
-                f_PrintFunc->m_FuncArgs[0] = (move(f_PrintArg)); //index 0 for the first arg of print
+                f_PrintFunc->PrintArg = (move(f_PrintArg)); //index 0 for the first arg of print
             }
 
             fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift off the parsed token for FormattedString since each parse command should end on last parsed token uwu
-
-            //pase reg expr should leave fp_CurrenToken --> ',' so we should be gucci uwu
-            
-            //check for an optional colour parameter
-            if (fp_CurrentToken.m_Type == TokenType::Comma)
-            {
-                fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift forward to look for another string literal that indicates the colour
-                
-                if (fp_CurrentToken.m_Type != TokenType::StringLiteral) //THROW ERROR
-                {
-                    parser_logger->Error(format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
-                    parser_logger->Warning("Tried to pass a non-text data type when text was expected! Try taking a look at your print() call colour argument", "Parser");
-                    return nullptr;
-                }
-                
-                f_PrintFunc->m_FuncArgs[1] = make_unique<SingleValueExpr>(fp_CurrentToken); //colour arg, so the 1st index
-                fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift forward one token to check for a type arrow
-            }
 
             //we overstep a token if the above arguments for print are valid, so no need to shift again
 

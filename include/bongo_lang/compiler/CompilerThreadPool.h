@@ -143,8 +143,9 @@ namespace BongoJam {
                         }
                     );
 
-                    if (m_Stop and AreTasksEmpty())
+                    if (m_Stop)
                     {
+                        f_CompilerLogger->Debug("Worker exiting early due to stop flag", "Worker");
                         return;
                     }
 
@@ -162,16 +163,34 @@ namespace BongoJam {
                     if (result != BONGO_OK)
                     {
                         f_CompilerLogger->Error(format("Failed to compile : '{}', with compiler exit code : {} ", f_Task.FilePath, result), "Worker");
-                        BONGO_COMPILE_SUCCESS = false;
+
+                        {
+                            lock_guard<mutex> lock(m_QueueMutex);
+                            BONGO_COMPILE_SUCCESS = false;
+                            m_Stop = true;
+                            queue<CompilationTask>().swap(m_Tasks); // Clear task queue safely
+                        }                        
+
+                        m_Condition.notify_all(); // Wake all threads to exit
+
+                        return;
                     }
-                    else
-                    {
-                        f_CompilerLogger->Info(format("Worker successfully compiled: '{}'!", f_Task.FilePath), "Worker");
-                    }
+
+                    f_CompilerLogger->Info(format("Worker successfully compiled: '{}'!", f_Task.FilePath), "Worker");
                 }
                 catch (const exception& Exception) ///Try to ensure all destructors are called especially close() on LogManager
                 {
                     f_CompilerLogger->Error(format("Unhandled exception: {}, while compiling : '{}' " , Exception.what(), f_Task.FilePath), "Worker");
+
+                    {
+                        lock_guard<mutex> lock(m_QueueMutex);
+                        BONGO_COMPILE_SUCCESS = false;
+                        m_Stop = true;
+                        queue<CompilationTask>().swap(m_Tasks); // Clear queue and exit compilation for all threads workers rawr UwU
+                    }
+
+                    m_Condition.notify_all();
+                    return;
                 }
 
                 {
@@ -185,9 +204,9 @@ namespace BongoJam {
             }
         }
 
-        bool
+        inline bool
             AreTasksEmpty()
-            const
+            const noexcept
         {
             return m_Tasks.empty();
         }

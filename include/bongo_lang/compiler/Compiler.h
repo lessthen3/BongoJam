@@ -92,6 +92,91 @@ namespace BongoJam {
 
 namespace BongoJam {
 
+    [[nodiscard]] constexpr string
+        CreateColouredText
+        (
+            const string& fp_SampleText,
+            const string& fp_DesiredColour
+        )
+    {
+        string f_NormalizedColour = fp_DesiredColour;
+
+        //////////////////// Regular Colours ////////////////////
+
+        if (f_NormalizedColour == "bk")
+        {
+            return "\x1B[30m" + fp_SampleText + "\033[0m";
+        }
+        else if (f_NormalizedColour == "rd")
+        {
+            return "\x1B[31m" + fp_SampleText + "\033[0m";
+        }
+        else if (f_NormalizedColour == "gn")
+        {
+            return "\x1B[32m" + fp_SampleText + "\033[0m";
+        }
+        else if (f_NormalizedColour == "yw")
+        {
+            return "\x1B[33m" + fp_SampleText + "\033[0m";
+        }
+        else if (f_NormalizedColour == "be")
+        {
+            return "\x1B[34m" + fp_SampleText + "\033[0m";
+        }
+        else if (f_NormalizedColour == "ma")
+        {
+            return "\x1B[35m" + fp_SampleText + "\033[0m";
+        }
+        else if (f_NormalizedColour == "cn")
+        {
+            return "\x1B[36m" + fp_SampleText + "\033[0m";
+        }
+        else if (f_NormalizedColour == "we")
+        {
+            return "\x1B[37m" + fp_SampleText + "\033[0m";
+        }
+
+        //////////////////// Bright Colours ////////////////////
+
+        if (f_NormalizedColour == "bbk")
+        {
+            return "\x1B[90m" + fp_SampleText + "\033[0m";
+        }
+        else if (f_NormalizedColour == "brd")
+        {
+            return "\x1B[91m" + fp_SampleText + "\033[0m";
+        }
+        else if (f_NormalizedColour == "bgn")
+        {
+            return "\x1B[92m" + fp_SampleText + "\033[0m";
+        }
+        else if (f_NormalizedColour == "byw")
+        {
+            return "\x1B[93m" + fp_SampleText + "\033[0m";
+        }
+        else if (f_NormalizedColour == "bbe")
+        {
+            return "\x1B[94m" + fp_SampleText + "\033[0m";
+        }
+        else if (f_NormalizedColour == "bma")
+        {
+            return "\x1B[95m" + fp_SampleText + "\033[0m";
+        }
+        else if (f_NormalizedColour == "bcn")
+        {
+            return "\x1B[96m" + fp_SampleText + "\033[0m";
+        }
+        else if (f_NormalizedColour == "bwe")
+        {
+            return "\x1B[97m" + fp_SampleText + "\033[0m";
+        }
+        //////////////////// Just Return the Input Text Unaltered Otherwise ////////////////////
+        else
+        {
+            return fp_SampleText;
+        }
+    }
+
     struct BongoCompiler
     {
         ~BongoCompiler() = default;

@@ -362,22 +362,29 @@ bool
     //////////////////////////////////////////////////////////// Bytecode ////////////////////////////////////////////////////////////
 
     fp_CompilationUnit->CompiledByteCode.push_back(STDOUT); //print function opcode
-    string f_TextColour = "white";
 
-    SingleValueExpr* f_StringVal = dynamic_cast<SingleValueExpr*>((fp_PrintFunction->m_FuncArgs[1]).get());
-    f_TextColour = (f_StringVal->m_Value.m_Value);//only handling string literals for now
+    SingleValueExpr* f_StringVal = dynamic_cast<SingleValueExpr*>(fp_PrintFunction->PrintArg.get());
+
+    //WARNING: just assuming single val expr strings atm need to rework this w a switch to handle more complicated expressions using CompileRegularExpr()
+    fp_CompilationUnit->CompiledByteCode.push_back(STRING_VALUE); //print function opcode
+
+    string f_PrintString;
+
+    if (f_StringVal->Decorator.m_Type != TokenType::NO_TOKEN_VALUE)
+    {
+        f_PrintString = CreateColouredText(f_StringVal->m_Value.m_Value, f_StringVal->Decorator.m_Value);
+    }
+    else
+    {
+        f_PrintString = f_StringVal->m_Value.m_Value;
+    }
 
     //////////////////// Parse Arguments ////////////////////
 
-    fp_CompilationUnit->CompiledByteCode.push_back(STRING_VALUE); //print function opcode
     EncodeUTF8String
     (
         fp_CompilationUnit->CompiledByteCode,
-        CreateColouredText
-        (
-            (dynamic_cast<SingleValueExpr*>((fp_PrintFunction->m_FuncArgs[0]).get()))->m_Value.m_Value,
-            f_TextColour
-        )
+        f_PrintString
     );
 
     //////////////////////////////////////////////////////////// SSA ////////////////////////////////////////////////////////////
