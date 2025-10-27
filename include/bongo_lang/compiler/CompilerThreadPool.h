@@ -186,7 +186,7 @@ namespace BongoJam {
                         lock_guard<mutex> lock(m_QueueMutex);
                         BONGO_COMPILE_SUCCESS = false;
                         m_Stop = true;
-                        queue<CompilationTask>().swap(m_Tasks); // Clear queue and exit compilation for all threads workers rawr UwU
+                        queue<CompilationTask>().swap(m_Tasks); // Clear task queue safely and exit compilation for all threads workers rawr UwU
                     }
 
                     m_Condition.notify_all();

@@ -81,8 +81,7 @@ namespace BongoJam {
 
         //////////////////// Included Functions ////////////////////
 
-        StandardFunction,
-        PrintFunction,
+        StandardFunctionCallExpr,
 
         //////////////////// Conditional Child Statements ////////////////////
 
@@ -94,12 +93,23 @@ namespace BongoJam {
         None
     };
 
-    const unordered_map<TokenType, string> STANDARD_FUNCTIONS =
+    const vector<TokenType> STANDARD_FUNCTIONS =
     {
-        {TokenType::Print, "print(arg)"},
-        {TokenType::Floor, "floor(arg)"},
-        {TokenType::Ceiling, "ceil(arg)"}
-
+        TokenType::Print,
+        TokenType::Ceiling,
+        TokenType::Floor,
+        TokenType::Clock,
+        TokenType::SizeOf,
+        TokenType::SquareRoot,
+        TokenType::Sin,
+        TokenType::Sinh,
+        TokenType::Cos,
+        TokenType::Cosh,
+        TokenType::Tan,
+        TokenType::Tanh,
+        TokenType::ArcCos,
+        TokenType::ArcSin,
+        TokenType::ArcTan
     };
 
     //////////////////////////////////////////////
@@ -292,8 +302,8 @@ namespace BongoJam {
 
     struct FunctionCallExpr : public Expr  //idk how to get maybe after parsing we do a grammar check uwu everything could be spelt right but not make perfect sense
     {
-        FunctionCallExpr() { m_Domain = SyntaxNodeType::FunctionCallExpr; }
-
+        explicit FunctionCallExpr() { m_Domain = SyntaxNodeType::FunctionCallExpr; }
+        
         Token FuncName;
 
         vector<unique_ptr<Expr>> Arguments; //vector cause multiple arguments unknown size, expr because it could get crazy uwu
@@ -414,18 +424,6 @@ namespace BongoJam {
     struct DictionaryDeclaration : public StatementNode
     {
         DictionaryDeclaration() : StatementNode(SyntaxNodeType::DictionaryDeclaration) {}
-    };
-
-    //////////////////////////////////////////////
-    // Standard Function Types
-    //////////////////////////////////////////////
-    
-
-    struct PrintFunction : public Expr
-    {
-        PrintFunction() { m_Domain = SyntaxNodeType::PrintFunction; }
-
-        unique_ptr<Expr> PrintArg; //will only ever be two arguments for now, adding a f"" format feature cause i like that
     };
 
     //////////////////////////////////////////////

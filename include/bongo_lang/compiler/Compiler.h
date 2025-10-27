@@ -256,7 +256,7 @@ namespace BongoJam {
         bool
             CompilePrintFunction
             (
-                PrintFunction* fp_PrintFunction,
+                FunctionCallExpr* fp_PrintFunction,
                 CompilationUnit* fp_CompilationUnit
             );
 

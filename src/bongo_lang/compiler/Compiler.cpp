@@ -355,15 +355,21 @@ bool
 bool
     BongoCompiler::CompilePrintFunction
     (
-        PrintFunction* fp_PrintFunction,
+        FunctionCallExpr* fp_PrintFunction,
         CompilationUnit* fp_CompilationUnit
     )
 {
+    if (fp_PrintFunction->Arguments.size() != 1)
+    {
+        compiler_logger->Error(format("Error at Line Number: {}, invalid argument count found when compiling print() function call", fp_PrintFunction->FuncName.m_SourceCodeLineNumber), "Compiler");
+        return false;
+    }
+
     //////////////////////////////////////////////////////////// Bytecode ////////////////////////////////////////////////////////////
 
     fp_CompilationUnit->CompiledByteCode.push_back(STDOUT); //print function opcode
 
-    SingleValueExpr* f_StringVal = dynamic_cast<SingleValueExpr*>(fp_PrintFunction->PrintArg.get());
+    SingleValueExpr* f_StringVal = dynamic_cast<SingleValueExpr*>(fp_PrintFunction->Arguments[0].get());
 
     //WARNING: just assuming single val expr strings atm need to rework this w a switch to handle more complicated expressions using CompileRegularExpr()
     fp_CompilationUnit->CompiledByteCode.push_back(STRING_VALUE); //print function opcode
@@ -379,7 +385,7 @@ bool
         f_PrintString = f_StringVal->m_Value.m_Value;
     }
 
-    //////////////////// Parse Arguments ////////////////////
+    //////////////////// Encode String UwU ////////////////////
 
     EncodeUTF8String
     (
@@ -452,11 +458,22 @@ bool
 
         switch (f_CurrentProgramStatement->m_Domain)
         {
-        case SyntaxNodeType::PrintFunction:
+        case SyntaxNodeType::FunctionCallExpr:
         {
-            PrintFunction* sv_PrintFunction = dynamic_cast<PrintFunction*>(f_CurrentProgramStatement.get());
-            if (not CompilePrintFunction(sv_PrintFunction, fp_CompilationUnit))
+            FunctionCallExpr* sv_FunctionCallExpr = dynamic_cast<FunctionCallExpr*>(f_CurrentProgramStatement.get());
+
+            switch (sv_FunctionCallExpr->FuncName.m_Type)
             {
+            case TokenType::Print:
+            {
+                if (not CompilePrintFunction(sv_FunctionCallExpr, fp_CompilationUnit))
+                {
+
+                    return false;
+                }
+            }
+            break;
+            default:
 
                 return false;
             }
@@ -465,6 +482,7 @@ bool
         case SyntaxNodeType::VarDeclaration:
         {
             VarDeclaration* f_VarDeclaration = dynamic_cast<VarDeclaration*>(f_CurrentProgramStatement.get());
+
             if (not CompileVarDeclaration(f_VarDeclaration, fp_CompilationUnit))
             {
 

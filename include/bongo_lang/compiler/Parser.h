@@ -23,7 +23,14 @@ namespace BongoJam {
     public:
         Parser(shared_ptr<Logger> fp_CompilerLogger)
         {
-            parser_logger = fp_CompilerLogger;
+            if (fp_CompilerLogger)
+            {
+                parser_logger = fp_CompilerLogger;
+            }
+            else
+            {
+                PrintError("Tried to pass nullptr reference to Parser Instance >:^(");
+            }
         }
 
         ~Parser() = default;
@@ -832,11 +839,11 @@ namespace BongoJam {
                     continue;
                 case TokenType::Print:
                 {
-                    unique_ptr<PrintFunction> sv_PrintFuncCall = ParsePrintFunction(fp_CurrentToken, fp_ProgramTokens);
+                    unique_ptr<FunctionCallExpr> sv_PrintFuncCall = ParseFunctionCall(fp_CurrentToken, fp_ProgramTokens);
 
                     if (not sv_PrintFuncCall)
                     {
-                        parser_logger->Error(format("Parsing Error at line: {} invalid call to print() function", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                        parser_logger->Error(format("Error at Line: {} invalid call to print() function", f_EntryToken.m_SourceCodeLineNumber), "Parser");
                         return nullptr;
                     }
 
@@ -1492,7 +1499,7 @@ namespace BongoJam {
 
 //================================================================================================= Function Call =================================================================================================//
 
-        unique_ptr<FunctionCallExpr>
+        unique_ptr<FunctionCallExpr> //Used for functions, standard functions and class constructors
             ParseFunctionCall
             (
                 Token& fp_CurrentToken, 
@@ -1500,12 +1507,10 @@ namespace BongoJam {
             )
         {
             unique_ptr<FunctionCallExpr> f_FuncCallExpr = make_unique<FunctionCallExpr>();
-
-            fp_CurrentToken = ShiftForward(fp_ProgramTokens); //assuming we're being called from 
              
-            if (fp_CurrentToken.m_Type != TokenType::UserIdentifier) //THROW ERROR
+            if (fp_CurrentToken.m_Type != TokenType::UserIdentifier and find(STANDARD_FUNCTIONS.begin(), STANDARD_FUNCTIONS.end(), fp_CurrentToken.m_Type) == STANDARD_FUNCTIONS.end()) //THROW ERROR
             {
-               parser_logger->Error(format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
+                parser_logger->Error(format("Error at Line Number: {}, expected valid function name during function call but found: '{}' instead >w<", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
                 parser_logger->Warning("Something bad happened while declaring your function brother! Try taking a look at your function name definition", "Parser");
                 return nullptr;
             }
@@ -1515,27 +1520,48 @@ namespace BongoJam {
                 
             if (fp_CurrentToken.m_Type != TokenType::OpenParen) //THROW ERROR
             {
-                parser_logger->Error(format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
+                parser_logger->Error(format("Error at Line Number: {}, expected '(' during function call but found: '{}' instead >w<", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
                 parser_logger->Warning("Something bad happened while declaring your function brother! Try taking a look at how you've placed your parenthesis", "Parser");
                 return nullptr;
             }
 
             //FUNCTION ARGUMENTS
-            while (fp_ProgramTokens.size() > 0)
+            while (not fp_ProgramTokens.empty())
             {
-                fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift forward to look for an open paren
+                Token f_EntryToken = fp_CurrentToken;
 
-                switch (fp_CurrentToken.m_Type)
-                {
+                auto f_FuncArg = ParseRegularExpr(fp_CurrentToken, fp_ProgramTokens);
 
-                default: //THROW ERROR
+                if (not f_FuncArg)
                 {
-                    parser_logger->Error(format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
-                    parser_logger->Warning("Something bad happened while calling a class method! Make sure you're calling the proper method name", "Parser");
+                    parser_logger->Error(format("Error at Line Number: {}, unable to parse {} function, parsing failed at token: '{}'", f_EntryToken.m_SourceCodeLineNumber, f_FuncCallExpr->FuncName.m_Value, fp_CurrentToken.m_Value), "Parser");
                     return nullptr;
                 }
-                break;
+
+                f_FuncCallExpr->Arguments.push_back(move(f_FuncArg)); //uwu
+
+                if (Peek(fp_ProgramTokens).m_Type == TokenType::Comma)
+                {
+                    fp_CurrentToken = ShiftForward(fp_ProgramTokens);
+                    continue;
                 }
+                else if (Peek(fp_ProgramTokens).m_Type == TokenType::CloseParen)
+                {
+                    fp_CurrentToken = ShiftForward(fp_ProgramTokens);
+                    break;
+                }
+
+                if (fp_CurrentToken.m_Type == TokenType::ENDF)
+                {
+                    parser_logger->Error(format("Error at Line Number: {}, found END__OF__FILE when function argument was expected uwu", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
+                    return nullptr;
+                }
+            }
+
+            if (fp_CurrentToken.m_Type != TokenType::CloseParen)
+            {
+                parser_logger->Error(format("Error at Line Number: {}, expected ')' after function call expression but found: '{}' instead", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
+                return nullptr;
             }
 
             return move(f_FuncCallExpr);
@@ -2219,65 +2245,6 @@ namespace BongoJam {
             }
 
             return nullptr; // :(
-        }
-
-        //////////////////////////////////////////////
-        // Parse Standard Library Functions
-        //////////////////////////////////////////////
-
-        unique_ptr<PrintFunction>
-            ParsePrintFunction
-            (
-                Token& fp_CurrentToken, 
-                vector<Token>& fp_ProgramTokens
-            )
-        {
-            unique_ptr<PrintFunction> f_PrintFunc = make_unique<PrintFunction>();
-
-            fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift forward one token to check for '('   
-
-            if (fp_CurrentToken.m_Type != TokenType::OpenParen) //THROW ERROR
-            {
-                parser_logger->Error(format("Error at Line Number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
-                parser_logger->Warning("Unexpected symbol found when '(' was expected during a print() call!", "Parser");
-                return nullptr;
-            }
-            
-            {
-                Token f_EntryToken = fp_CurrentToken;
-
-                auto f_PrintArg = ParseRegularExpr(fp_CurrentToken, fp_ProgramTokens);
-
-                if (not f_PrintArg)
-                {
-                    parser_logger->Error(format("Error at Line Number: {}, unable to parse print function, parsing failed at token: '{}'", f_EntryToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
-                    return nullptr;
-                }
-
-                f_PrintFunc->PrintArg = (move(f_PrintArg)); //index 0 for the first arg of print
-            }
-
-            fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift off the parsed token for FormattedString since each parse command should end on last parsed token uwu
-
-            //we overstep a token if the above arguments for print are valid, so no need to shift again
-
-            if (fp_CurrentToken.m_Type != TokenType::CloseParen) //THROW ERROR //Unexpected symbol found when ')' was expected during a print() call!
-            {
-                parser_logger->Error(format("Error at Line Number: {}, expected ')' during a print() call! found: '{}' instead", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
-                return nullptr;
-            }
-
-            fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift forward one token to check for a string token
-
-            if (fp_CurrentToken.m_Type != TokenType::SemiDot) //THROW ERROR
-            {
-                parser_logger->Error(format("Error at Line Number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
-                parser_logger->Warning("Unexpected symbol found when ';' was expected after a call to print()", "Parser");
-                return nullptr;
-            }
-
-            //we let the main while loop ShiftForward() off of the ';'
-            return move(f_PrintFunc);
         }
 
         bool

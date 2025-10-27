@@ -18,7 +18,7 @@ namespace BongoJam {
     BongoJamInterpreter::BongoJamInterpreter()
     {
         runtime_logger = make_unique<Logger>();
-        runtime_logger->Initialize("./logs", "RuntimeLogger", DEFAULT_LOG_LEVEL_FILTER);
+        runtime_logger->Initialize(DEFAULT_LOG_OUTPUT_DIRECTORY, "RuntimeLogger", DEFAULT_LOG_LEVEL_FILTER);
 
         runtime_logger->Info("BongoJamInterpreter Logger intialized properly!", "BongoJamInterpreter");
     }
