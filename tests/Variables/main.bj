@@ -1,7 +1,9 @@
 
 func main() -> int
 {
-    print(@ma"UwU");
+    print(@bma"UwU\n");
+
+    var suyog_is_a_faggot->int = input(@ma"Hello UwU uwuwuwuwuwu: ");
     
     // const var f_UwU->string = ">O<" + "UwU" + "OwO"; //+ ("1" + ("2" + "3")); 
 

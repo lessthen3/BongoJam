@@ -31,39 +31,33 @@ namespace BongoJam {
         BUILD_EXECUTABLE = 1U << 5
     };
 
-    enum SymbolFlag : uint8_t
-    {
-        NO_FLAGS = 0,
-
-        IS_STATIC = 1 << 0,
-        IS_CONST = 1 << 1,
-        IS_SINGLE = 1 << 2,
-
-        IS_HEAP = 1 << 3,
-
-        PRIVATE_SYM = 1 << 4,
-        PROTECTED_SYM = 1 << 5,
-        PUBLIC_SYM = 1 << 6,
-
-        IS_RESOLVED = 1 << 7
+    enum SymbolKind : uint8_t
+    { 
+        INVALID_SYMBOL = 0, 
+        Variable = 1 << 0, 
+        Field = 1 << 1, 
+        Function = 1 << 2, 
+        Method = 1 << 3, 
+        Struct = 1 << 4,
+        Class = 1 << 5 
     };
-
-    enum class SymbolKind { INVALID, Variable, Field, Function, Method, Struct, Class };
 
     struct Symbol
     {
         string Name;
 
-        SymbolKind Kind = SymbolKind::INVALID; // FUNCTION, STRUCT, CLASS, GLOBAL_VAR
-        TokenType Type = TokenType::NO_TOKEN_VALUE; // optional, for future type-checking
+        TokenType Type = TokenType::NO_TOKEN_VALUE; // for type checking
 
+        uint8_t Flags = ModifierFlags::NONE;
+        uint8_t Kind = SymbolKind::INVALID_SYMBOL; // FUNCTION, STRUCT, CLASS, GLOBAL_VAR
+
+        size_t Slot = 0;
         size_t OffsetInBytecode = 0; // Offset based off the compilation unit the compilationunit base offset will be recorded by the linker for resolving symbols
 
-        uint8_t Flags = SymbolFlag::NO_FLAGS;
+        bool IsResolved = false;
 
         Symbol(const string& fp_Name, SymbolKind fp_Kind, TokenType fp_Type, const size_t fp_Offset, const uint8_t fp_SymFlags)
-            : Name(fp_Name), Kind(fp_Kind), Type(fp_Type), OffsetInBytecode(fp_Offset), Flags(fp_SymFlags) {
-        }
+            : Name(fp_Name), Kind(fp_Kind), Type(fp_Type), OffsetInBytecode(fp_Offset), Flags(fp_SymFlags) {}
 
         Symbol() = default;
     };
@@ -255,6 +249,14 @@ namespace BongoJam {
 
         bool
             CompilePrintFunction
+            (
+                FunctionCallExpr* fp_PrintFunction,
+                CompilationUnit* fp_CompilationUnit
+            );
+
+
+        bool
+            CompileInputFunction
             (
                 FunctionCallExpr* fp_PrintFunction,
                 CompilationUnit* fp_CompilationUnit

@@ -146,6 +146,7 @@ namespace BongoJam {
 
             switch (fp_CurrentToken.m_Type)
             {
+                case TokenType::StrictlyEquals:
                 case TokenType::As: //used for casting class instances, eg. myFunc( myClass as otherClass); (we call this func in parseFunc)
                 case TokenType::Or: //idk y logical comps would be used here but y not UWUWUWUWUWUWU ----- MAYBE LEAVE THIS OUT
                 case TokenType::And:
@@ -216,7 +217,7 @@ namespace BongoJam {
 
             switch (fp_CurrentToken.m_Type)
             {
-            case TokenType::As: //used for casting class instances, eg. myFunc( myClass as otherClass); (we call this func in parseFunc)
+            case TokenType::StrictlyEquals:
             case TokenType::AdditionOperator:
             {
                 Token f_OperatorToken = fp_CurrentToken;
@@ -278,7 +279,7 @@ namespace BongoJam {
             case TokenType::Comma:
             case TokenType::CloseBracket:
             case TokenType::CloseSquareBracket:
-                return make_unique<IdentifierExpr>(f_NameToken); //entry token is the value, situation is . . . "string"; we're pointing at ';' rn so take the stashed entry token as val
+                return make_unique<IdentifierExpr>(f_NameToken); //entry token is the value, situation is . . .["string"]; we're peeking at ']' rn so take the stashed entry token as val
             }
 
             fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift forward one token to check for any accessor symbols
@@ -311,8 +312,9 @@ namespace BongoJam {
                 //so solution, we can just call ParseUserIdentifier again and it will either return while staying on the ']' aka last parsed token of the expr as expected
                 //if the next token is part of the base case so essentially it will leave the list access expression as is and return through the recursion
                 //otherwise it will parse and find the binary or unary operators or hit EOF and return an error uwu
+                //oh and this should also handle a chained call like myList[0].myVar = 2;
 
-                auto sv_PossibleExprExtension = ParseUserIdentifier(f_NameToken, fp_ProgramTokens);
+                auto sv_PossibleExprExtension = ParseUserIdentifier(f_NameToken, fp_ProgramTokens); //this only needs to be called once since it will recursively descend down the chain
 
                 switch (sv_PossibleExprExtension->m_Domain) //time to find the return type and adjust the expression since we ran a binary op per se assuming the name of the list now we gotta replace first
                 {
@@ -346,12 +348,14 @@ namespace BongoJam {
                 case SyntaxNodeType::ContainerIndexedAccessExpr:
                 case SyntaxNodeType::IdentifierExpr:
                 {
-                    sv_IndexedContainerExpr->ChainedExpr = move(sv_PossibleExprExtension);
+                    sv_IndexedContainerExpr->ChainedExpr = move(sv_PossibleExprExtension); //simply just return the identifier expr since the recursive call above will always parse x.y.z.func().uwu[0] ...
                     return move(sv_IndexedContainerExpr);
                 }
                 break;
                 default:
+#ifdef BONGO_DEBUG
                     PrintError(to_string(static_cast<int>(sv_PossibleExprExtension->m_Domain)) + " SYNTAX NODE TYPE");
+#endif
                     parser_logger->Error(format("Error at Line Number: {}, Found : '{}', when regular expression was expected while parsing a contained index access expression", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser::ParseUserIdentifier()");
                     return nullptr;
                 }
@@ -387,7 +391,6 @@ namespace BongoJam {
             case TokenType::BitXorEquals:
             case TokenType::BitOrEquals:
             case TokenType::BitAndEquals:
-            case TokenType::StrictlyEquals:
             case TokenType::Equals:
             case TokenType::ModuloEqualsOperator:
             case TokenType::PlusEqualsOperator:
@@ -500,6 +503,7 @@ namespace BongoJam {
                 return move(sv_FuncCallExpr); //Current token should be ',' (nested function call or field access), ';'--single statement "MyFunc();" or '}' if inside a in-place struct construction
             }
             break;
+            case TokenType::StrictlyEquals:
             case TokenType::As: //used for casting class instances, eg. myFunc( myClass as otherClass); (we call this func in parseFunc)
             case TokenType::Or: //idk y logical comps would be used here but y not UWUWUWUWUWUWU ----- MAYBE LEAVE THIS OUT
             case TokenType::And:
@@ -795,6 +799,20 @@ namespace BongoJam {
                         parser_logger->Error(format("found : '{}', when user identifier or string literal was expected after colourize expression at line number: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
                         return nullptr;
                 }
+            }
+            break;
+            case TokenType::Input:
+            case TokenType::Clock:
+            {
+                auto sv_StandardFunctionCall = ParseFunctionCall(fp_CurrentToken, fp_ProgramTokens);
+
+                if (not sv_StandardFunctionCall)
+                {
+
+                    return nullptr;
+                }
+
+                return move(sv_StandardFunctionCall);
             }
             break;
             default:
@@ -1523,6 +1541,12 @@ namespace BongoJam {
                 parser_logger->Error(format("Error at Line Number: {}, expected '(' during function call but found: '{}' instead >w<", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
                 parser_logger->Warning("Something bad happened while declaring your function brother! Try taking a look at how you've placed your parenthesis", "Parser");
                 return nullptr;
+            }
+
+            if (Peek(fp_ProgramTokens).m_Type == TokenType::CloseParen) //THROW ERROR
+            {
+                fp_CurrentToken = ShiftForward(fp_ProgramTokens); //shift onto token
+                return move(f_FuncCallExpr);
             }
 
             //FUNCTION ARGUMENTS

@@ -408,7 +408,7 @@ namespace BongoJam {
 
                 if (addr >= MAX_STACK_SIZE)
                 {
-                    throw runtime_error("Stack overflow trying to write to local");
+                    throw runtime_error("STACK OVERFLOW: too much memory was used during program runtime");
                 }
 
                 m_StackStart[addr] = val;
@@ -420,7 +420,7 @@ namespace BongoJam {
                 size_t addr = CallStack.back().StackBase + slot;
                 if (addr >= MAX_STACK_SIZE) 
                 {
-                    throw runtime_error("Stack overflow trying to write to local");
+                    throw runtime_error("MEMORY VIOLATION ERROR: tried to access variable located outside of stack memory");
                 }
 
                 Push(m_StackStart[addr]);
@@ -679,7 +679,9 @@ namespace BongoJam {
             break;
             case STDIN:
             {
-
+                string sv_InputString;
+                cin >> sv_InputString;
+                Push(Value{ ValueType::STRING, new string(sv_InputString)});
             }
             break;
             case STDERR:

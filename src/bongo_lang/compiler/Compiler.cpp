@@ -234,6 +234,8 @@ bool
     {
     case SyntaxNodeType::SingleValueExpr: //each operator 
     {
+        fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::PUSH); //push new valus
+
         SingleValueExpr* sv_SingleValueExpr = dynamic_cast<SingleValueExpr*>(fp_Expression);
 
         switch (sv_SingleValueExpr->m_Value.m_Type)
@@ -272,7 +274,23 @@ bool
     break;
     case SyntaxNodeType::FunctionCallExpr:
     {
+        FunctionCallExpr* sv_FunctionCallExpr = dynamic_cast<FunctionCallExpr*>(fp_Expression);
 
+        switch (sv_FunctionCallExpr->FuncName.m_Type)
+        {
+        case TokenType::Input:
+        {
+            if (not CompileInputFunction(sv_FunctionCallExpr, fp_CompilationUnit))
+            {
+
+                return false;
+            }
+        }
+        break;
+        default:
+
+            return false;
+        }
     }
     break;
     case SyntaxNodeType::IdentifierExpr:
@@ -399,6 +417,53 @@ bool
 }
 
 bool
+    BongoCompiler::CompileInputFunction
+    (
+        FunctionCallExpr* fp_InputFunction,
+        CompilationUnit* fp_CompilationUnit
+    )
+{
+    if (fp_InputFunction->Arguments.size() == 1)
+    {
+        fp_CompilationUnit->CompiledByteCode.push_back(STDOUT); //print function opcode
+
+        SingleValueExpr* f_StringVal = dynamic_cast<SingleValueExpr*>(fp_InputFunction->Arguments[0].get());
+
+        //WARNING: just assuming single val expr strings atm need to rework this w a switch to handle more complicated expressions using CompileRegularExpr()
+        fp_CompilationUnit->CompiledByteCode.push_back(STRING_VALUE); //print function opcode
+
+        string f_PrintString;
+
+        if (f_StringVal->Decorator.m_Type != TokenType::NO_TOKEN_VALUE)
+        {
+            f_PrintString = CreateColouredText(f_StringVal->m_Value.m_Value, f_StringVal->Decorator.m_Value);
+        }
+        else
+        {
+            f_PrintString = f_StringVal->m_Value.m_Value;
+        }
+
+        //////////////////// Encode String UwU ////////////////////
+
+        EncodeUTF8String
+        (
+            fp_CompilationUnit->CompiledByteCode,
+            f_PrintString
+        );
+
+    }
+    else if (fp_InputFunction->Arguments.size() != 0)
+    {
+        compiler_logger->Error(format("Error at Line Number: {}, invalid number of arguments, found: {} arguments when 1 or 0 was expected when compiling input() function call", fp_InputFunction->FuncName.m_SourceCodeLineNumber, fp_InputFunction->Arguments.size()), "Compiler");
+        return false;
+    }
+
+    fp_CompilationUnit->CompiledByteCode.push_back(STDIN); //print function opcode
+
+    return true;
+}
+
+bool
     BongoCompiler::CompileIfStatement
     (
         IfDeclaration* fp_VarDeclaration,
@@ -473,6 +538,15 @@ bool
                 }
             }
             break;
+            case TokenType::Input:
+            {
+                if (not CompileInputFunction(sv_FunctionCallExpr, fp_CompilationUnit))
+                {
+
+                    return false;
+                }
+            }
+            break;
             default:
 
                 return false;
@@ -524,6 +598,17 @@ bool
 
     fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::LEAVE); //pop stack frame
 
+    Symbol f_FuncSymbol;
+
+    f_FuncSymbol.Name = fp_NameSpace  + "::" + fp_FuncDeclaration->m_FuncName.m_Value; //resolves as namespace::classname::method
+    f_FuncSymbol.Kind = SymbolKind::Function;
+    f_FuncSymbol.Type = TokenType::UserIdentifier;
+    f_FuncSymbol.OffsetInBytecode = fp_CompilationUnit->CompiledByteCode.size();
+    f_FuncSymbol.Flags = fp_FuncDeclaration->Modifiers;
+
+    //put symbol and offset before so the offset represents the first byte of the translated constructor declaration
+    fp_CompilationUnit->SymbolTable.insert({ f_FuncSymbol.Name, f_FuncSymbol });
+
     return true;
 }
 
@@ -547,49 +632,6 @@ bool
 {
     size_t f_EntryOffset = GetCurrentByteOffset(fp_CompilationUnit);
 
-    //fp_CompilationUnit->SymbolTable.insert({ fp_Expression->VariableName-> });
-
-    switch (fp_Expression->Operator)
-    {
-    case TokenType::PlusEqualsOperator: 
-    {
-
-    }
-    break;
-    case TokenType::MinusEqualsOperator: 
-    {
-
-    }
-    break;
-    case TokenType::DivEqualsOperator: 
-    {
-
-    }
-    break;
-    case TokenType::MultEqualsOperator: 
-    {
-
-    }
-    break;
-    case TokenType::ModuloEqualsOperator:
-    {
-
-    }
-    break;
-    case TokenType::BitAndEquals:
-    {
-
-    }
-    break;
-    case TokenType::BitOrEquals: //user defined type 
-    {
-
-    }
-    break;
-    default: //THROW ERROR: 
-
-        return false;
-    }
     //WARNING THIS WONT WORK ATM 
     string f_VarName;
 
@@ -597,9 +639,44 @@ bool
     {
     case SyntaxNodeType::SingleValueExpr:
     {
-        auto sv_RecastedSingleValExpr = dynamic_cast<SingleValueExpr*>(fp_Expression->VariableName.get()); 
+        auto sv_VariableName = dynamic_cast<SingleValueExpr*>(fp_Expression->VariableName.get());
+
+        f_VarName = sv_VariableName->m_Value.m_Value;
+    }
+    break;
+    case SyntaxNodeType::IdentifierExpr:
+    {
+        auto sv_IdentifierExpr = dynamic_cast<IdentifierExpr*>(fp_Expression); 
 
         f_VarName = sv_RecastedSingleValExpr->m_Value.m_Value;
+
+        if(sv_IdentifierExpr->ChainedExpr != nullptr)
+        {
+            while (1)
+            {
+                switch (sv_IdentifierExpr->ChainedExpr->m_Domain)
+                {
+                case SyntaxNodeType::SingleValueExpr:
+                {
+
+                }
+                break;
+                case SyntaxNodeType::ContainerIndexedAccessExpr:
+                {
+
+                }
+                break;
+                case SyntaxNodeType::IdentifierExpr:
+                {
+
+                }
+                break;
+                default:
+                    return false;
+                    break;
+                }
+            }
+        }
     }
     break;
     case SyntaxNodeType::ContainerIndexedAccessExpr:
@@ -636,28 +713,42 @@ bool
         return false;
     }
 
+    //////////////////////////////////////////////////////////// check for equals since we don't need to load the val if its just a reg reassignment uwu ////////////////////////////////////////////////////////////
 
-    if (f_Symbol.Flags & SymbolFlag::IS_HEAP)
+    if(fp_Expression->Operator == TokenType::Equals) //do nothing since store will be called anyways
     {
-        fp_CompilationUnit->CompiledByteCode.push_back(STORE_GLOBAL);
+        if (not CompileRegularExpr(fp_VarDeclaration->DefaultValue.get(), fp_CompilationUnit))
+        {
+            compiler_logger->Error(format("Error at Line Number: {}, unable to compile default value of variable named: {}", fp_VarDeclaration->Name.m_SourceCodeLineNumber, fp_VarDeclaration->Name.m_Value), "Compiler");
+            return false;
+        }
+        
+        if (f_Symbol.Kind & (SymbolKind::Class | SymbolKind::Struct))
+        {
+            fp_CompilationUnit->CompiledByteCode.push_back(STORE_GLOBAL);
+            //needa find address
+        }
+        else
+        {
+            fp_CompilationUnit->CompiledByteCode.push_back(STORE_LOCAL);
+            Encode32BitInt(fp_CompilationUnit->CompiledByteCode, f_Symbol.Slot); //find slot in stack
+        }
+
+        return true;
+    }
+
+    //////////////////////////////////////////////////////////// Load Current Variable ////////////////////////////////////////////////////////////
+
+    if (f_Symbol.Kind & (SymbolKind::Class | SymbolKind::Struct))
+    {
+        fp_CompilationUnit->CompiledByteCode.push_back(LOAD_GLOBAL); //print function opcode
     }
     else
     {
-        fp_CompilationUnit->CompiledByteCode.push_back(STORE_LOCAL);
+        fp_CompilationUnit->CompiledByteCode.push_back(LOAD_LOCAL); //print function opcode
     }
 
-    return true;
-}
-
-bool
-    BongoCompiler::CompileVarDeclaration
-    (
-        VarDeclaration* fp_VarDeclaration,
-        CompilationUnit* fp_CompilationUnit,
-        const string& fp_NameSpace
-    )
-{
-    fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::PUSH); //push new valus
+    //////////////////////////////////////////////////////////// Figure out what the new value is supposed to be ////////////////////////////////////////////////////////////
 
     if (not CompileRegularExpr(fp_VarDeclaration->DefaultValue.get(), fp_CompilationUnit))
     {
@@ -665,7 +756,104 @@ bool
         return false;
     }
 
+    //////////////////////////////////////////////////////////// Figure out which operator is being used ////////////////////////////////////////////////////////////
+
+    switch (fp_Expression->Operator)
+    {
+    case TokenType::PlusEqualsOperator:
+    {
+        fp_CompilationUnit->CompiledByteCode.push_back(ADD); //print function opcode
+    }
+    break;
+    case TokenType::MinusEqualsOperator:
+    {
+        fp_CompilationUnit->CompiledByteCode.push_back(SUB); //print function opcode
+    }
+    break;
+    case TokenType::DivEqualsOperator:
+    {
+        fp_CompilationUnit->CompiledByteCode.push_back(DIV); 
+    }
+    break;
+    case TokenType::MultEqualsOperator:
+    {
+        fp_CompilationUnit->CompiledByteCode.push_back(MULT);
+    }
+    break;
+    case TokenType::ModuloEqualsOperator:
+    {
+        fp_CompilationUnit->CompiledByteCode.push_back(MOD);
+    }
+    break;
+    case TokenType::BitAndEquals:
+    {
+        fp_CompilationUnit->CompiledByteCode.push_back(AND);
+    }
+    break;
+    case TokenType::BitOrEquals: //user defined type 
+    {
+        fp_CompilationUnit->CompiledByteCode.push_back(OR);
+    }
+    break;
+    case TokenType::BitXorEquals:
+    {
+        fp_CompilationUnit->CompiledByteCode.push_back(XOR);
+    }
+    break;
+    default: //THROW ERROR: 
+        compiler_logger->Error(format("Error at Line Number: {}, unable to compile default value of variable named: {}", fp_VarDeclaration->Name.m_SourceCodeLineNumber, fp_VarDeclaration->Name.m_Value), "Compiler");
+        return false;
+    }
+
+    //////////////////////////////////////////////////////////// Store the result ////////////////////////////////////////////////////////////
+
+    if (f_Symbol.Kind & (SymbolKind::Class | SymbolKind::Struct))
+    {
+        fp_CompilationUnit->CompiledByteCode.push_back(STORE_GLOBAL);
+        //needa find address
+    }
+    else
+    {
+        fp_CompilationUnit->CompiledByteCode.push_back(STORE_LOCAL);
+        Encode32BitInt(fp_CompilationUnit->CompiledByteCode, f_Symbol.Slot); //find slot in stack
+    }
+
+
+    return true;
+}
+
+bool
+    BongoCompiler::CompileVarDeclaration //used for global scope defined vars atm but wanna rework into class scoped vars probs just pass the class namespace thru
+    (
+        VarDeclaration* fp_VarDeclaration,
+        CompilationUnit* fp_CompilationUnit,
+        const string& fp_NameSpace
+    )
+{
+    if (not CompileRegularExpr(fp_VarDeclaration->DefaultValue.get(), fp_CompilationUnit))
+    {
+        compiler_logger->Error(format("Error at Line Number: {}, unable to compile default value of variable named: {}", fp_VarDeclaration->Name.m_SourceCodeLineNumber, fp_VarDeclaration->Name.m_Value), "Compiler");
+        return false;
+    }
+
     fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::STORE_LOCAL); //push new valus
+
+    Encode32BitInt(fp_CompilationUnit->CompiledByteCode, pm_NextAvailableStackSlot);
+
+    Symbol f_Symbol; 
+
+    f_Symbol.Name = fp_NameSpace + "::" + fp_VarDeclaration->Name.m_Value;
+    f_Symbol.OffsetInBytecode = GetCurrentByteOffset(fp_CompilationUnit);
+
+    f_Symbol.Type = TokenType::UserIdentifier;
+    f_Symbol.Kind = SymbolKind::Variable;
+    f_Symbol.Flags = fp_VarDeclaration->Modifiers;
+
+    f_Symbol.Slot = pm_NextAvailableStackSlot;
+
+    pm_NextAvailableStackSlot++;
+
+    fp_CompilationUnit->SymbolTable.insert({ fp_VarDeclaration->Name.m_Value, f_Symbol });
 
     return true;
 }
@@ -689,22 +877,11 @@ bool
         const string& fp_NameSpace
     )
 {
+    const string f_ClassNamespace = fp_NameSpace + "::" + fp_ClassDec->ClassName.m_Value;
+
     for (auto& lv_Constructor : fp_ClassDec->Constructors) //compile constructors
     {
-        //put symbol and offset before so the offset represents the first byte of the translated constructor declaration
-        //fp_CompilationUnit->SymbolTable.emplace
-        //(
-        //    fp_NameSpace + "::" + fp_ClassDec->ClassName.m_Value + "::" + lv_Constructor->m_FuncName.m_Value, //resolves as classname::method
-        //    Symbol
-        //    (
-        //        lv_Constructor->m_FuncName.m_Value,
-        //        SymbolKind::Method,
-        //        fp_ClassDec->SymbolTable.at(lv_Constructor->m_FuncName.m_Value).m_Type,
-        //        fp_CompilationUnit->CompiledByteCode.size()
-        //    )
-        //); //idk if the bytecode part is kosher
-
-        if (not CompileDeclaredFunction(lv_Constructor.get(), fp_CompilationUnit))
+        if (not CompileDeclaredFunction(lv_Constructor.get(), fp_CompilationUnit, f_ClassNamespace))
         {
 
             return false;
@@ -713,19 +890,7 @@ bool
 
     for (auto& lv_Method : fp_ClassDec->Methods) //compile methods
     {
-        //fp_CompilationUnit->SymbolTable.emplace
-        //(
-        //    fp_NameSpace + "::" + fp_ClassDec->ClassName.m_Value + "::" + lv_Method->m_FuncName.m_Value, //resolves as classname::method
-        //    Symbol
-        //    (
-        //        lv_Method->m_FuncName.m_Value,
-        //        SymbolKind::Method,
-        //        fp_ClassDec->SymbolTable.at(lv_Method->m_FuncName.m_Value).m_Type,
-        //        fp_CompilationUnit->CompiledByteCode.size()
-        //    )
-        //); //idk if the bytecode part is kosher
-
-        if (not CompileDeclaredFunction(lv_Method.get(), fp_CompilationUnit))
+        if (not CompileDeclaredFunction(lv_Method.get(), fp_CompilationUnit, f_ClassNamespace))
         {
 
             return false;
@@ -734,23 +899,31 @@ bool
 
     for (auto& lv_Field : fp_ClassDec->Fields)
     {
-        //fp_CompilationUnit->SymbolTable.emplace
-        //(
-        //    fp_NameSpace + "::" + fp_ClassDec->ClassName.m_Value + "::" + lv_Field->Name.m_Value, //resolves as namespace::classname::method
-        //    Symbol
-        //    (
-        //        lv_Field->Name.m_Value,
-        //        SymbolKind::Field,
-        //        fp_ClassDec->SymbolTable.at(lv_Field->Name.m_Value).m_Type,
-        //        fp_CompilationUnit->CompiledByteCode.size()
-        //    )
-        //); //idk if the bytecode part is kosher        
-        if (not CompileFieldDeclaration(lv_Field.get(), fp_CompilationUnit))
+        //if (not CompileFieldDeclaration(lv_Field.get(), fp_CompilationUnit, f_ClassNamespace))
+        //{
+
+        //    return false;
+        //}
+    }
+
+    for (auto& lv_NestedClassDec : fp_ClassDec->NestedClassDecs)
+    {
+        if (not CompileDeclaredClass(lv_NestedClassDec.get(), fp_CompilationUnit, f_ClassNamespace))
         {
 
             return false;
         }
     }
+    
+    Symbol f_Symbol; //symbol for a globally defined var within the namespace
+
+    f_Symbol.Name = f_ClassNamespace;
+    f_Symbol.OffsetInBytecode = GetCurrentByteOffset(fp_CompilationUnit);
+    f_Symbol.Type = TokenType::UserIdentifier;
+    f_Symbol.Kind = SymbolKind::Class;
+    //f_Symbol.Flags = SymbolFlag::
+
+    fp_CompilationUnit->SymbolTable.insert({ fp_ClassDec->ClassName.m_Value, f_Symbol });
 
     return true;
 }
@@ -860,16 +1033,6 @@ int
                 compiler_logger->Error(format("Invalid statement unknown to compiler found inside the declaration of class: '{}' ", sv_ClassDec->ClassName.m_Value), "BongoCompiler");
                 return EXIT_FAILURE;
             }
-
-            Symbol f_Symbol; //symbol for a globally defined var within the namespace
-
-            f_Symbol.Name = f_CurrentNamespace + sv_ClassDec->ClassName.m_Value;
-            f_Symbol.OffsetInBytecode = GetCurrentByteOffset(fp_CompilationUnit);
-            f_Symbol.Type = TokenType::UserIdentifier;
-            f_Symbol.Kind = SymbolKind::Class;
-            //f_Symbol.Flags = SymbolFlag::
-
-            fp_CompilationUnit->SymbolTable.insert({ sv_ClassDec->ClassName.m_Value, f_Symbol });
         }
         break;
         case SyntaxNodeType::StructDeclaration:
@@ -899,16 +1062,6 @@ int
                 compiler_logger->Error(format("Invalid statement unknown to compiler found during the declaration of variable: '{}' ", sv_VarDec->Name.m_Value), "BongoCompiler");
                 return EXIT_FAILURE;
             }
-
-            Symbol f_Symbol; //symbol for a globally defined var within the namespace
-
-            f_Symbol.Name = f_CurrentNamespace + sv_VarDec->Name.m_Value;
-            f_Symbol.OffsetInBytecode = GetCurrentByteOffset(fp_CompilationUnit);
-            f_Symbol.Type = sv_VarDec->Type.m_Type;
-            f_Symbol.Kind = SymbolKind::Variable;
-            //f_Symbol.Flags = SymbolFlag::
-
-            fp_CompilationUnit->SymbolTable.insert({ sv_VarDec->Name.m_Value, f_Symbol });
         }
         break;
         case SyntaxNodeType::IncludeStatement:

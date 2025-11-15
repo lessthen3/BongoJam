@@ -96,6 +96,7 @@ namespace BongoJam {
     const vector<TokenType> STANDARD_FUNCTIONS =
     {
         TokenType::Print,
+        TokenType::Input,
         TokenType::Ceiling,
         TokenType::Floor,
         TokenType::Clock,
@@ -182,7 +183,6 @@ namespace BongoJam {
         unique_ptr<Expr> First, Second;
     };
 
-
     struct UnaryOperatorExpr : public Expr
     {
         UnaryOperatorExpr() { m_Domain = SyntaxNodeType::UnaryOperatorExpr; }
@@ -256,7 +256,8 @@ namespace BongoJam {
         PROTECTED = 1 << 1,
         PUBLIC = 1 << 2,
         STATIC = 1 << 3,
-        CONSTANT = 1 << 4
+        CONSTANT = 1 << 4,
+        SINGLE = 1 << 5
     };
 
     //=========================================================================================== Variable assignment and re-assignment ===========================================================================================//
