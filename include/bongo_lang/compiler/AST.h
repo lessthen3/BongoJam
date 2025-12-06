@@ -93,24 +93,45 @@ namespace BongoJam {
         None
     };
 
-    const vector<TokenType> STANDARD_FUNCTIONS =
+    const map<string, TokenType> STANDARD_FUNCTIONS =
     {
-        TokenType::Print,
-        TokenType::Input,
-        TokenType::Ceiling,
-        TokenType::Floor,
-        TokenType::Clock,
-        TokenType::SizeOf,
-        TokenType::SquareRoot,
-        TokenType::Sin,
-        TokenType::Sinh,
-        TokenType::Cos,
-        TokenType::Cosh,
-        TokenType::Tan,
-        TokenType::Tanh,
-        TokenType::ArcCos,
-        TokenType::ArcSin,
-        TokenType::ArcTan
+        //////////////////// Included Functions ////////////////////
+
+        { "print", TokenType::Print},
+        { "input", TokenType::Input},
+        { "clock", TokenType::Clock},
+        { "size_of", TokenType::SizeOf},
+        { "type_of", TokenType::TypeOf},
+
+        { "to_string", TokenType::ToString},
+        
+        //////////////////// Math ////////////////////
+
+        {"round_down", TokenType::Floor},
+        {"round_up", TokenType::Ceiling},
+
+        { "sqrt", TokenType::SquareRoot},
+        { "pow", TokenType::Power},
+
+        { "sin", TokenType::Sin},
+        { "sinh", TokenType::Sinh},
+        { "cos", TokenType::Cos},
+        { "cosh", TokenType::Cosh},
+        { "tan", TokenType::Tan},
+        { "tanh", TokenType::Tanh},
+        { "arccos", TokenType::ArcCos},
+        { "arcsin", TokenType::ArcSin},
+        { "arctan", TokenType::ArcTan},
+
+        { "exp", TokenType::Exp},
+        { "log", TokenType::NaturalLog},
+        { "factorial", TokenType::Factorial},
+
+        //////////////////// Error Handling ////////////////////
+        
+        {"panic", TokenType::Panic}, //stops program execution and prints a message
+        {"static_assert", TokenType::StaticAssert}, //compile time assert, gest thrown out after compilation
+        {"assert", TokenType::Assert}, //runtime assert, bundled into bytecode
     };
 
     //////////////////////////////////////////////
@@ -143,13 +164,14 @@ namespace BongoJam {
     {
         ParenExpr() { m_Domain = SyntaxNodeType::ParenExpr; }
         unique_ptr<Expr> Inside; //inside evals to a tree or singlevalexpr
+        Token Decorator; //used primarily for @bgn or for a prefix op like negative or not
     };
 
     struct SingleValueExpr : public Expr
     {
         Token m_Value;
 
-        Token Decorator; //used primarily for @bgn or w/e
+        Token Decorator; //used primarily for @bgn or for a prefix op like negative or not
 
         explicit SingleValueExpr(Token fp_ValueToken, Token fp_Decorator = Token()) 
         {
@@ -254,10 +276,10 @@ namespace BongoJam {
         NONE = 0,
         PRIVATE = 1 << 0,
         PROTECTED = 1 << 1,
-        PUBLIC = 1 << 2,
+        PUBLIC = 1 << 2, //pretty sure i can just remove this since public is implied and any change in visibility is explicit
         STATIC = 1 << 3,
         CONSTANT = 1 << 4,
-        SINGLE = 1 << 5
+        SINGLE = 1 << 5 //singleton class or struct, semantically it means no new object can be created so just deletes it and only creates one at program start, cannot be used as a field
     };
 
     //=========================================================================================== Variable assignment and re-assignment ===========================================================================================//
@@ -269,7 +291,7 @@ namespace BongoJam {
         Token Name;
         Token Type;
 
-        //DANGER: this value always needs to be null checked since var declaration is used for vars that have a default value or not uwu
+        //DANGER: this value always needs to be null checked since var declaration is used for vars that have a user defined default value, if not a default value will ALWAYS be assigned to any primitive type since it takes memory might as well store a val idrc ab the clock cycles
         unique_ptr<Expr> DefaultValue = nullptr; //could be an expression like when i default a unique ptr using  ptr = make_unique<>() in a class field declaration
 
         uint8_t Modifiers = NONE; //static or const or access level uwu
@@ -279,7 +301,7 @@ namespace BongoJam {
     {
         VariableReassignmentExpr() { m_Domain = SyntaxNodeType::VariableReassignmentExpr; }
         unique_ptr<Expr> VariableName; //IMPORTANT: this is an expr for chained var calls and index access eg. 'myClass.field or myList[69]'
-        TokenType Operator = TokenType::NO_TOKEN_VALUE;
+        Token Operator;
         unique_ptr<Expr> NewValue = nullptr;
     };
 
@@ -297,8 +319,10 @@ namespace BongoJam {
         ContainerIndexedAccessExpr() { m_Domain = SyntaxNodeType::ContainerIndexedAccessExpr; }
         Token ContainerName;
 
-        unique_ptr<Expr> DesiredIndex = nullptr;
+        unique_ptr<Expr> DesiredIndex = nullptr; //can be a var expr or a numeric expr or a combination as a mathematical expr
         unique_ptr<Expr> ChainedExpr = nullptr;
+
+        Token Decorator; //used primarily for @bgn or w/e
     };
 
     struct FunctionCallExpr : public Expr  //idk how to get maybe after parsing we do a grammar check uwu everything could be spelt right but not make perfect sense
@@ -311,6 +335,8 @@ namespace BongoJam {
 
         //WARNING: ChainedIdentifier can be null so null checks are MANDATORY
         unique_ptr<Expr> ChainedIdentifier = nullptr; //in a call chain this is ...MyFunc().MyClass.................
+
+        Token Decorator; //used primarily for @bgn or w/e
     };
 
     struct IdentifierExpr : public Expr
@@ -447,13 +473,4 @@ namespace BongoJam {
         //first function should be the very first function, defined in the very top level of the import tree
         vector<unique_ptr<StatementNode>> ParsedScript; //contains all defined functions inside the script
     };
-
-    template<typename T>
-    unique_ptr<T> unique_dynamic_cast(unique_ptr<StatementNode>&& base)
-    {
-        T* derived = dynamic_cast<T*>(base.release());
-        return unique_ptr<T>(derived);
-    }
-
-    //auto f_FuncDec = unique_dynamic_cast<FuncDeclaration>(move(f_CurrentProgramStatement));
 }

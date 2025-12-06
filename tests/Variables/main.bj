@@ -3,7 +3,7 @@ func main() -> int
 {
     print(@bma"UwU\n");
 
-    var suyog_is_a_faggot->int = input(@ma"Hello UwU uwuwuwuwuwu: ");
+    var neilsen_would_love_suyogs_neighbourhood->int = input(@ma"Hello UwU uwuwuwuwuwu: ");
     
     // const var f_UwU->string = ">O<" + "UwU" + "OwO"; //+ ("1" + ("2" + "3")); 
 

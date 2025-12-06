@@ -218,6 +218,7 @@ namespace BongoJam {
 
         //////////////////// Included Functions ////////////////////
 
+        ToString,
         SizeOf,
         Print,
         Input,
@@ -342,12 +343,6 @@ namespace BongoJam {
         {"threadsafe", TokenType::ThreadSafe}, // used as a stand in for atomic, we copy the value for paralell, try to queue all actions done on it and execute it in a non-sequence breaking order
         //we guess how many copies will be needed, if our guess is wrong we increase it, sequence breaking isnt a big deal, but it is for ppl who expect a consistent behaviour which is me
 
-        //////////////////// Error Handling ////////////////////
-        
-        {"panic", TokenType::Panic}, //stops program execution and prints a message
-        {"static_assert", TokenType::StaticAssert}, //compile time assert, gest thrown out after compilation
-        {"assert", TokenType::Assert}, //runtime assert, bundled into bytecode
-
         //////////////////// Types ////////////////////
 
         {"void", TokenType::Void},
@@ -376,40 +371,6 @@ namespace BongoJam {
         {"Mat3", TokenType::Mat3},
         {"Mat4", TokenType::Mat4},
         {"Mat", TokenType::Mat}, //generic nxm matrix
-
-        //////////////////// Included Functions ////////////////////
-
-        {"sizeof", TokenType::SizeOf}, //needed for allocs
-        {"print", TokenType::Print},
-        {"input", TokenType::Input},
-
-        {"clock", TokenType::Clock},
-        {"typeof", TokenType::TypeOf},
-        
-        {"len", TokenType::Length},
-
-        // math functions
-        {"round_down", TokenType::Floor},
-        {"round_up", TokenType::Ceiling},
-
-        {"sqrt", TokenType::SquareRoot},
-        {"pow", TokenType::Power},
-
-        {"sin", TokenType::Sin},
-        {"cos", TokenType::Cos},
-        {"tan", TokenType::Tan},
-
-        {"cosh", TokenType::Cosh},
-        {"sinh", TokenType::Sinh},
-        {"tanh", TokenType::Tanh},
-
-        {"arccos", TokenType::ArcCos},
-        {"arcsin", TokenType::ArcSin},
-        {"arctan", TokenType::ArcTan},
-
-        {"exp", TokenType::Exp},
-        {"log", TokenType::NaturalLog},
-        {"factorial", TokenType::Factorial}
     };
 
     //////////////////////////////////////////////

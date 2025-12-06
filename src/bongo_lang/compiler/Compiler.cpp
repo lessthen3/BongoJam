@@ -210,12 +210,49 @@ void
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool
-BongoCompiler::CompileFuncCall
-(
-    FunctionCallExpr* fp_VarDeclaration,
-    CompilationUnit* fp_CompilationUnit
-)
+    BongoCompiler::CompileFuncCall
+    (
+        FunctionCallExpr* fp_FunctionCallExpr,
+        CompilationUnit* fp_CompilationUnit
+    )
 {
+    auto f_Iterator = STANDARD_FUNCTIONS.find(fp_FunctionCallExpr->FuncName.m_Value);
+
+    TokenType f_CallType;
+
+    if (f_Iterator == STANDARD_FUNCTIONS.end())
+    {
+        f_CallType = TokenType::UserIdentifier;
+    }
+    else
+    {
+        f_CallType = f_Iterator->second;
+    }
+
+    switch (f_CallType)
+    {
+    case TokenType::Input:
+    {
+        if (not CompileInputFunction(fp_FunctionCallExpr, fp_CompilationUnit))
+        {
+            compiler_logger->Error(format("Error at Line: {}, Unable to compile input() function oof", fp_FunctionCallExpr->FuncName.m_SourceCodeLineNumber), "BongoCompiler");
+            return false;
+        }
+    }
+    break;
+    case TokenType::Print:
+    {
+        if (not CompilePrintFunction(fp_FunctionCallExpr, fp_CompilationUnit))
+        {
+            compiler_logger->Error(format("Error at Line: {}, Unable to compile print() function oof", fp_FunctionCallExpr->FuncName.m_SourceCodeLineNumber), "BongoCompiler");
+            return false;
+        }
+    }
+    break;
+    default:
+
+        return false;
+    }
 
     return true;
 }
@@ -275,22 +312,7 @@ bool
     case SyntaxNodeType::FunctionCallExpr:
     {
         FunctionCallExpr* sv_FunctionCallExpr = dynamic_cast<FunctionCallExpr*>(fp_Expression);
-
-        switch (sv_FunctionCallExpr->FuncName.m_Type)
-        {
-        case TokenType::Input:
-        {
-            if (not CompileInputFunction(sv_FunctionCallExpr, fp_CompilationUnit))
-            {
-
-                return false;
-            }
-        }
-        break;
-        default:
-
-            return false;
-        }
+        CompileFuncCall(sv_FunctionCallExpr, fp_CompilationUnit);
     }
     break;
     case SyntaxNodeType::IdentifierExpr:
@@ -526,31 +548,7 @@ bool
         case SyntaxNodeType::FunctionCallExpr:
         {
             FunctionCallExpr* sv_FunctionCallExpr = dynamic_cast<FunctionCallExpr*>(f_CurrentProgramStatement.get());
-
-            switch (sv_FunctionCallExpr->FuncName.m_Type)
-            {
-            case TokenType::Print:
-            {
-                if (not CompilePrintFunction(sv_FunctionCallExpr, fp_CompilationUnit))
-                {
-
-                    return false;
-                }
-            }
-            break;
-            case TokenType::Input:
-            {
-                if (not CompileInputFunction(sv_FunctionCallExpr, fp_CompilationUnit))
-                {
-
-                    return false;
-                }
-            }
-            break;
-            default:
-
-                return false;
-            }
+            CompileFuncCall(sv_FunctionCallExpr, fp_CompilationUnit);
         }
         break;
         case SyntaxNodeType::VarDeclaration:
@@ -637,20 +635,13 @@ bool
 
     switch (fp_Expression->VariableName->m_Domain)
     {
-    case SyntaxNodeType::SingleValueExpr:
-    {
-        auto sv_VariableName = dynamic_cast<SingleValueExpr*>(fp_Expression->VariableName.get());
-
-        f_VarName = sv_VariableName->m_Value.m_Value;
-    }
-    break;
     case SyntaxNodeType::IdentifierExpr:
     {
-        auto sv_IdentifierExpr = dynamic_cast<IdentifierExpr*>(fp_Expression); 
+        auto sv_IdentifierExpr = dynamic_cast<IdentifierExpr*>(fp_Expression->VariableName.get()); 
 
-        f_VarName = sv_RecastedSingleValExpr->m_Value.m_Value;
+        f_VarName = sv_IdentifierExpr->Identifier.m_Value;
 
-        if(sv_IdentifierExpr->ChainedExpr != nullptr)
+        if(sv_IdentifierExpr->ChainedExpr != nullptr) //check for null since chained expr can be null
         {
             while (1)
             {
@@ -715,11 +706,11 @@ bool
 
     //////////////////////////////////////////////////////////// check for equals since we don't need to load the val if its just a reg reassignment uwu ////////////////////////////////////////////////////////////
 
-    if(fp_Expression->Operator == TokenType::Equals) //do nothing since store will be called anyways
+    if(fp_Expression->Operator.m_Type == TokenType::Equals) //do nothing since store will be called anyways
     {
-        if (not CompileRegularExpr(fp_VarDeclaration->DefaultValue.get(), fp_CompilationUnit))
+        if (not CompileRegularExpr(fp_Expression->NewValue.get(), fp_CompilationUnit))
         {
-            compiler_logger->Error(format("Error at Line Number: {}, unable to compile default value of variable named: {}", fp_VarDeclaration->Name.m_SourceCodeLineNumber, fp_VarDeclaration->Name.m_Value), "Compiler");
+            compiler_logger->Error(format("Error at Line Number: {}, unable to compile default value of variable named: {}", fp_Expression->Operator.m_SourceCodeLineNumber, f_VarName), "Compiler");
             return false;
         }
         
@@ -750,15 +741,15 @@ bool
 
     //////////////////////////////////////////////////////////// Figure out what the new value is supposed to be ////////////////////////////////////////////////////////////
 
-    if (not CompileRegularExpr(fp_VarDeclaration->DefaultValue.get(), fp_CompilationUnit))
+    if (not CompileRegularExpr(fp_Expression->NewValue.get(), fp_CompilationUnit))
     {
-        compiler_logger->Error(format("Error at Line Number: {}, unable to compile default value of variable named: {}", fp_VarDeclaration->Name.m_SourceCodeLineNumber, fp_VarDeclaration->Name.m_Value), "Compiler");
+        compiler_logger->Error(format("Error at Line Number: {}, unable to compile default value of variable named: {}", fp_Expression->Operator.m_SourceCodeLineNumber, f_VarName), "Compiler");
         return false;
     }
 
     //////////////////////////////////////////////////////////// Figure out which operator is being used ////////////////////////////////////////////////////////////
 
-    switch (fp_Expression->Operator)
+    switch (fp_Expression->Operator.m_Type)
     {
     case TokenType::PlusEqualsOperator:
     {
@@ -801,7 +792,7 @@ bool
     }
     break;
     default: //THROW ERROR: 
-        compiler_logger->Error(format("Error at Line Number: {}, unable to compile default value of variable named: {}", fp_VarDeclaration->Name.m_SourceCodeLineNumber, fp_VarDeclaration->Name.m_Value), "Compiler");
+        compiler_logger->Error(format("Error at Line Number: {}, unable to compile default value of variable named: {}", fp_Expression->Operator.m_SourceCodeLineNumber, f_VarName), "Compiler");
         return false;
     }
 
@@ -1076,6 +1067,10 @@ int
             return EXIT_FAILURE;
         }
     }
+
+    fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::HALT); //indicate proper exit
+
+    Encode32BitInt(fp_CompilationUnit->CompiledByteCode, 0);
 
     return BONGO_OK;
 }

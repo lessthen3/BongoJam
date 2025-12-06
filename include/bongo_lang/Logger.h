@@ -11,7 +11,7 @@
 **************************************************************************/
 #pragma once
 //Logger::LogLevel::INFO_LOG | 
-#define DEFAULT_LOG_LEVEL_FILTER Logger::LogLevel::WARNING_LOG | Logger::LogLevel::ERROR_LOG | Logger::LogLevel::FATAL_LOG 
+#define DEFAULT_LOG_LEVEL_FILTER Logger::LogLevel::WARNING_LOG | Logger::LogLevel::ERROR_LOG | Logger::LogLevel::FATAL_LOG
 
 #define DEFAULT_LOG_OUTPUT_DIRECTORY "./logs"
 
