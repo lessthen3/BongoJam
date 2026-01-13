@@ -1,9 +1,21 @@
-cmake_minimum_required(VERSION 3.20)
+####################################### Enforce CMake Version
+
+cmake_minimum_required(VERSION 4.2.0)
+
 ####################################### Compilation Options
 
 option(USE_STATIC_MSVCRT "default use static crt" OFF) 
 option(BONGO_BUILD_SHARED "build as static lib by default" OFF) 
 option(WINDOWS_SHARED_EXPORT_ALL_SYMBOLS "by default symbols arent exported on shared builds" OFF)
+
+####################################### Project definition
+
+project(BongoJam_Script VERSION 1.0 DESCRIPTION "BongoJam Script" LANGUAGES CXX)
+
+####################################### Enforcing C++20 standard
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 ####################################### Setting Variables
 
@@ -14,13 +26,6 @@ else()
     set(BONGO_BUILD_TYPE STATIC)
     message(STATUS "Setting build type for compiler -> STATIC")
 endif()
-
-####################################### Project definition
-project(BongoJam_Script VERSION 1.0 DESCRIPTION "BongoJam Script" LANGUAGES CXX)
-
-####################################### Enforcing C++20 standard
-set(CMAKE_CXX_STANDARD 20)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 ####################################### Check For No Config Set
 
@@ -42,7 +47,7 @@ file(
     COMPILER_INTERPRETER_SOURCES 
     CONFIGURE_DEPENDS 
     "src/bongo_lang/*.cpp" 
-    "include/bongo_lang/*.h"
+    "src/bongo_lang/*.h"
 )
 
 #Create compiler lib
@@ -59,7 +64,7 @@ file(
     GLOB_RECURSE 
     BONGO_CLI_SOURCES
     CONFIGURE_DEPENDS 
-    "include/cli/*.h"
+    "src/cli/*.h"
     "src/cli/*.cpp"
 )
 
@@ -72,8 +77,8 @@ target_link_libraries(bongo PRIVATE
     bongo_core
 )
 
-target_include_directories(bongo PUBLIC
-    ${PROJECT_SOURCE_DIR}/include/bongo_lang
+target_include_directories(bongo PRIVATE
+    ${PROJECT_SOURCE_DIR}/src/bongo_lang
 )
 
 ####################################### Compiler Options and Definitions
@@ -112,25 +117,6 @@ if(MSVC)
             $<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>,$<CONFIG:MinSizeRel>>:${MSVCRT_RELEASE_TYPE}>
         ) 
 endif()
-
-####################################### Dependency Linking
-
-# set(DEBUG_LIB )
-# add_library(zlib STATIC IMPORTED)
-# set_target_properties(zlib PROPERTIES
-#         IMPORTED_LOCATION_DEBUG           ${DEBUG_LIB}
-#         IMPORTED_LOCATION_RELEASE         ${RELEASE_LIB}
-#         IMPORTED_LOCATION_RELWITHDEBINFO  ${RELEASE_LIB}
-#         IMPORTED_LOCATION_MINSIZEREL      ${RELEASE_LIB}
-#         INTERFACE_INCLUDE_DIRECTORIES     ${INCLUDE_DIR}
-#     )
-
-# target_link_libraries(bongoC PUBLIC
-#     zlib
-# )
-# target_link_libraries(bongo_runtime PUBLIC
-#     zlib
-# )
 
 ####################################### Set Startup Project (Visual Studio & Xcode)
 

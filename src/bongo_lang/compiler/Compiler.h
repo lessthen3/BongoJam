@@ -17,6 +17,8 @@
 #include "Parser.h"
 #include "../Opcodes.h"
 
+#include "../Serializer.h"
+
 namespace BongoJam {
 
     enum BongoCompilerFlags : uint64_t
@@ -175,7 +177,7 @@ namespace BongoJam {
     {
         ~BongoCompiler() = default;
 
-        BongoCompiler();
+        BongoCompiler(const string& fp_CompilerName);
 
     public:
         shared_ptr<Logger> compiler_logger = nullptr; //shared for now cause idk how else work
@@ -184,7 +186,7 @@ namespace BongoJam {
     private:
         unique_ptr<Parser> pm_BongoParser = nullptr; //needa make this a class since that's the only way cpp will let me do mutual recursion for some reason lmao
 
-        uint64_t pm_CompilerID = 0;
+        size_t pm_CompiledThreadID = 0;
         
         string pm_CompilerName = "NO_COMPILER_NAME";
         uint8_t pm_NextAvailableStackSlot = 0;
@@ -196,39 +198,15 @@ namespace BongoJam {
             ShiftForward(vector<unique_ptr<StatementNode>>& fp_ProgramBody);
 
         bool
+            TryToResolveSymbol(const string& fp_SymbolName, CompilationUnit* fp_CompilationUnit);
+
+        bool
             ReadFileIntoString
             (
                 string* fp_SourceCode,
                 const string& fp_ScriptFilePath
             )
             const;
-        
-        ////////////////////////////////////////////// Encoding Functions //////////////////////////////////////////////
-        
-        void
-            Encode32BitInt(vector<uint8_t>& fp_ByteCode, uint32_t fp_Int);
-
-        void
-            Encode64BitInt(vector<uint8_t>& fp_ByteCode, uint64_t fp_Int);
-
-        void
-            EncodeUTF8String(vector<uint8_t>& fp_ByteCode, const string& fp_String);
-
-        void
-            EncodeFloat(vector<uint8_t>& fp_ByteCode, float fp_Float);
-
-        void
-            EncodeDouble
-            (
-                vector<uint8_t>& fp_ByteCode,
-                const double fp_DoubleVal
-            );
-
-        void
-            Encode32BitChar(vector<uint8_t>& fp_ByteCode, uint32_t character);
-
-        void
-            EncodeBool(vector<uint8_t>& fp_ByteCode, bool fp_Bool);
 
         size_t
             GetCurrentByteOffset(CompilationUnit* fp_CompilationUnit)
@@ -349,12 +327,5 @@ namespace BongoJam {
                 Expr* fp_SymbolExpr,
                 CompilationUnit* fp_CompilationUnit
             );
-
-        void
-            UpdateThreadOwner()
-            const
-        {
-            compiler_logger->UpdateThreadOwner();
-        }
     };
 }

@@ -16,6 +16,7 @@
 ///BongoJam
 #include "DynamicLoader.h"
 #include "../Opcodes.h"
+#include "../Serializer.h"
 
 #include "BumpAllocator.h"
 #include "DynamicMemoryArena.h"
@@ -110,7 +111,7 @@ namespace BongoJam {
             string* StringPtr; //strings uwu
             Value* ArrayPtr[2]; //heap allocated static lists are important for multi threaded access, since array's wont invalidate iterators upon resize since it doesn't resize uwu
             vector<Value>* ListPtr; //vector, so bj list's are guaranteed contiguous blocks (in virutal memory >w<)
-            map<Value, Value>* DictionaryPtr; //hash map, don't require strong ordering of types just matches values since dictionaries don't have begin() and end() iterators so ye
+            unordered_map<Value, Value>* DictionaryPtr; //hash map, don't require strong ordering of types just matches values since dictionaries don't have begin() and end() iterators so ye
             void* TypePtr; //classes/structs
         } u;
     };
@@ -145,7 +146,8 @@ namespace BongoJam {
         DynamicMemoryArena<HeapObject> HeapStorage;
 
         Value* m_StackStart = static_cast<Value*>(Stack.Allocate(MAX_STACK_SIZE * sizeof(Value), alignof(Value)));
-        size_t m_StackTop = 0;
+
+        size_t STACK_POINTER = 0;
 
         bool STATUS_REGISTER = false;
 
@@ -157,72 +159,13 @@ namespace BongoJam {
         BongoJamInterpreter();
         ~BongoJamInterpreter() = default;
 
-        //Enable ANSI colour codes for windows console grumble grumble
-        #if (defined(_WIN32) || defined(_WIN64)) && defined(BONGO_USING_TERMINAL)
-            bool
-                EnableWindowsANSIColourCodes();
-        #endif
-
     private:
-        //////////////////////////////////////////////
-        // Read Bongo Code
-        //////////////////////////////////////////////
-
-        bool
-            ReadBytecodeFromFile
-            (
-                const string& fp_CompiledBytecodeFilePath,
-                vector<uint8_t>& fp_Bytecode
-            );
-
         //////////////////////////////////////////////
         // Decoding Functions
         //////////////////////////////////////////////
 
-        int32_t
-            Decode32BitInt(const vector<uint8_t>* fp_ByteCode, size_t* fp_Offset);
-
-        int64_t
-            Decode64BitInt
-            (
-                const vector<uint8_t>* fp_ByteCode,
-                size_t* fp_Offset
-            );
-
-        string
-            DecodeUTF8String(const vector<uint8_t>* fp_ByteCode, size_t* fp_Offset);
-
-        float
-            DecodeFloat(const vector<uint8_t>* fp_ByteCode, size_t* fp_Offset);
-
-        double
-            DecodeDoubleUwU(const vector<uint8_t>* fp_ByteCode, size_t* fp_Offset);
-        
-        char
-            Decode32BitChar(const vector<uint8_t>* fp_ByteCode, size_t* fp_Offset);
-
-        bool
-            DecodeBool(const vector<uint8_t>* fp_ByteCode, size_t* fp_Offset);
-
         void
             DecodeAndStoreUTF8Strings(vector<uint8_t>* fp_ByteCode);
-
-        //////////////////////////////////////////////
-        // Utility Functions
-        //////////////////////////////////////////////
-
-        void
-            Encode32BitUnsignedInt
-            (
-                vector<uint8_t>* fp_ByteCode,
-                const uint32_t fp_Int
-            )
-        {
-            fp_ByteCode->push_back((fp_Int >> 24) & 0xFF); // High byte
-            fp_ByteCode->push_back((fp_Int >> 16) & 0xFF);
-            fp_ByteCode->push_back((fp_Int >> 8) & 0xFF);
-            fp_ByteCode->push_back(fp_Int & 0xFF);         // Low byte
-        }
 
         //////////////////////////////////////////////
         // Utility Functions
@@ -245,7 +188,7 @@ namespace BongoJam {
             DumpStack()
         {
             printf("===== STACK DUMP =====\n");
-            for (size_t i = 0; i < m_StackTop; ++i)
+            for (size_t i = 0; i < STACK_POINTER; ++i)
             {
                 printf("[%zu] ", i);
                 m_StackStart[i].DebugPrintOut();

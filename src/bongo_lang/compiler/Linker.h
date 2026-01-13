@@ -34,22 +34,18 @@ namespace BongoJam {
     public:
         BongoLinker() 
         {
-            linker_logger = make_unique<Logger>();
-            linker_logger->Initialize(DEFAULT_LOG_OUTPUT_DIRECTORY, "BongoLinker", DEFAULT_LOG_LEVEL_FILTER);
+            linker_logger = Logger::CreateUnique("BongoLinker", DEFAULT_LOG_FLAGS, DEFAULT_LOG_OUTPUT_DIRECTORY);
+
+            if (not linker_logger)
+            {
+                throw runtime_error("WTF MANG LOGGER FAILED TO INITIALIZE FROM BongoLinker WTF MANG");
+            }
 
         }
 
         ~BongoLinker() = default;
 
     public:
-        bool
-            WriteBytecodeToFile
-            (
-                const vector<uint8_t>& fp_ByteCode,
-                const string& fp_DesiredOutputDirectory,
-                const string& fp_DesiredName
-            );
-
         int
             LinkCompilationUnits
             (

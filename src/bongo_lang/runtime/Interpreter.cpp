@@ -11,112 +11,42 @@
 **************************************************************************/
 #define BONGO_USING_CONSOLE
 
-#include "../../../include/bongo_lang/runtime/Interpreter.h"
+#include "Interpreter.h"
 
 namespace BongoJam {
 
     BongoJamInterpreter::BongoJamInterpreter()
     {
-        runtime_logger = make_unique<Logger>();
-        runtime_logger->Initialize(DEFAULT_LOG_OUTPUT_DIRECTORY, "RuntimeLogger", DEFAULT_LOG_LEVEL_FILTER);
+        runtime_logger = Logger::CreateUnique("BongoJamInterpreter", DEFAULT_LOG_FLAGS, DEFAULT_LOG_OUTPUT_DIRECTORY);
+
+        if (not runtime_logger)
+        {
+            throw runtime_error("WTF MANG LOGGER FAILED TO INITIALIZE FROM BongoLinker WTF MANG");
+        }
 
         runtime_logger->Info("BongoJamInterpreter Logger intialized properly!", "BongoJamInterpreter");
-    }
-
-    //Enable ANSI colour codes for windows console grumble grumble
-    #if (defined(_WIN32) || defined(_WIN64)) && defined(BONGO_USING_TERMINAL)
-        bool
-            BongoJamInterpreter::EnableWindowsANSIColourCodes()
-        {
-            EnableColors();
-            runtime_logger->Info("Colours codes for Windows activated", "Interpreter");
-        }
-    #endif
-
-    //////////////////////////////////////////////
-    // Read Bongo Code
-    //////////////////////////////////////////////
-
-    bool
-        BongoJamInterpreter::ReadBytecodeFromFile
-        (
-            const string& fp_CompiledBytecodeFilePath,
-            vector<uint8_t>& fp_Bytecode
-        )
-    {
-        // Ensure directory exists
-        if (not filesystem::exists(fp_CompiledBytecodeFilePath))
-        {
-            runtime_logger->Fatal(format("Tried to pass non-existent file path: '{}'", fp_CompiledBytecodeFilePath), "Interpreter");
-            return false;
-        }
-        else if (not fp_Bytecode.empty()) //check if the byte vector is empty before reading data into it OwO
-        {
-            runtime_logger->Fatal(format("INTERNAL RUNTIME ERROR: Tried passing non-empty byte vector for reading to file name: '{}', nothing was done.", fp_CompiledBytecodeFilePath), "Interpreter");
-            return false;
-        }
-
-        // Extract file extension assuming format "filename.ext"
-        size_t lastDotIndex = fp_CompiledBytecodeFilePath.rfind('.');
-
-        if (lastDotIndex == string::npos)
-        {
-            runtime_logger->Fatal("No file extension found for bongo file", "Interpreter");
-            return false;
-        }
-
-        string f_FileExtension = fp_CompiledBytecodeFilePath.substr(lastDotIndex);
-
-        if (f_FileExtension != ".bongo") //file extension for peach-e binary encoding, get it? it's like a bin of peaches >w<
-        {
-            runtime_logger->Fatal("Attempted to read from a file that isn't a valid .bongo file", "Interpreter");
-            return false;
-        }
-
-        ifstream f_BongoCode(fp_CompiledBytecodeFilePath, ios::binary);
-
-        //throw error if file isn't properly opened
-        if (not f_BongoCode)
-        {
-            runtime_logger->Fatal(format("INTERNAL RUNTIME ERROR: Interpreter failed to open: '{}' for reading!", fp_CompiledBytecodeFilePath), "Interpreter");
-            return false;
-        }
-
-        // Get the size of the file
-        f_BongoCode.seekg(0, ios::end);
-        size_t f_Size = f_BongoCode.tellg();
-        f_BongoCode.seekg(0, ios::beg);
-
-        // Resize the vector to the size of the file
-        fp_Bytecode.resize(f_Size);
-
-        // Read the entire file into the vector
-        f_BongoCode.read(reinterpret_cast<char*>(fp_Bytecode.data()), f_Size);
-        f_BongoCode.close();  // Close the file
-
-        return true;
     }
 
     void 
         BongoJamInterpreter::Push(Value fp_Value)
     {
-        if (m_StackTop >= MAX_STACK_SIZE)
+        if (STACK_POINTER >= MAX_STACK_SIZE)
         {
-            throw runtime_error("Stack overflow");
+            throw overflow_error("Stack overflow");
         }
 
-        m_StackStart[m_StackTop++] = fp_Value;
+        m_StackStart[STACK_POINTER++] = fp_Value;
     }
 
     Value 
         BongoJamInterpreter::Pop()
     {
-        if (m_StackTop == 0)
+        if (STACK_POINTER == 0)
         {
-            throw runtime_error("Stack underflow");
+            throw underflow_error("Stack underflow");
         }
 
-        return m_StackStart[--m_StackTop];
+        return m_StackStart[--STACK_POINTER];
     }
 
     void
@@ -127,18 +57,14 @@ namespace BongoJam {
         )
     {
         // Reserve space for locals
-        if (m_StackTop + fp_LocalCount >= MAX_STACK_SIZE)
+        if (STACK_POINTER + fp_LocalCount >= MAX_STACK_SIZE)
         {
             throw runtime_error("Stack overflow in PushFrame");
         }
 
-        CallFrame f_Frame;
-        f_Frame.ReturnIP = fp_ReturnAddress;
-        f_Frame.StackBase = m_StackTop;
+        CallStack.emplace_back(fp_ReturnAddress, STACK_POINTER);
 
-        CallStack.push_back(f_Frame);
-
-        m_StackTop += fp_LocalCount;
+        STACK_POINTER += fp_LocalCount;
     }
 
     void 
@@ -149,134 +75,15 @@ namespace BongoJam {
             throw runtime_error("CallStack underflow in PopFrame");
         }
 
-        auto f_Frame = CallStack.back();
-        CallStack.pop_back();
+        STACK_POINTER = CallStack.back().StackBase; // Rewind stack to previous base
 
-        m_StackTop = f_Frame.StackBase; // Rewind stack to previous base
+        CallStack.pop_back();
     }
 
 
     //////////////////////////////////////////////
     // Decoding Functions
     //////////////////////////////////////////////
-
-    int32_t
-        BongoJamInterpreter::Decode32BitInt
-        (
-            const vector<uint8_t>* fp_ByteCode, 
-            size_t* fp_Offset
-        )
-    {
-        int32_t f_Value =
-            (static_cast<int32_t>((*fp_ByteCode)[*fp_Offset]) << 24) |
-            (static_cast<int32_t>((*fp_ByteCode)[*fp_Offset + 1]) << 16) |
-            (static_cast<int32_t>((*fp_ByteCode)[*fp_Offset + 2]) << 8) |
-            (static_cast<int32_t>((*fp_ByteCode)[*fp_Offset + 3]));
-
-        *fp_Offset += 3; // Move the offset forward by the number of bytes read - 1 because the pointer should sit on the last decoded byte
-
-        return f_Value;
-    }
-
-    int64_t
-        BongoJamInterpreter::Decode64BitInt
-        (
-            const vector<uint8_t>* fp_ByteCode, 
-            size_t* fp_Offset
-        )
-    {
-        int64_t f_Value =
-            (static_cast<int64_t>((*fp_ByteCode)[*fp_Offset]) << 56) |
-            (static_cast<int64_t>((*fp_ByteCode)[*fp_Offset + 1]) << 48) |
-            (static_cast<int64_t>((*fp_ByteCode)[*fp_Offset + 2]) << 40) |
-            (static_cast<int64_t>((*fp_ByteCode)[*fp_Offset + 3]) << 32) |
-            (static_cast<int64_t>((*fp_ByteCode)[*fp_Offset + 4]) << 24) |
-            (static_cast<int64_t>((*fp_ByteCode)[*fp_Offset + 5]) << 16) |
-            (static_cast<int64_t>((*fp_ByteCode)[*fp_Offset + 6]) << 8) |
-            (static_cast<int64_t>((*fp_ByteCode)[*fp_Offset + 7]));
-
-        *fp_Offset += 7; // Move the offset forward by the number of bytes read - 1 because the pointer should sit on the last decoded byte
-
-        return f_Value;
-    }
-
-    string
-        BongoJamInterpreter::DecodeUTF8String(const vector<uint8_t>* fp_ByteCode, size_t* fp_Offset)
-    {
-        uint32_t length = Decode32BitInt(fp_ByteCode, fp_Offset);
-        (*fp_Offset)++; //iterate again to move off of last int byte
-
-        string _s;
-        _s.reserve(length); // Reserve space to optimize append operations
-
-        size_t f_End = (*fp_Offset) + length;
-
-        for (size_t _i = *fp_Offset; _i < f_End; ++_i)
-        {
-            char f_CurrentChar = static_cast<char>((*fp_ByteCode)[_i]);
-
-            if (f_CurrentChar == '\\' and _i + 1 < f_End) // Check for escape character and ensure it's not the last char
-            {
-                char f_NextChar = static_cast<char>((*fp_ByteCode)[_i + 1]);
-
-                switch (f_NextChar)
-                {
-                case 'n':
-                    _s.push_back('\n');
-                    _i++;  // Skip the 'n' character in the stream
-                    break;
-                case 't':
-                    _s.push_back('\t');
-                    _i++;  // Skip the 't' character in the stream
-                    break;
-                case '\\':
-                    _s.push_back('\\');
-                    _i++;  // Skip the next '\'
-                    break;
-                default:
-                    _s.push_back(f_CurrentChar);  // If it's not a recognized escape sequence, add the backslash
-                    break;
-                }
-            }
-            else
-            {
-                _s.push_back(f_CurrentChar);
-            }
-        }
-
-        (*fp_Offset) += (length - 1); // -1 so we end on the last byte of the decoded string
-        return _s;
-    }
-
-    float
-        BongoJamInterpreter::DecodeFloat(const vector<uint8_t>* fp_ByteCode, size_t* fp_Offset)
-    {
-        uint32_t f_AsInt = Decode32BitInt(fp_ByteCode, fp_Offset); //decode as an int since we can just memcpy the bits into a float
-        float f_Val;
-        memcpy(&f_Val, &f_AsInt, sizeof(float)); // Copy the bits into a float
-        return f_Val;
-    }
-
-    double
-        BongoJamInterpreter::DecodeDoubleUwU(const vector<uint8_t>* fp_ByteCode, size_t* fp_Offset)
-    {
-        int64_t f_AsInt = Decode64BitInt(fp_ByteCode, fp_Offset); //decode as an int since we can just memcpy the bits into a double
-        double f_Val;
-        memcpy(&f_Val, &f_AsInt, sizeof(double)); // Copy the bits into a float
-        return f_Val;
-    }
-
-    char
-        BongoJamInterpreter::Decode32BitChar(const vector<uint8_t>* fp_ByteCode, size_t* fp_Offset)
-    {
-        return Decode32BitInt(fp_ByteCode, fp_Offset);
-    }
-
-    bool
-        BongoJamInterpreter::DecodeBool(const vector<uint8_t>* fp_ByteCode, size_t* fp_Offset)
-    {
-        return Decode32BitInt(fp_ByteCode, fp_Offset) != 0;
-    }
 
     void
         BongoJamInterpreter::DecodeAndStoreUTF8Strings(vector<uint8_t>* fp_ByteCode)
@@ -292,11 +99,14 @@ namespace BongoJam {
                 size_t f_InitialIndex = _p; //start index of actual string index bytes
 
                 //push the actual string put together into a vector
-                ListOfDecodedStrings.push_back(DecodeUTF8String((fp_ByteCode), &_p));
+                ListOfDecodedStrings.push_back
+                (
+                    BinaryCodec::DecodeStringUTF8<uint32_t>(*fp_ByteCode, _p)
+                );
 
                 //encode the uint32_t that represents the index of the string
                 vector<uint8_t> f_IndexBytes;
-                Encode32BitUnsignedInt(&f_IndexBytes, ListOfDecodedStrings.size() - 1);
+                BinaryCodec::EncodeUint32(f_IndexBytes, ListOfDecodedStrings.size() - 1);
 
                 //erase the encoded string bytes, _p should be sitting on the last byte of the encoded string
                 fp_ByteCode->erase(fp_ByteCode->begin() + f_InitialIndex, fp_ByteCode->begin() + _p + 1);
@@ -319,56 +129,61 @@ namespace BongoJam {
     int64_t
         BongoJamInterpreter::BongoTime(const string& fp_BongoScriptName)
     {
-        vector<uint8_t> f_ByteCode;
+        using BongoProgram = vector<uint8_t>;
 
-        if (not ReadBytecodeFromFile(fp_BongoScriptName, f_ByteCode)) //stop execution immediately if the file was not able to be read
+        BongoProgram BONGO_PROGRAM;
+
+        Serializer f_Serializer;
+
+        if (not BinaryCodec::ReadBinaryIntoVector(fp_BongoScriptName, {".bongo"}, BONGO_PROGRAM, runtime_logger.get())) //stop execution immediately if the file was not able to be read
         {
             return BONGO_RUNTIME_FAILED_TO_READ_BYTECODE;
         }
 
-        DecodeAndStoreUTF8Strings(&f_ByteCode);
+        //DecodeAndStoreUTF8Strings(&BONGO_PROGRAM);
 
-        const const const const const size_t f_Size = f_ByteCode.size(); //you never know if ones enough, gotta throw in a few more just in case
+        const const const const const size_t f_Size = BONGO_PROGRAM.size(); //you never know if ones enough, gotta throw in a few more just in case
 
         size_t _l = 0; //line counter
 
-        size_t STACK_POINTER = 0;
-
         size_t BASE_POINTER = 0;
+        size_t PROGRAM_COUNTER = 0;
 
-        for (size_t _p = 0; _p < f_Size; _p++)
+        STACK_POINTER = 0; //in case the interpreter runs multiple programs during its lifetime uwu
+
+        while(1)
         {
-            switch (f_ByteCode[_p])
+            switch (BONGO_PROGRAM[PROGRAM_COUNTER])
             {
             case PUSH:
             {
-                _p++; // Skip past PUSH opcode
-                uint8_t valueType = f_ByteCode[_p++];
+                PROGRAM_COUNTER++; // Skip past PUSH opcode
+                uint8_t valueType = BONGO_PROGRAM[PROGRAM_COUNTER++];
 
                 switch (valueType) //decoding starts on the offset passed, so the program pointer has to be shifted onto the first byte val of the number uwu
                 {
                 case INT_VALUE:
                 {
-                    _p++; // Skip past INT_VALUE opcode
-                    Push(Value{ ValueType::I32, Decode32BitInt(&f_ByteCode, &_p) });
+                    PROGRAM_COUNTER++; // Skip past INT_VALUE opcode
+                    Push(Value{ ValueType::I32, BinaryCodec::DecodeInt32(BONGO_PROGRAM, PROGRAM_COUNTER) });
                 } 
                 break;
                 case FLOAT_VALUE:
                 {
-                    _p++; // Skip past FLOAT_VALUE opcode
-                    Push(Value{ ValueType::F32, DecodeFloat(&f_ByteCode, &_p) });
+                    PROGRAM_COUNTER++; // Skip past FLOAT_VALUE opcode
+                    Push(Value{ ValueType::F32, BinaryCodec::DecodeFloat(BONGO_PROGRAM, PROGRAM_COUNTER) });
                 } 
                 break;
                 case DOUBLE_VALUE:
                 {
-                    _p++; // Skip past DOUBLE_VALUE opcode
-                    Push(Value{ ValueType::F64, DecodeDoubleUwU(&f_ByteCode, &_p) });
+                    PROGRAM_COUNTER++; // Skip past DOUBLE_VALUE opcode
+                    Push(Value{ ValueType::F64, BinaryCodec::DecodeDouble(BONGO_PROGRAM, PROGRAM_COUNTER) });
                 }
                 break;
                 case STRING_VALUE:
                 {
-                    _p++; // Skip past STRING_VALUE opcode
-                    Push(Value{ ValueType::STRING,  (void*) new string(DecodeUTF8String(&f_ByteCode, &_p)) });
+                    PROGRAM_COUNTER++; // Skip past STRING_VALUE opcode
+                    Push(Value{ ValueType::STRING,  (void*) new string(BinaryCodec::DecodeStringUTF8<uint32_t>(BONGO_PROGRAM, PROGRAM_COUNTER)) });
                 }
                 break;
                 default:
@@ -384,32 +199,35 @@ namespace BongoJam {
             break;
             case ENTER:
             {
-                PushStackFrame(_p, 1);
+                PushStackFrame(PROGRAM_COUNTER, 1);
+                PROGRAM_COUNTER++; //move to next instruction 
             }
             break;
             case LEAVE:
             {
                 PopStackFrame();
+                PROGRAM_COUNTER++; //move to next instruction 
             }
             break;
             case JMP:
             {
-                _p++;
-                Value sv_JmpOffset = Pop();
+                PROGRAM_COUNTER++;
+                //jump offset should figure out that its -1 the actual offset in bytecode since decode advances a byte uwu, but thats a compile time thing not a runtime thing
+                uint64_t sv_JmpOffset = BinaryCodec::DecodeInt<uint64_t>(BONGO_PROGRAM, PROGRAM_COUNTER);
 
-                _p += sv_JmpOffset.u.i32; //offset is signed so can go backwards or forwards
+                PROGRAM_COUNTER += sv_JmpOffset; //offset is signed so can go backwards or forwards
             }
             break;
             case STORE_LOCAL: 
             {
-                _p++; //move to index
-                uint8_t slot = Decode32BitInt(&f_ByteCode, &_p);
+                PROGRAM_COUNTER++; //move to index
+                uint8_t slot = BinaryCodec::DecodeInt<uint32_t>(BONGO_PROGRAM, PROGRAM_COUNTER);
                 Value val = Pop();
                 size_t addr = CallStack.back().StackBase + slot;
 
                 if (addr >= MAX_STACK_SIZE)
                 {
-                    throw runtime_error("STACK OVERFLOW: too much memory was used during program runtime");
+                    throw overflow_error("STACK OVERFLOW: too much memory was used during program runtime");
                 }
 
                 m_StackStart[addr] = val;
@@ -417,7 +235,7 @@ namespace BongoJam {
             break;
             case LOAD_LOCAL:
             {
-                uint8_t slot = f_ByteCode[_p++];
+                uint8_t slot = BONGO_PROGRAM[PROGRAM_COUNTER++];
                 size_t addr = CallStack.back().StackBase + slot;
                 if (addr >= MAX_STACK_SIZE) 
                 {
@@ -446,6 +264,8 @@ namespace BongoJam {
                 {
                     throw runtime_error("Invalid types for ADD");
                 }
+
+                PROGRAM_COUNTER++; //move to next instruction 
             }
             break;
             case SUB:
@@ -461,6 +281,8 @@ namespace BongoJam {
                 {
                     throw runtime_error("Invalid types for SUB");
                 }
+
+                PROGRAM_COUNTER++; //move to next instruction 
             }
             break;
             case MULT:
@@ -476,6 +298,8 @@ namespace BongoJam {
                 {
                     throw runtime_error("Invalid types for MULT");
                 }
+
+                PROGRAM_COUNTER++; //move to next instruction 
             }
                 break;
             case DIV:
@@ -491,6 +315,8 @@ namespace BongoJam {
                 {
                     throw runtime_error("Invalid types for DIV");
                 }
+
+                PROGRAM_COUNTER++; //move to next instruction 
             }
             break;
             case CMP_EQ:
@@ -510,6 +336,8 @@ namespace BongoJam {
                 {
                     throw runtime_error("Invalid types for ADD");
                 }
+
+                PROGRAM_COUNTER++; //move to next instruction 
             }
             break;
             case CMP_NE:
@@ -529,6 +357,8 @@ namespace BongoJam {
                 {
                     throw runtime_error("Invalid types for ADD");
                 }
+
+                PROGRAM_COUNTER++; //move to next instruction 
             }
             break;
             case CMP_GE:
@@ -548,6 +378,8 @@ namespace BongoJam {
                 {
                     throw runtime_error("Invalid types for ADD");
                 }
+
+                PROGRAM_COUNTER++; //move to next instruction 
             }
             break;
             case CMP_GT:
@@ -567,6 +399,8 @@ namespace BongoJam {
                 {
                     throw runtime_error("Invalid types for ADD");
                 }
+
+                PROGRAM_COUNTER++; //move to next instruction 
             }
             break;
             case CMP_LE:
@@ -586,6 +420,8 @@ namespace BongoJam {
                 {
                     throw runtime_error("Invalid types for ADD");
                 }
+
+                PROGRAM_COUNTER++; //move to next instruction 
             }
             break;
             case CMP_LT:
@@ -605,6 +441,8 @@ namespace BongoJam {
                 {
                     throw runtime_error("Invalid types for ADD");
                 }
+
+                PROGRAM_COUNTER++; //move to next instruction 
             }
             break;
             case AND:
@@ -620,6 +458,8 @@ namespace BongoJam {
                 {
                     throw runtime_error("Invalid types for AND");
                 }
+
+                PROGRAM_COUNTER++; //move to next instruction 
             }
             break;
             case OR:
@@ -635,6 +475,8 @@ namespace BongoJam {
                 {
                     throw runtime_error("Invalid types for AND");
                 }
+
+                PROGRAM_COUNTER++; //move to next instruction 
             }
             break;
             case XOR:
@@ -650,19 +492,21 @@ namespace BongoJam {
                 {
                     throw runtime_error("Invalid types for AND");
                 }
+
+                PROGRAM_COUNTER++; //move to next instruction 
             }
             break;
             case LABEL: //function call
             {
-                _p++;
+                PROGRAM_COUNTER++;
 
                 //read the 8-bit integer that indicates how many func arguments there are (i highly doubt anyone will define a function with more lmao, ill make it a 16-bit if neccesary)
-                uint8_t s_NumberOfFuncArgs = f_ByteCode[_p] + _p;
+                uint8_t s_NumberOfFuncArgs = BONGO_PROGRAM[PROGRAM_COUNTER];
 
                 //idk if this is cocher LMAO - it wasn't so i changed it lmao, apparently _n < _n + C is always true, where C > 0. who would've ever thought
-                for (_p; _p < s_NumberOfFuncArgs; _p++) //cycle through function call arguments
+                for (PROGRAM_COUNTER; PROGRAM_COUNTER < s_NumberOfFuncArgs; PROGRAM_COUNTER++) //cycle through function call arguments
                 {
-                    switch (f_ByteCode[_p])
+                    switch (BONGO_PROGRAM[PROGRAM_COUNTER])
                     {
                         //fuck it everything is passed by referece, no more guessing every function has side effects lmfao
                     }
@@ -673,9 +517,9 @@ namespace BongoJam {
             case STDOUT: //print function
             {
                 //we're going to decode the utf8 string directly from the bytecode, however we should do a once-over and decode all function names for the lib versions of the compiled bytecode
-                _p++; //shift program pointer to the next byte so that we can read the string
-                _p++; //shift past STRING_VALUE byte cause idk havent implemented memory arenas yet, probs store after creation for constant strings
-                cout << ListOfDecodedStrings[Decode32BitInt(&f_ByteCode, &_p)];
+                PROGRAM_COUNTER++; //Shift -> STRING_VALUE
+                PROGRAM_COUNTER++; //shift past STRING_VALUE byte cause idk havent implemented memory arenas yet, probs store after creation for constant strings
+                cout << BinaryCodec::DecodeStringUTF8<uint32_t>(BONGO_PROGRAM, PROGRAM_COUNTER);
             }
             break;
             case STDIN:
@@ -683,14 +527,16 @@ namespace BongoJam {
                 string sv_InputString;
                 cin >> sv_InputString;
                 Push(Value{ ValueType::STRING, (void*) new string(sv_InputString)});
+
+                PROGRAM_COUNTER++;
             }
             break;
             case STDERR:
             {
                 //we're going to decode the utf8 string directly from the bytecode, however we should do a once-over and decode all function names for the lib versions of the compiled bytecode
-                _p++; //shift program pointer to the next byte so that we can read the string
-                _p++; //shift past STRING_VALUE byte cause idk havent implemented memory arenas yet, probs store after creation for constant strings
-                cerr << ListOfDecodedStrings[Decode32BitInt(&f_ByteCode, &_p)];
+                PROGRAM_COUNTER++; //shift program pointer to the next byte so that we can read the string
+                PROGRAM_COUNTER++; //shift past STRING_VALUE byte cause idk havent implemented memory arenas yet, probs store after creation for constant strings
+                cerr << BinaryCodec::DecodeStringUTF8<uint32_t>(BONGO_PROGRAM, PROGRAM_COUNTER);
             }
             break;
             case CEIL:
@@ -700,6 +546,8 @@ namespace BongoJam {
                 int sv_Result = ceil(sv_Val.u.f64); //IMPORTANT: static analysis will prevent invalid values being pushed onto the stack here, and we just treat any value here as a double then recast after ig
 
                 Push(Value{ ValueType::I32, sv_Result });
+
+                PROGRAM_COUNTER++;
             }
             break;
             case FLOOR:
@@ -709,13 +557,15 @@ namespace BongoJam {
                 int sv_Result = floor(sv_Val.u.f64); //IMPORTANT: static analysis will prevent invalid values being pushed onto the stack here, and we just treat any value here as a double then recast after ig
 
                 Push(Value{ ValueType::I32, sv_Result });
+
+                PROGRAM_COUNTER++;
             }
             break;
             case NATIVE_CALL:
             {
-                _p++; //shift program pointer 
+                PROGRAM_COUNTER++; //shift program pointer 
 
-                string sv_FuncName = ListOfDecodedStrings[Decode32BitInt(&f_ByteCode, &_p)];
+                string sv_FuncName = ListOfDecodedStrings[BinaryCodec::DecodeInt<uint32_t>(BONGO_PROGRAM, PROGRAM_COUNTER)];
 
                 if (NativeFunctions.contains(sv_FuncName))
                 {
@@ -727,20 +577,22 @@ namespace BongoJam {
                 {
                     throw runtime_error(format("FATAL ERROR: Native function with name: '{}' not found", sv_FuncName));
                 }
+
+                //counter advances from decode call uwu
             }
             break;
             //XXX: Compiler should always pad a halt call w a exit code after
             case HALT: //XXX: used for exit() or abort() calls
             {
-                _p++; //shift stack pointer ahead once to check for exit code
-                uint32_t f_ExitCode = f_ByteCode[_p];
+                PROGRAM_COUNTER++; //shift stack pointer ahead once to check for exit code
+                int64_t f_ExitCode = BinaryCodec::DecodeInt<int64_t>(BONGO_PROGRAM, PROGRAM_COUNTER);
                 cout << "\n\n"; //XXX: padding for exit msg and last print msg from user script
                 Print(format("\nBongoJam program exited with code {}", f_ExitCode), Colours::BrightCyan);
                 return f_ExitCode; //SHOULD return number returned by bj script main func
             }
             break;
             default: //THROW ERROR
-                runtime_logger->Error(format("INTERNAL RUNTIME ERROR: Error at Line Number: {}, Error at BYTE-CODE: {}", _l, f_ByteCode[_p]), "Interpreter");
+                runtime_logger->Error(format("INTERNAL RUNTIME ERROR: Error at Line Number: {}, Error at BYTE-CODE: {}", _l, BONGO_PROGRAM[PROGRAM_COUNTER]), "Interpreter");
                 runtime_logger->Error("Something terrible happened while running the code, invalid bytecode was generated by the compiler (sorry not your fault I think LOL)", "Interpreter");
                 runtime_logger->Debug("BongoJam program exited with code -1", "Interpreter");
                 return EXIT_FAILURE;

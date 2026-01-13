@@ -30,8 +30,16 @@
 
 #endif //C++ detection
 
-BONGO_API int64_t 
+typedef int64_t BONGO_ERROR_CODE;
+
+BONGO_API BONGO_ERROR_CODE
     BONGO_Parse();
+
+BONGO_API BONGO_ERROR_CODE
+    BONGO_RegisterFunction();
+
+BONGO_API BONGO_ERROR_CODE
+    BONGO_CompileProject();
 
 
 #endif //header guard uwu

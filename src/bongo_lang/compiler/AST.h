@@ -93,7 +93,7 @@ namespace BongoJam {
         None
     };
 
-    const map<string, TokenType> STANDARD_FUNCTIONS =
+    const unordered_map<string, TokenType> STANDARD_FUNCTIONS =
     {
         //////////////////// Included Functions ////////////////////
 
@@ -337,6 +337,7 @@ namespace BongoJam {
         unique_ptr<Expr> ChainedIdentifier = nullptr; //in a call chain this is ...MyFunc().MyClass.................
 
         Token Decorator; //used primarily for @bgn or w/e
+        Token ReturnType;
     };
 
     struct IdentifierExpr : public Expr

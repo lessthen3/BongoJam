@@ -9,10 +9,10 @@
  * BongoJam is an open-source scripting language compiler and interpreter
  *        primarily intended for embedding within game engines.
 **************************************************************************/
-#define BONGO_USING_TERMINAL
+#define BONGO_USING_OS_CONSOLE
 #define BONGO_DEBUG
 
-#include "../../include/cli/BongoManager.h"
+#include "BongoManager.h"
 
 #include <csignal>
 
@@ -33,7 +33,7 @@ int
 
     //Enable ANSI colour codes for windows console grumble grumble
     #if defined(_WIN32) || defined(_WIN64)
-        BongoJam::EnableColors();
+        BongoJam::EnableWindowsConsoleColours();
     #endif
 
     try

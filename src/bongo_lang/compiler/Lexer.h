@@ -14,13 +14,15 @@
 #include <algorithm>
 #include <cctype>
 #include <cassert>
-
-#include "../Logger.h"
-
 #include <numbers>
+
+///BongoJam
+#include "../Logger.h"
+#include "../VectorStream.h"
 
 #define BONGO_PI std::numbers::pi
 #define BONGO_EULERS_NUMBER std::numbers::e
+#define BONGO_GOLDEN_RATIO std::numbers::phi
 
 
 namespace BongoJam {
@@ -285,7 +287,7 @@ namespace BongoJam {
     // Keywords Definition
     //////////////////////////////////////////////
 
-    const map<string, TokenType> KEYWORDS =
+    const unordered_map<string, TokenType> KEYWORDS =
     {
         //////////////////// GOAT ////////////////////
 

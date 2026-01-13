@@ -19,6 +19,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <atomic>
+#include <thread>
 
 namespace BongoJam {
 
@@ -38,13 +39,18 @@ namespace BongoJam {
         {
             m_Stop = false;
 
-            for (size_t i = 0; i < pm_ThreadCount; ++i)
+            for (size_t lv_ThreadNumber = 0; lv_ThreadNumber < pm_ThreadCount; ++lv_ThreadNumber)
             {
-                m_Workers[i] = thread(&CompilerThreadPool::Worker, this);
+                m_Workers[lv_ThreadNumber] = thread(&CompilerThreadPool::Worker, this, lv_ThreadNumber);
             }
 
-            threadpool_logger = make_unique<Logger>();
-            threadpool_logger->Initialize(DEFAULT_LOG_OUTPUT_DIRECTORY, "ThreadPoolLogger", DEFAULT_LOG_LEVEL_FILTER);
+            threadpool_logger = Logger::CreateUnique("ThreadPoolLogger", DEFAULT_LOG_FLAGS, DEFAULT_LOG_OUTPUT_DIRECTORY);
+
+            if (not threadpool_logger)
+            {
+                throw runtime_error("WTF MANG LOGGER FAILED TO INITIALIZE FROM THREADPOOL WTF MANG");
+            }
+
             threadpool_logger->Debug("Properly Initialized CompilerThreadPool!", "ThreadPoolLogger");
         }
 
@@ -123,9 +129,9 @@ namespace BongoJam {
 
     private:
         void
-            Worker() //maybe have a worker ID idk for tracking might as well w the logger name right
+            Worker(uint64_t fp_ThreadNumber) //maybe have a worker ID idk for tracking might as well w the logger name right
         {
-            thread_local BongoCompiler f_Compiler;
+            thread_local BongoCompiler f_Compiler("CompilerThreadPool__ThreadID( " + to_string(fp_ThreadNumber)  + " )");
             Logger* f_CompilerLogger = f_Compiler.compiler_logger.get();
 
             while (true)
@@ -145,7 +151,7 @@ namespace BongoJam {
 
                     if (m_Stop)
                     {
-                        f_CompilerLogger->Debug("Worker exiting early due to stop flag", "Worker");
+                        f_CompilerLogger->Debug("Worker exiting due to stop flag", "Worker");
                         return;
                     }
 

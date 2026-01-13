@@ -9,18 +9,28 @@
 * BongoJam is an open-source scripting language compiler and interpreter
 *        primarily intended for embedding within game engines.
 **************************************************************************/
-#include "../../../include/bongo_lang/compiler/Compiler.h"
+#include "Compiler.h"
 
 namespace BongoJam{
 
-    BongoCompiler::BongoCompiler()
+    BongoCompiler::BongoCompiler(const string& fp_CompilerName)
     {
-        //pm_CompilerID = 2;
+        stringstream f_UckCPlusPlus; //XXX: cpp is a dumb fucking language sometimes holy please make good features and not dumbass nonsense holy shit
+        f_UckCPlusPlus << this_thread::get_id();
+        string f_CallerThreadID = f_UckCPlusPlus.str();
 
-        compiler_logger = make_shared<Logger>();
-        compiler_logger->Initialize(DEFAULT_LOG_OUTPUT_DIRECTORY, "BongoCompilerLogger", DEFAULT_LOG_LEVEL_FILTER);
+        pm_CompiledThreadID = stol(f_CallerThreadID);
 
-        compiler_logger->Debug(format("Successfully initialized for Compiler with ID : {}", pm_CompilerID), "Compiler");
+        pm_CompilerName = fp_CompilerName;
+
+        compiler_logger = Logger::CreateShared(pm_CompilerName, DEFAULT_LOG_FLAGS, DEFAULT_LOG_OUTPUT_DIRECTORY);
+
+        if (not compiler_logger)
+        {
+            throw runtime_error("Failed to initialize logger for " + pm_CompilerName);
+        }
+
+        compiler_logger->Debug(format("Successfully initialized for Compiler with ID : {}", pm_CompiledThreadID), "Compiler");
 
         pm_BongoParser = make_unique<Parser>(compiler_logger);
     }
@@ -41,6 +51,12 @@ unique_ptr<StatementNode>
     fp_ProgramBody.erase(fp_ProgramBody.begin());
 
     return move(f_FirstElement);
+}
+
+bool
+    BongoCompiler::TryToResolveSymbol(const string& fp_SymbolName, CompilationUnit* fp_CompilationUnit)
+{
+    return fp_CompilationUnit->SymbolTable.find(fp_SymbolName) == fp_CompilationUnit->SymbolTable.end();
 }
 
 bool
@@ -96,117 +112,6 @@ bool
     return true;
 }
 
-//////////////////////////////////////////////
-// Encoding Functions
-//////////////////////////////////////////////
-
-void
-    BongoCompiler::Encode32BitInt
-    (
-        vector<uint8_t>& fp_ByteCode, 
-        const uint32_t fp_Int
-    )
-{
-    fp_ByteCode.push_back((fp_Int >> 24) & 0xFF); // High byte
-    fp_ByteCode.push_back((fp_Int >> 16) & 0xFF);
-    fp_ByteCode.push_back((fp_Int >> 8) & 0xFF);
-    fp_ByteCode.push_back(fp_Int & 0xFF);         // Low byte
-}
-
-void
-    BongoCompiler::Encode64BitInt
-    (
-        vector<uint8_t>& fp_ByteCode, 
-        const uint64_t fp_Int
-    )
-{
-    fp_ByteCode.push_back((fp_Int >> 56) & 0xFF); // High byte
-    fp_ByteCode.push_back((fp_Int >> 48) & 0xFF);
-    fp_ByteCode.push_back((fp_Int >> 40) & 0xFF);
-    fp_ByteCode.push_back((fp_Int >> 32) & 0xFF);         
-    fp_ByteCode.push_back((fp_Int >> 24) & 0xFF);
-    fp_ByteCode.push_back((fp_Int >> 16) & 0xFF);
-    fp_ByteCode.push_back((fp_Int >> 8) & 0xFF);
-    fp_ByteCode.push_back(fp_Int & 0xFF);         // Low byte
-}
-
-void
-    BongoCompiler::EncodeUTF8String
-    (
-        vector<uint8_t>& fp_ByteCode, 
-        const string& fp_String
-    )
-{
-    vector<uint8_t> f_EncodedBytes; // Temporary buffer to hold encoded bytes
-    uint32_t f_SizeOfString = fp_String.size();
-
-    //////////// next 32 bits are size of the string arg WIP
-    // f_BongoProgram.ParsedScript
-    // Encode each character in the string
-    for (char _c : fp_String)
-    {
-        switch (_c)
-        {
-        case '\n':  // Newline
-            f_EncodedBytes.push_back('\\');
-            f_EncodedBytes.push_back('n');
-            break;
-        case '\t':  // Tab
-            f_EncodedBytes.push_back('\\');
-            f_EncodedBytes.push_back('t');
-            break;
-        case '\\':  // Backslash
-            f_EncodedBytes.push_back('\\');
-            f_EncodedBytes.push_back('\\');
-            cout << "what the" << "\n";
-            break;
-        default:
-            f_EncodedBytes.push_back(static_cast<uint8_t>(_c));
-            break;
-        }
-    }
-
-    Encode32BitInt(fp_ByteCode, static_cast<uint32_t>(f_EncodedBytes.size())); // Store the length of the string
-    fp_ByteCode.insert(fp_ByteCode.end(), f_EncodedBytes.begin(), f_EncodedBytes.end());
-}
-
-void
-    BongoCompiler::EncodeFloat
-    (
-        vector<uint8_t>& fp_ByteCode, 
-        float fp_Float
-    )
-{
-    uint32_t asInt;
-    memcpy(&asInt, &fp_Float, sizeof(float)); // Copy the float into an uint32_t bit pattern
-    Encode32BitInt(fp_ByteCode, asInt);      // Reuse the integer encoding function
-}
-
-void
-    BongoCompiler::EncodeDouble
-    (
-        vector<uint8_t>& fp_ByteCode, 
-        const double fp_DoubleVal
-    )
-{
-    uint64_t asInt;
-    memcpy(&asInt, &fp_DoubleVal, sizeof(double)); // Copy the double into a uint64_t bit pattern
-    Encode64BitInt(fp_ByteCode, asInt);      // Reuse the integer encoding function
-}
-
-void
-    BongoCompiler::Encode32BitChar(vector<uint8_t>& fp_ByteCode, uint32_t character)
-{
-    Encode32BitInt(fp_ByteCode, character); // Treat the character as a 32-bit integer
-}
-
-void
-    BongoCompiler::EncodeBool(vector<uint8_t>& fp_ByteCode, bool fp_Bool)
-{
-    uint32_t boolAsInt = fp_Bool ? 1 : 0; // Convert boolean to 32-bit integer
-    Encode32BitInt(fp_ByteCode, boolAsInt);
-}
-
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool
@@ -249,6 +154,15 @@ bool
         }
     }
     break;
+    case TokenType::UserIdentifier:
+    {
+        //check for the symbol to make sure it exists
+        if (TryToResolveSymbol(fp_FunctionCallExpr->FuncName.m_Value, fp_CompilationUnit))
+        {
+
+        }
+    }
+    break;
     default:
 
         return false;
@@ -280,23 +194,24 @@ bool
             case TokenType::FloatNumber:
             {
                 fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::FLOAT_VALUE);
-                EncodeFloat(fp_CompilationUnit->CompiledByteCode, stof(sv_SingleValueExpr->m_Value.m_Value));
+                BinaryCodec::EncodeFloat(fp_CompilationUnit->CompiledByteCode, stof(sv_SingleValueExpr->m_Value.m_Value));
             }
             break;
             case TokenType::IntNumber:
             {
                 fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::INT_VALUE);
-                Encode32BitInt(fp_CompilationUnit->CompiledByteCode, stoi(sv_SingleValueExpr->m_Value.m_Value));
+                BinaryCodec::EncodeInt32(fp_CompilationUnit->CompiledByteCode, stoi(sv_SingleValueExpr->m_Value.m_Value));
             }
             break;
             case TokenType::StringLiteral:
             {
                 fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::STRING_VALUE);
-                EncodeUTF8String(fp_CompilationUnit->CompiledByteCode, sv_SingleValueExpr->m_Value.m_Value);
+                BinaryCodec::EncodeStringUTF8<uint32_t>(fp_CompilationUnit->CompiledByteCode, sv_SingleValueExpr->m_Value.m_Value);
             }
             break;
             case TokenType::UnsignedIntNumber:
                 fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::UNSIGNED_INT_VALUE);
+                BinaryCodec::EncodeInt<uint64_t>(fp_CompilationUnit->CompiledByteCode, stoull(sv_SingleValueExpr->m_Value.m_Value));
                 break;
             default: //THROW ERROR:
                 compiler_logger->Error(format("Error at Line: {}, Invalid value found while compiling a single value expression OwO", sv_SingleValueExpr->m_Value.m_SourceCodeLineNumber), "BongoCompiler");
@@ -427,7 +342,7 @@ bool
 
     //////////////////// Encode String UwU ////////////////////
 
-    EncodeUTF8String
+    BinaryCodec::EncodeStringUTF8<uint32_t>
     (
         fp_CompilationUnit->CompiledByteCode,
         f_PrintString
@@ -467,7 +382,7 @@ bool
 
         //////////////////// Encode String UwU ////////////////////
 
-        EncodeUTF8String
+        BinaryCodec::EncodeStringUTF8<uint32_t>
         (
             fp_CompilationUnit->CompiledByteCode,
             f_PrintString
@@ -722,7 +637,7 @@ bool
         else
         {
             fp_CompilationUnit->CompiledByteCode.push_back(STORE_LOCAL);
-            Encode32BitInt(fp_CompilationUnit->CompiledByteCode, f_Symbol.Slot); //find slot in stack
+            BinaryCodec::EncodeInt32(fp_CompilationUnit->CompiledByteCode, f_Symbol.Slot); //find slot in stack
         }
 
         return true;
@@ -806,7 +721,7 @@ bool
     else
     {
         fp_CompilationUnit->CompiledByteCode.push_back(STORE_LOCAL);
-        Encode32BitInt(fp_CompilationUnit->CompiledByteCode, f_Symbol.Slot); //find slot in stack
+        BinaryCodec::EncodeInt32(fp_CompilationUnit->CompiledByteCode, f_Symbol.Slot); //find slot in stack
     }
 
 
@@ -829,7 +744,7 @@ bool
 
     fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::STORE_LOCAL); //push new valus
 
-    Encode32BitInt(fp_CompilationUnit->CompiledByteCode, pm_NextAvailableStackSlot);
+    BinaryCodec::EncodeInt32(fp_CompilationUnit->CompiledByteCode, pm_NextAvailableStackSlot);
 
     Symbol f_Symbol; 
 
@@ -1063,14 +978,14 @@ int
         }
         break;
         default:
-            compiler_logger->Fatal(format("FATAL COMPILATION ERROR: Compiler tried processing an invalid StatementNode either produced improperly by Parser, or Compiler should know the statement but hasnt been updated properly\n COMPILER ID: {}\n", pm_CompilerID), "Compiler");
+            compiler_logger->Fatal(format("FATAL COMPILATION ERROR: Compiler tried processing an invalid StatementNode either produced improperly by Parser, or Compiler should know the statement but hasnt been updated properly\n COMPILER ID: {}\n", pm_CompiledThreadID), "Compiler");
             return EXIT_FAILURE;
         }
     }
 
     fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::HALT); //indicate proper exit
 
-    Encode32BitInt(fp_CompilationUnit->CompiledByteCode, 0);
+    BinaryCodec::EncodeInt<int64_t>(fp_CompilationUnit->CompiledByteCode, 0);
 
     return BONGO_OK;
 }

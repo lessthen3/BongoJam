@@ -12,11 +12,7 @@
 #pragma once
 
 ///STL
-#include <stdint.h>
-#include <string>
-#include <vector>
-#include <unordered_map>
-#include <array>
+#include <cstdint>
 
 namespace BongoJam
 {
@@ -159,8 +155,8 @@ namespace BongoJam
     struct SSAInstruction
     {
         BJ_OP OP = BJ_OP::NOP;
-        string DEST;
-        vector<string> SRC;
+        //string DEST;
+        //vector<string> SRC;
     };
 
 }//namespace BongoJam

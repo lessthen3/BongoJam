@@ -55,7 +55,7 @@ namespace BongoJam
 
         string m_LogOutputDirectory = "./logs";
 
-        Logger::LogLevel pm_ActiveLogMask = Logger::LogLevel::ALL_LOGS;
+       uint32_t pm_ActiveLogMask = DEFAULT_LOG_FLAGS;
 
         uint64_t m_MaximumAllowedThreads = 1;
 
@@ -126,11 +126,11 @@ namespace BongoJam
             f_Configs.close();
         }
 
-        map<string, string>
+        unordered_map<string, string>
             ReadConfigs()
             const
         {
-            map<string, string> f_Configs;
+            unordered_map<string, string> f_Configs;
             ifstream f_ConfigFile("configs.ini");
 
             if (not f_ConfigFile)
@@ -195,7 +195,7 @@ namespace BongoJam
         string ScriptName;
         string ScriptFilePath;
 
-        SERIALIZABLE_FIELDS(ScriptName, ScriptFilePath)
+        //SERIALIZABLE_FIELDS(ScriptName, ScriptFilePath)
     };
 
     struct CompilerConfigs //keeps track of compiler settings and all source paths
@@ -209,7 +209,7 @@ namespace BongoJam
 
         uint64_t CompilerFlags = BongoCompilerFlags::DEFAULT;
 
-        SERIALIZABLE_FIELDS(MainFilePath, BongoScripts, OutputFileName, OutputDirectory, CompilerFlags)
+        //SERIALIZABLE_FIELDS(MainFilePath, BongoScripts, OutputFileName, OutputDirectory, CompilerFlags)
     };
 
     struct BongoProject //serialized to .bsproj file when building
@@ -222,7 +222,7 @@ namespace BongoJam
 
         CompilerConfigs LastUsedCompilerConfigs;
 
-        SERIALIZABLE_FIELDS(ProjectName, ProjectVersion, BongoJamVersion, BongoCompilerVersion, LastUsedCompilerConfigs)
+        //SERIALIZABLE_FIELDS(ProjectName, ProjectVersion, BongoJamVersion, BongoCompilerVersion, LastUsedCompilerConfigs)
     };
 
     struct CurrentBongoProject //used by bongomanager during runtime
@@ -246,8 +246,13 @@ namespace BongoJam {
     public:
         BongoManager()
         {
-            bongo_logger = make_unique<Logger>();
-            bongo_logger->Initialize(DEFAULT_LOG_OUTPUT_DIRECTORY, "BongoManager", DEFAULT_LOG_LEVEL_FILTER);
+            bongo_logger = Logger::CreateUnique("BongoManager", DEFAULT_LOG_FLAGS, DEFAULT_LOG_OUTPUT_DIRECTORY);
+
+            if (not bongo_logger)
+            {
+                throw runtime_error("WTF MANG LOGGER FAILED TO INITIALIZE FROM THREADPOOL WTF MANG");
+            }
+
             bongo_logger->Debug("uwu", "BongoManager");
 
             pm_Linker = make_unique<BongoLinker>();
@@ -276,7 +281,7 @@ namespace BongoJam {
         vector<BongoScriptUnit> pm_CurrentProjectSources;
         vector<BongoScriptUnit> pm_FoundMains;
 
-        Utils::Serializer pm_Serializer;
+        Serializer pm_Serializer;
 
         CurrentBongoProject pm_CurrentProject;
 
@@ -757,7 +762,7 @@ namespace BongoJam {
             pm_Linker->LinkCompilationUnits(move(pm_CurrentProjectSources), f_FullBongoProgram);
             
             //////////////////// Write fully assembled BongoJam program that is ready to be run >O< ////////////////////
-            if (not pm_Linker->WriteBytecodeToFile(f_FullBongoProgram, fp_CompilerConfigs.OutputDirectory, fp_CompilerConfigs.OutputFileName))
+            if (not BinaryCodec::WriteToBinary(fp_CompilerConfigs.OutputDirectory, fp_CompilerConfigs.OutputFileName + ".bongo", f_FullBongoProgram, bongo_logger.get()))
             {
 
                 return EXIT_FAILURE;
@@ -798,7 +803,7 @@ namespace BongoJam {
             pm_Linker->LinkCompilationUnits(move(pm_CurrentProjectSources), f_FullBongoProgram);
 
             //////////////////// Write fully assembled BongoJam program that is ready to be run >O< ////////////////////
-            if (not pm_Linker->WriteBytecodeToFile(f_FullBongoProgram, "./", "rawr_uwu"))
+            if (not BinaryCodec::WriteToBinary("./", "rawr_uwu.bongo", f_FullBongoProgram, bongo_logger.get()))
             {
 
                 return EXIT_FAILURE;

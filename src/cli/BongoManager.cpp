@@ -9,7 +9,7 @@
  * BongoJam is an open-source scripting language compiler and interpreter
  *        primarily intended for embedding within game engines.
 **************************************************************************/
-#include "../../include/cli/BongoManager.h"
+#include "BongoManager.h"
 
 namespace BongoJam {
 
