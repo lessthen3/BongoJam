@@ -700,8 +700,8 @@ namespace BongoJam {
     namespace FileIO
     {
         //////////////////////////////////////////////
-// Binary File Read/Write Functions
-//////////////////////////////////////////////
+        // Binary File Read/Write Functions
+        //////////////////////////////////////////////
 
         [[nodiscard]] inline bool
             WriteToBinary
@@ -846,8 +846,8 @@ namespace BongoJam {
         }
 
         //////////////////////////////////////////////
-// JSON File Read/Write Functions
-//////////////////////////////////////////////
+        // JSON File Read/Write Functions
+        //////////////////////////////////////////////
 
         [[nodiscard]] inline bool
             WriteStringToFile

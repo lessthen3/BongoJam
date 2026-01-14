@@ -843,7 +843,7 @@ int
         return BONGO_FAILED_TO_LEX_SCRIPT;
     }
 
-    unique_ptr<Program> f_BongoProgram = pm_BongoParser->ConstructAST(f_ProgramTokens); //doesnt need to be heap alloc'd since its just a bunch of vectors and maps
+    unique_ptr<Program> f_BongoProgram = pm_BongoParser->ConstructAST(VectorStream<Token>(move(f_ProgramTokens))); //doesnt need to be heap alloc'd since its just a bunch of vectors and maps
 
     if (not f_BongoProgram)
     {
