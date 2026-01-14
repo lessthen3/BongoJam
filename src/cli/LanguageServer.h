@@ -33,7 +33,7 @@
 typedef int64_t BONGO_ERROR_CODE;
 
 BONGO_API BONGO_ERROR_CODE
-    BONGO_Parse();
+    BONGO_ParseArguments(int fp_ArgCount, char* fp_ArgVector[]);
 
 BONGO_API BONGO_ERROR_CODE
     BONGO_RegisterFunction();

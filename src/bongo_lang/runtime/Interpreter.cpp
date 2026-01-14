@@ -135,7 +135,7 @@ namespace BongoJam {
 
         Serializer f_Serializer;
 
-        if (not BinaryCodec::ReadBinaryIntoVector(fp_BongoScriptName, {".bongo"}, BONGO_PROGRAM, runtime_logger.get())) //stop execution immediately if the file was not able to be read
+        if (not FileIO::ReadBinaryIntoVector(fp_BongoScriptName, {".bongo"}, BONGO_PROGRAM, runtime_logger.get())) //stop execution immediately if the file was not able to be read
         {
             return BONGO_RUNTIME_FAILED_TO_READ_BYTECODE;
         }

@@ -19,7 +19,7 @@ namespace BongoJam{
         f_UckCPlusPlus << this_thread::get_id();
         string f_CallerThreadID = f_UckCPlusPlus.str();
 
-        pm_CompiledThreadID = stol(f_CallerThreadID);
+        pm_CompiledThreadID = stoull(f_CallerThreadID);
 
         pm_CompilerName = fp_CompilerName;
 
@@ -57,59 +57,6 @@ bool
     BongoCompiler::TryToResolveSymbol(const string& fp_SymbolName, CompilationUnit* fp_CompilationUnit)
 {
     return fp_CompilationUnit->SymbolTable.find(fp_SymbolName) == fp_CompilationUnit->SymbolTable.end();
-}
-
-bool
-    BongoCompiler::ReadFileIntoString
-    (
-        string* fp_SourceCode,
-        const string& fp_ScriptFilePath
-    )
-    const
-{
-    //check for nullptr
-    if (not fp_SourceCode)
-    {
-        compiler_logger->Error("Nullptr reference passed to ReadFileIntoString()", "Compiler");
-        return false;
-    }
-    // Ensure directory exists
-    else if (not filesystem::exists(fp_ScriptFilePath))
-    {
-        compiler_logger->Error("Tried to pass invalid filepath to ReadFileIntoString()", "Compiler");
-        return false;
-    }
-
-    // Extract file extension assuming format "filename.ext"
-    size_t lastDotIndex = fp_ScriptFilePath.rfind('.');
-
-    if (lastDotIndex == string::npos)
-    {
-        compiler_logger->Error("Compiler Error: No file extension found", "Compiler");
-        return false;
-    }
-
-    string f_FileExtension = fp_ScriptFilePath.substr(lastDotIndex);
-
-    if (f_FileExtension != ".bj")
-    {
-        compiler_logger->Error("Compiler Error: Please only try to compile .bj files", "Compiler");
-        return false;
-    }
-
-    ifstream f_FileStream(fp_ScriptFilePath);
-
-    if (not f_FileStream)
-    {
-        compiler_logger->Error("Compiler Error: Failed to open bongojam script for reading.", "Compiler");
-        return false;
-    }
-
-    stringstream f_Buffer;
-    f_Buffer << f_FileStream.rdbuf();
-    *fp_SourceCode = f_Buffer.str();
-
-    return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -876,13 +823,13 @@ int
     if (not fp_CompilationUnit)
     {
         compiler_logger->Fatal(format("Tried to pass nullptr reference for CompilationUnit during attempted compilation of script: '{}'", fp_BongoScriptFilePath), "BongoCompiler");
-        return EXIT_FAILURE;
+        return TRIED_TO_PASS_NULLPTR_REF_TO_COMPILATION_UNIT;
     }
 
     //////////////////// Read .bj file, Tokenize and Parse it ////////////////////
 
-    string f_SourceCode;
-    if (not ReadFileIntoString(&f_SourceCode, fp_BongoScriptFilePath))
+    vector<char> f_SourceCode;
+    if (not FileIO::ReadFileIntoCharBuffer(fp_BongoScriptFilePath, {".bj", ".bjs"}, f_SourceCode, compiler_logger.get()))
     {
         //stop compilation immediately
         compiler_logger->Fatal("Compiler was not able to read a valid source file, compilation will not proceed any further. nothing was done.", "Compiler");
@@ -890,7 +837,11 @@ int
     }
 
     vector<Token> f_ProgramTokens;
-    Tokenize(f_SourceCode, f_ProgramTokens, compiler_logger.get());
+    if (not Tokenize(VectorStream<char>(move(f_SourceCode)), f_ProgramTokens, compiler_logger.get()))
+    {
+        compiler_logger->Fatal(format("Compiler was not able to Lex: '{}', compilation will not proceed any further. nothing was done.", fp_BongoScriptFilePath), "Compiler");
+        return BONGO_FAILED_TO_LEX_SCRIPT;
+    }
 
     unique_ptr<Program> f_BongoProgram = pm_BongoParser->ConstructAST(f_ProgramTokens); //doesnt need to be heap alloc'd since its just a bunch of vectors and maps
 

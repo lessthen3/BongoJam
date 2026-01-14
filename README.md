@@ -1,5 +1,5 @@
 # BongoJam
-BongoJam is a free open source compiler + interpreter primarily intended for use in game engines
+BongoJam is a free open source compiler + interpreter primarily intended for use in game engines, however can be used anywhere you need an embedded language.
 
 Some might say BongoJam is severely unoptimized, however here at BongoJam we prefer to say it has blazingly fast compile times
 
@@ -8,7 +8,7 @@ Some might say BongoJam is severely unoptimized, however here at BongoJam we pre
 
 ## Overall Design and Features
 
-BongoJam is a stack machine that is statically typed, and uses a GC. The syntax is an unholy amalgamation of C++ and Python
+BongoJam is a stack machine that is statically typed, and uses a GC. The syntax is an unholy amalgamation of C++ and Python.
 
 ## Philosophy
 
@@ -26,7 +26,7 @@ I'm planning on adding a profiler.
 
 If you want to build the compiler + runtime for yourself:
 
-0. This project is built using __C++20__, and you will need [__CMake 3.20+__](https://cmake.org/download/)
+0. This project is built using __C++20__, and you will need [__CMake 4.2.0+__](https://cmake.org/download/)
 
 1. Clone the repo
 
@@ -42,6 +42,10 @@ If you want to build the compiler + runtime for yourself:
 > * bongo (default: executable)— BongoJam CLI
 
 ## Why Another Scripting Language
+
+I created BongoJam mainly because I wanted a simple statically typed scripting language to embed inside Peach-E, however after looking through the currently available options I wasn't really able to find something that felt nice.
+
+Languages often fell into a few different categories, either the langauge was too hard to embed within a C++ application cleanly while still retaining useful stdlib functionality *\*cough python*,  or wasn't portable enough like C#, or was lacking features like static typing and proper objects like lua
 
 BongoJam isn't trying to replace any language in particular. BongoJam is just supposed to be a nice language to use, it isn't supposed to be a one size fits all solution. 
 

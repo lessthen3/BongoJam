@@ -27,6 +27,10 @@
 
 namespace BongoJam {
 
+    constexpr int8_t LEX_OPERATOR_FOUND_SOMETHING = 1;
+    constexpr int8_t LEX_OPERATOR_NOTHING_FOUND = 2;
+    constexpr int8_t LEX_OPERATOR_SYNTAX_ERROR = -1;
+
     //////////////////////////////////////////////
     // Token and Token-type Definition
     //////////////////////////////////////////////
@@ -400,36 +404,31 @@ namespace BongoJam {
         "bwe"
     };
 
-    [[nodiscard]] char
-        ShiftForward(string& fp_Src);
-
-    [[nodiscard]] char
-        Peek(const string& fp_Src);
-
-    [[nodiscard]] Token
+    [[nodiscard]] bool
         LexNumber
         (
-            string& fp_Src,
-            char& fp_CurrentChar,
+            VectorStream<char>& fp_Src,
+            char fp_CurrentChar,
             vector<Token>& fp_ProgramTokens,
             size_t& fp_CurrentLineNumber,
             Logger* logger
         );
 
-    [[nodiscard]] string
+    [[nodiscard]] bool
         LexWord //gets a single alphabetical unit uwu
         (
-            string& fp_Src,
-            char& fp_CurrentChar,
-            vector<Token>& fp_ProgramTokens,
-            size_t& fp_CurrentLineNumber
+            string& fp_StringContainer, //mutable used to fill in return string uwu
+            VectorStream<char>& fp_Src,
+            char fp_CurrentChar,
+            size_t& fp_CurrentLineNumber,
+            Logger* logger
         );
 
-    [[nodiscard]] bool
+    [[nodiscard]] int8_t
         LexOperator
         (
-            string& fp_Src,
-            char& fp_CurrentChar,
+            VectorStream<char>& fp_Src,
+            char fp_CurrentChar,
             vector<Token>& fp_ProgramTokens,
             size_t& fp_CurrentLineNumber,
             bool& fp_IsCurrentlyInsideComment,
@@ -439,7 +438,7 @@ namespace BongoJam {
     bool
         Tokenize
         (
-            string& fp_SourceCode,
+            VectorStream<char>&& fp_SourceCode,
             vector<Token>& fp_Tokens,
             Logger* logger
         );

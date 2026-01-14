@@ -18,7 +18,6 @@
 #include "compiler/CompilerThreadPool.h"
 
 //"Assertion: %s @ %s:%d (pid:%d)", #x, __FILE__, __LINE__, Platform::GetProcessID()
-#define BONGO_ARRAY_SIZE(x) sizeof(x) / sizeof(x[0])
 
 #define BONGO_ASSERT(x) \
 do {                                                     \
@@ -31,32 +30,13 @@ do {                                                     \
 
 namespace BongoJam
 {
-    constexpr int BONGO_NO_MAIN_FOUND = 2000;
-    constexpr int BONGO_MULTIPLE_MAINS_FOUND = 2001;
-
-    constexpr int NO_ARGUMENT_PROVIDED = -1001;
-    constexpr int UNKNOWN_OR_INCOMPLETE_ARGUMENT = -1002;
-    constexpr int INVALID_SET_ARGUMENT = -1003;
-    constexpr int INVALID_SCRIPT_TARGET = -1004;
-    constexpr int SCRIPT_DOES_NOT_EXIST = -1005;
-
-    constexpr int NO_SCRIPTS_GIVEN = -1006;
-    constexpr int NO_OUTPUT_FILE_NAME_GIVEN = -1007;
-
-    constexpr int BONGO_FAILED_TO_LOAD_PROJECT = -1008;
-
-    constexpr int BONGO_NO_BUILD_TYPE_SPECIFIED = -1009;
-    constexpr int BONGO_NO_OUTPUT_TYPE_SPECIFIED = -1010;
-
     struct BongoConfigs
     {
         BongoConfigs() = default;
         ~BongoConfigs() = default;
 
-        string m_LogOutputDirectory = "./logs";
-
-       uint32_t pm_ActiveLogMask = DEFAULT_LOG_FLAGS;
-
+        string pm_LogOutputDirectory = "./logs";
+        uint32_t pm_LogFlags = DEFAULT_LOG_FLAGS;
         uint64_t m_MaximumAllowedThreads = 1;
 
         void
@@ -75,104 +55,9 @@ namespace BongoJam
                 //<< CreateColouredText(m_BongoFileOutputDirectory, Colours::BrightCyan)
                 << "\n"
                 << CreateColouredText("Log Output Directory: ", Colours::BrightYellow)
-                << CreateColouredText(m_LogOutputDirectory, Colours::BrightCyan)
+                << CreateColouredText(pm_LogOutputDirectory, Colours::BrightCyan)
                 << "\n\n"
                 ;
-        }
-
-        void
-            CreateDefaultConfigs()
-            const
-        {
-            ofstream f_Configs("configs.ini");
-
-            if (not f_Configs)
-            {
-                PrintError("Failed to create default settings file.");
-                return;
-            }
-
-            //string f_IsDebug = (m_IsDebugMode ? "true" : "false");
-
-            f_Configs << "[Settings]\n";
-            //f_Configs << "OutputFileName=" + m_OutputFileName + "\n";
-            //f_Configs << "OutputDirectory=" + m_BongoFileOutputDirectory + "\n";
-            //f_Configs << "DebugMode= " + f_IsDebug + "\n";
-            f_Configs << "LogOutputDirectory= " + m_LogOutputDirectory + "\n";
-
-            f_Configs.close();
-        }
-
-        void
-            WriteToConfigs()
-            const
-        {
-            ofstream f_Configs("configs.ini");
-
-            if (not f_Configs)
-            {
-                PrintError("Failed to open config file for writing.");
-                return;
-            }
-
-            //string f_IsDebug = (m_IsDebugMode ? "true" : "false");
-
-            f_Configs << "[Settings]\n";
-            //f_Configs << "OutputFileName=" + m_OutputFileName + "\n";
-            //f_Configs << "OutputDirectory=" + m_BongoFileOutputDirectory + "\n";
-            //f_Configs << "DebugMode= " + f_IsDebug + "\n";
-            f_Configs << "LogOutputDirectory= " + m_LogOutputDirectory + "\n";
-
-            f_Configs.close();
-        }
-
-        unordered_map<string, string>
-            ReadConfigs()
-            const
-        {
-            unordered_map<string, string> f_Configs;
-            ifstream f_ConfigFile("configs.ini");
-
-            if (not f_ConfigFile)
-            {
-                PrintError("Failed to open config file for reading.", Colours::Magenta);
-                return f_Configs;
-            }
-
-            string f_CurrentLine; //used for tracking the current line of the ini
-
-            while (getline(f_ConfigFile, f_CurrentLine))
-            {
-                // Remove comments
-                size_t f_CommentPosition = f_CurrentLine.find('#');
-
-                if (f_CommentPosition != string::npos)
-                {
-                    f_CurrentLine = f_CurrentLine.substr(0, f_CommentPosition);
-                }
-
-                // Remove spaces at the beginning
-                f_CurrentLine.erase(0, f_CurrentLine.find_first_not_of(" \t"));
-
-                // Ignore empty lines
-                if (f_CurrentLine.empty() or f_CurrentLine[0] == ';' or f_CurrentLine[0] == '#' or f_CurrentLine[0] == '[')
-                {
-                    continue;
-                }
-
-                size_t delimiterPos = f_CurrentLine.find('=');
-                string key = f_CurrentLine.substr(0, delimiterPos);
-                string value = f_CurrentLine.substr(delimiterPos + 1);
-
-                // Remove spaces around the key and value
-                key.erase(key.find_last_not_of(" \t") + 1);
-                value.erase(0, value.find_first_not_of(" \t"));
-
-                f_Configs[key] = value;
-            }
-
-            f_ConfigFile.close();
-            return f_Configs;
         }
 
         bool
@@ -195,7 +80,11 @@ namespace BongoJam
         string ScriptName;
         string ScriptFilePath;
 
-        //SERIALIZABLE_FIELDS(ScriptName, ScriptFilePath)
+        PEACH_SERIALIZABLE
+        (
+            PEACH_FIELD(ScriptName),
+            PEACH_FIELD(ScriptFilePath)
+        )
     };
 
     struct CompilerConfigs //keeps track of compiler settings and all source paths
@@ -209,7 +98,14 @@ namespace BongoJam
 
         uint64_t CompilerFlags = BongoCompilerFlags::DEFAULT;
 
-        //SERIALIZABLE_FIELDS(MainFilePath, BongoScripts, OutputFileName, OutputDirectory, CompilerFlags)
+        PEACH_SERIALIZABLE
+        (
+            PEACH_FIELD(MainFilePath),
+            PEACH_FIELD(BongoScripts),
+            PEACH_FIELD(OutputFileName),
+            PEACH_FIELD(OutputDirectory),
+            PEACH_FIELD(CompilerFlags)
+        )
     };
 
     struct BongoProject //serialized to .bsproj file when building
@@ -222,7 +118,14 @@ namespace BongoJam
 
         CompilerConfigs LastUsedCompilerConfigs;
 
-        //SERIALIZABLE_FIELDS(ProjectName, ProjectVersion, BongoJamVersion, BongoCompilerVersion, LastUsedCompilerConfigs)
+        PEACH_SERIALIZABLE
+        (
+            PEACH_FIELD(ProjectName),
+            PEACH_FIELD(ProjectVersion),
+            PEACH_FIELD(BongoJamVersion),
+            PEACH_FIELD(BongoCompilerVersion),
+            PEACH_FIELD(LastUsedCompilerConfigs)
+        )
     };
 
     struct CurrentBongoProject //used by bongomanager during runtime
@@ -259,10 +162,7 @@ namespace BongoJam {
             pm_Interpreter = make_unique<BongoJamInterpreter>();
         }
 
-        ~BongoManager()
-        {
-            pm_CompilerThreadPool.Shutdown();
-        }
+        ~BongoManager() = default;
 
         BongoManager(const BongoManager&) = delete;
         BongoManager& operator=(const BongoManager&) = delete;
@@ -729,10 +629,18 @@ namespace BongoJam {
         int
             StartCompilationOfProject(const CompilerConfigs& fp_CompilerConfigs)
         {
-            pm_CompilerThreadPool.BONGO_COMPILE_SUCCESS = true; //set flag to true and worker threads will set to false if failed uwu
+            const size_t f_TaskCount = 1 + pm_CurrentProjectSources.size();  // figure out how many compilation jobs we have, +1 since mains aren't inside the project sources uwu
+
+            pm_CompilerThreadPool.StartBatch(f_TaskCount);
+
+            // if latch creation failed or something went wrong
+            if (not pm_CompilerThreadPool.IsBatchActive())
+            {
+                bongo_logger->Error("Failed to start compilation batch", "BongoManager");
+                return UNABLE_TO_START_BATCH_COMPILATION; // define this if you haven’t
+            }
 
             //read file paths into a job queue
-
             pm_CompilerThreadPool.EnqueueTask({ pm_FoundMains[0].FilePath.string() , pm_FoundMains[0].CompiledUnit.get() });
 
             for (int _i = 0; _i < pm_CurrentProjectSources.size(); ++_i)
@@ -748,7 +656,7 @@ namespace BongoJam {
             if (not pm_CompilerThreadPool.BONGO_COMPILE_SUCCESS)
             {
 
-                return EXIT_FAILURE;
+                return BONGO_COMPILATION_FAILED;
             }
 
             pm_CurrentProjectSources.push_back(move(pm_FoundMains[0])); //put entry point as last item
@@ -762,7 +670,7 @@ namespace BongoJam {
             pm_Linker->LinkCompilationUnits(move(pm_CurrentProjectSources), f_FullBongoProgram);
             
             //////////////////// Write fully assembled BongoJam program that is ready to be run >O< ////////////////////
-            if (not BinaryCodec::WriteToBinary(fp_CompilerConfigs.OutputDirectory, fp_CompilerConfigs.OutputFileName + ".bongo", f_FullBongoProgram, bongo_logger.get()))
+            if (not FileIO::WriteToBinary(fp_CompilerConfigs.OutputDirectory, fp_CompilerConfigs.OutputFileName + ".bongo", f_FullBongoProgram, bongo_logger.get()))
             {
 
                 return EXIT_FAILURE;
@@ -776,11 +684,17 @@ namespace BongoJam {
         int
             RunTest(const string& fp_ScriptPath)
         {
-            pm_CompilerThreadPool.BONGO_COMPILE_SUCCESS = true; //set flag to true and worker threads will set to false if failed uwu
-
             BongoScriptUnit fp_TestScript;
 
             //read file paths into a job queue
+
+            pm_CompilerThreadPool.StartBatch(1);
+
+            if (not pm_CompilerThreadPool.IsBatchActive())
+            {
+
+                return UNABLE_TO_START_BATCH_COMPILATION;
+            }
 
             pm_CompilerThreadPool.EnqueueTask({ fp_ScriptPath , fp_TestScript.CompiledUnit.get() });
 
@@ -789,7 +703,7 @@ namespace BongoJam {
             if (not pm_CompilerThreadPool.BONGO_COMPILE_SUCCESS)
             {
 
-                return EXIT_FAILURE;
+                return BONGO_COMPILATION_FAILED;
             }
 
             pm_CurrentProjectSources.push_back(move(fp_TestScript)); //put entry point as last item
@@ -803,7 +717,7 @@ namespace BongoJam {
             pm_Linker->LinkCompilationUnits(move(pm_CurrentProjectSources), f_FullBongoProgram);
 
             //////////////////// Write fully assembled BongoJam program that is ready to be run >O< ////////////////////
-            if (not BinaryCodec::WriteToBinary("./", "rawr_uwu.bongo", f_FullBongoProgram, bongo_logger.get()))
+            if (not FileIO::WriteToBinary("./", "rawr_uwu.bongo", f_FullBongoProgram, bongo_logger.get()))
             {
 
                 return EXIT_FAILURE;

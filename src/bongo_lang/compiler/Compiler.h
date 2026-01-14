@@ -200,14 +200,6 @@ namespace BongoJam {
         bool
             TryToResolveSymbol(const string& fp_SymbolName, CompilationUnit* fp_CompilationUnit);
 
-        bool
-            ReadFileIntoString
-            (
-                string* fp_SourceCode,
-                const string& fp_ScriptFilePath
-            )
-            const;
-
         size_t
             GetCurrentByteOffset(CompilationUnit* fp_CompilationUnit)
         {

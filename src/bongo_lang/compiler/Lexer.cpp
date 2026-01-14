@@ -17,103 +17,117 @@ namespace BongoJam {
     // Utility Functions
     //////////////////////////////////////////////
 
-    [[nodiscard]] char
-        ShiftForward(string& fp_Src)
-    {
-        if (fp_Src.empty())
-        {
-            return '\0';
-        }
-
-        char _c = fp_Src[0];
-        fp_Src.erase(fp_Src.begin());
-        return _c;
-    }
-
-    [[nodiscard]] char
-        Peek(const string& fp_Src)
-    {
-        if (fp_Src.empty())
-        {
-            return '\0';
-        }
-
-        return fp_Src[0];
-    }
-
-    [[nodiscard]] Token
+    [[nodiscard]] bool
         LexNumber
         (
-            string& fp_Src,
-            char& fp_CurrentChar,
+            VectorStream<char>& fp_Src,
+            char fp_CurrentChar,
             vector<Token>& fp_ProgramTokens,
             size_t& fp_CurrentLineNumber,
             Logger* logger
         )
     {
-        string f_Number = ""; // >w<
+        string f_Number = ""; // >w< //get current char since its a digit
 
-        f_Number += fp_CurrentChar; //get current char since its a digit
+        f_Number += fp_CurrentChar; 
 
-        while (fp_Src.size() > 0 and isdigit(Peek(fp_Src)))
+        if (not fp_Src.Peek(fp_CurrentChar))
         {
-            fp_CurrentChar = ShiftForward(fp_Src); //shift to next character
-            f_Number += fp_CurrentChar;
+            logger->Error(format("Found END__OF__FILE while parsing a number! Why is there a number at the end of the file >O<? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+            return false;
         }
 
-        if (Peek(fp_Src) == '.') //used for handling decimal numbers eg. "let x->float = 3.14;"
+        while (isdigit(fp_CurrentChar))
         {
-            fp_CurrentChar = ShiftForward(fp_Src); //shift to next non-numeric character
+            fp_Src.ShiftForwardUnsafe(fp_CurrentChar);
+            f_Number += fp_CurrentChar;
+
+            if (not fp_Src.Peek(fp_CurrentChar))
+            {
+                logger->Error(format("Found END__OF__FILE while parsing a number! Why is '{}' at the end of the file >O<? Error occured at line number: {}", f_Number, fp_CurrentLineNumber), "Lexer");
+                return false;
+            }
+        }
+
+        //peek oversteps so this is kosher >w<
+
+        if (fp_CurrentChar == '.') //used for handling decimal numbers eg. "let x->float = 3.14;"
+        {
+            fp_Src.ShiftForwardUnsafe(fp_CurrentChar); //shift -> '.'
             f_Number += fp_CurrentChar; //add the decimal so we're at: "69. (rest to be parsed)" currently
 
-            if (not isdigit(Peek(fp_Src))) // Handle error: incomplete float definition -> '59. '
+            if (not fp_Src.Peek(fp_CurrentChar))
+            {
+                logger->Error(format("Found END__OF__FILE while parsing a decimal number! Why is the EOF after '{}' >O<? Error occured at line number: {}", f_Number, fp_CurrentLineNumber), "Lexer");
+                return false;
+            }
+
+            if (not isdigit(fp_CurrentChar)) // Handle error: incomplete float definition -> '59. '
             {
                 logger->Error(format("Error at Line Number: {}, unexpected symbol: '{}' found following a '.' brother!, looks like you've input a non-numeric symbol while defining a decimal number", fp_CurrentLineNumber, fp_CurrentChar), "Lexer");
-                fp_Src.clear(); //dump the source code vector, so that the compiler will stop processing the source code
-                return Token();
+                return false;
             }
             //is a digit so check for digit again to verify and shiftforwards for value uwu
-            while (fp_Src.size() > 0 and isdigit(Peek(fp_Src)))
+            while (isdigit(fp_CurrentChar))
             {
-                fp_CurrentChar = ShiftForward(fp_Src); //shift to next character
+                fp_Src.ShiftForwardUnsafe(fp_CurrentChar);
                 f_Number += fp_CurrentChar;
+
+                if (not fp_Src.Peek(fp_CurrentChar))
+                {
+                    logger->Error(format("Found END__OF__FILE while parsing a decimal number! Why is '{}' at the end of the file >O<? Error occured at line number: {}", f_Number, fp_CurrentLineNumber), "Lexer");
+                    return false;
+                }
             }
 
             //push a float
-            return Token(f_Number, TokenType::FloatNumber, fp_CurrentLineNumber); //No need for a continue here since the current character isnt a digit
+            fp_ProgramTokens.emplace_back(f_Number, TokenType::FloatNumber, fp_CurrentLineNumber); //No need for a continue here since the current character isnt a digit
         }
 
         //push an int by default because otherwise the float would return uwu
-        return Token(f_Number, TokenType::IntNumber, fp_CurrentLineNumber); //No need for a continue here since the current character isnt a digit
+        fp_ProgramTokens.emplace_back(f_Number, TokenType::IntNumber, fp_CurrentLineNumber); //No need for a continue here since the current character isnt a digit
+
+        return true;
     }
 
-    [[nodiscard]] string //assumed being called within if(curent char is alpha) { LexWord(...)}
+    [[nodiscard]] bool //assumed being called within if(current char is alpha) { LexWord(...)}, only returns false if found EOF instead of a word uwu
         LexWord
         (
-            string& fp_Src,
-            char& fp_CurrentChar,
-            vector<Token>& fp_ProgramTokens,
-            size_t& fp_CurrentLineNumber
+            string& fp_StringContainer, //mutable used to fill in return string uwu
+            VectorStream<char>& fp_Src,
+            char fp_CurrentChar,
+            size_t& fp_CurrentLineNumber,
+            Logger* logger
         )
     {
-        string f_Word;
+        fp_StringContainer += fp_CurrentChar; //add current character since its already on one
 
-        f_Word += fp_CurrentChar; //add current character since its already on one
-
-        while ((isalpha(Peek(fp_Src)) or isdigit(Peek(fp_Src)) or Peek(fp_Src) == '_') and not fp_Src.empty())//used for tracking identifier like idk PeachNode2D uwu
+        if (not fp_Src.Peek(fp_CurrentChar))
         {
-            fp_CurrentChar = ShiftForward(fp_Src);
-            f_Word += fp_CurrentChar;
+            logger->Error(format("Found END__OF__FILE while parsing '='! Did you forget to finish your does not equals or strictly equals statement >O<? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+            return false;
         }
 
-        return f_Word;
-    } //this func doens't really throw errors since it just tracks alpha chars uwu and exits when at EOF
+        while ((isalpha(fp_CurrentChar) or isdigit(fp_CurrentChar) or fp_CurrentChar == '_'))//used for tracking identifier like idk PeachNode2D uwu
+        {
+            fp_Src.ShiftForwardUnsafe(fp_CurrentChar);
+            fp_StringContainer += fp_CurrentChar;
 
-    [[nodiscard]] bool
+            if (not fp_Src.Peek(fp_CurrentChar))
+            {
+                logger->Error(format("Found END__OF__FILE while parsing a word! What did you do to your program? this isn't a valid way to end a statement, Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+                return false;
+            }
+        }
+
+        return true;
+    } 
+
+    [[nodiscard]] int8_t
         LexOperator
         (
-            string& fp_Src,
-            char& fp_CurrentChar,
+            VectorStream<char>& fp_Src,
+            char fp_CurrentChar,
             vector<Token>& fp_ProgramTokens,
             size_t& fp_CurrentLineNumber,
             bool& fp_IsCurrentlyInsideComment,
@@ -126,10 +140,22 @@ namespace BongoJam {
         {
             string f_EqualsString = "=";
 
-            while (fp_Src.size() > 0 and Peek(fp_Src) == '=') //see if more equals, if there is shift and consume uwu
+            if (not fp_Src.Peek(fp_CurrentChar))
             {
-                fp_CurrentChar = ShiftForward(fp_Src);
-                f_EqualsString += fp_CurrentChar;
+                logger->Error(format("Found END__OF__FILE while parsing '='! Did you forget to finish your does not equals or strictly equals statement >O<? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+                return LEX_OPERATOR_SYNTAX_ERROR;
+            }
+
+            while (fp_CurrentChar == '=') //see if more equals, if there is shift and consume uwu
+            {
+                fp_Src.ShiftForwardUnsafe(fp_CurrentChar);
+                f_EqualsString += '=';
+
+                if (not fp_Src.Peek(fp_CurrentChar))
+                {
+                    logger->Error(format("Found END__OF__FILE while parsing '='! Did you forget to finish your does not equals or strictly equals statement >O<? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+                    return LEX_OPERATOR_SYNTAX_ERROR;
+                }
             }
 
             if (f_EqualsString.size() >= 2)
@@ -140,130 +166,165 @@ namespace BongoJam {
             {
                 fp_ProgramTokens.emplace_back(f_EqualsString, TokenType::Equals, fp_CurrentLineNumber);
             }
-            else //THROW ERROR
-            {
-                logger->Error("Error at Line Number: " + to_string(fp_CurrentLineNumber), "Lexer");
-                logger->Warning("Something bad happened involving a '=' sign brother", "Lexer");
-                fp_Src.clear(); //dump source code so that lexical analysis ends immediately
-                return false;
-            }
 
-            break; //continue will just move the current over-stepped character back to the top of the lexer's logical flow
+            return LEX_OPERATOR_FOUND_SOMETHING;
         }
         break;
-        case '!': //'!' isn't used for not in bongojam
+        case '!': 
         {
             string sv_DoesNotEqualsString = "!";
 
-            if (Peek(fp_Src) != '=') //handles the case for when nothing valid follows a '!' in the source code //THROW ERROR
+            if (not fp_Src.Peek(fp_CurrentChar))
+            {
+                logger->Error(format("Found END__OF__FILE while parsing '!'! Did you forget to finish your does not equals statement >O<? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+                return LEX_OPERATOR_SYNTAX_ERROR;
+            }
+            else if (fp_CurrentChar != '=') //handles the case for when nothing valid follows a '!' in the source code //THROW ERROR
             {
                 logger->Error(format("Error at Line Number: {}, invalid token found, you used a '!' but maybe forgot a '=' after it", fp_CurrentLineNumber), "Lexer");
-                fp_Src.clear(); //dump source code so that lexical analysis ends immediately
-                return false;
+                return LEX_OPERATOR_SYNTAX_ERROR;
             }
+            else
+            {
+                fp_Src.ShiftForwardUnsafe(fp_CurrentChar);
+                sv_DoesNotEqualsString += '=';
 
-            fp_CurrentChar = ShiftForward(fp_Src);
-            sv_DoesNotEqualsString += fp_CurrentChar;
-
-            fp_ProgramTokens.emplace_back(sv_DoesNotEqualsString, TokenType::DoesNotEquals, fp_CurrentLineNumber);
-            break; //just iterate as normal, and make sure the equals character isn't double counted
+                fp_ProgramTokens.emplace_back(sv_DoesNotEqualsString, TokenType::DoesNotEquals, fp_CurrentLineNumber);
+                return LEX_OPERATOR_FOUND_SOMETHING;
+            }
         }
         break;
         case '+':
         {
             string f_PlusString = "+";
 
-            if (Peek(fp_Src) == '=')
+            if (not fp_Src.Peek(fp_CurrentChar))
             {
-                fp_CurrentChar = ShiftForward(fp_Src); //look for an equals sign for the "+=" operator                
+                logger->Error(format("Found END__OF__FILE while parsing '+'! Did you forget to finish your addition/equals? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+                return LEX_OPERATOR_SYNTAX_ERROR;
+            }
+            else if (fp_CurrentChar == '=') //look for an equals sign for the "+=" operator 
+            {
+                fp_Src.ShiftForwardUnsafe(fp_CurrentChar);
+                          
                 f_PlusString += fp_CurrentChar;
                 fp_ProgramTokens.emplace_back(f_PlusString, TokenType::PlusEqualsOperator, fp_CurrentLineNumber);
-                break; //just iterate as normal, and make sure the equals character isn't double counted
-            }
 
-            if (Peek(fp_Src) == '+')
+                return LEX_OPERATOR_FOUND_SOMETHING; 
+            }
+            else if (fp_CurrentChar == '+') //look for an pos sign for the "++" operator     
             {
-                fp_CurrentChar = ShiftForward(fp_Src); //look for an pos sign for the "++" operator                
+                fp_Src.ShiftForwardUnsafe(fp_CurrentChar);
+
                 f_PlusString += fp_CurrentChar;
                 fp_ProgramTokens.emplace_back(f_PlusString, TokenType::PlusPlusOperator, fp_CurrentLineNumber);
-                break; //just iterate as normal, and make sure the equals character isn't double counted
-            }
 
-            fp_ProgramTokens.emplace_back(f_PlusString, TokenType::AdditionOperator, fp_CurrentLineNumber);
-            break; //otherwise the continue will just move the current over-stepped character back to the top of the lexer's logical flow
+                return LEX_OPERATOR_FOUND_SOMETHING; 
+            }
+            else
+            {
+                fp_ProgramTokens.emplace_back(f_PlusString, TokenType::AdditionOperator, fp_CurrentLineNumber);
+                return LEX_OPERATOR_FOUND_SOMETHING;
+            }
         }
         break;
         case '*':
         {
             string f_MultString = "*";
 
-            if (Peek(fp_Src) == '=')
+            if (not fp_Src.Peek(fp_CurrentChar))
             {
-                fp_CurrentChar = ShiftForward(fp_Src); //look for an equals sign for the "+=" operator                
-                f_MultString += fp_CurrentChar;
-                fp_ProgramTokens.emplace_back(f_MultString, TokenType::MultEqualsOperator, fp_CurrentLineNumber);
-                break; //just iterate as normal, and make sure the equals character isn't double counted
+                logger->Error(format("Found END__OF__FILE while parsing '*'! Did you forget to finish your multiplication/equals statement >///<? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+                return LEX_OPERATOR_SYNTAX_ERROR;
             }
 
-            fp_ProgramTokens.emplace_back(f_MultString, TokenType::MultiplicationOperator, fp_CurrentLineNumber);
-            break; //otherwise the continue will just move the current over-stepped character back to the top of the lexer's logical flow  
+            if (fp_CurrentChar == '=')
+            {
+                fp_Src.ShiftForwardUnsafe(fp_CurrentChar);
+
+                f_MultString += '=';
+                fp_ProgramTokens.emplace_back(f_MultString, TokenType::MultEqualsOperator, fp_CurrentLineNumber);
+
+                return LEX_OPERATOR_FOUND_SOMETHING; 
+            }
+            else
+            {
+                fp_ProgramTokens.emplace_back(f_MultString, TokenType::MultiplicationOperator, fp_CurrentLineNumber);
+                return LEX_OPERATOR_FOUND_SOMETHING;
+            }
         }
         break;
         case '-': //negative numbers are parsed as negative unary operator behind a number
         {
             string f_TypeArrow = "-"; //ik whats coming next, but for conventions sake
 
-            while (fp_Src.size() > 0 and Peek(fp_Src) == '-')
+            char sv_Peek;
+
+            if (not fp_Src.Peek(sv_Peek))
             {
-                fp_CurrentChar = ShiftForward(fp_Src);
-                f_TypeArrow += fp_CurrentChar;
+                logger->Error(format("Found END__OF__FILE while parsing '-'! Did you forget to finish your type arrow or subtraction statement uwu? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+                return LEX_OPERATOR_SYNTAX_ERROR;
             }
 
-            if (Peek(fp_Src) != '>' and Peek(fp_Src) != '=') //fuck it we ball, we deal with minus here BROTHERS
+            while (sv_Peek == '-')
             {
-                if(f_TypeArrow.size() == 1)
+                fp_Src.ShiftForwardUnsafe(fp_CurrentChar);
+                f_TypeArrow += '-';
+
+                if (not fp_Src.Peek(sv_Peek))
+                {
+                    logger->Error(format("Found END__OF__FILE while parsing '-'! Did you forget to finish your type arrow or subtraction statement uwu? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+                    return LEX_OPERATOR_SYNTAX_ERROR;
+                }
+            }
+
+            //peek will overstep the minus sign uwu but not move the position counter forward uwu
+
+            if (sv_Peek != '>' and sv_Peek != '=') //fuck it we ball, we deal with minus here BROTHERS
+            {
+                if(f_TypeArrow.size() == 1) //IDC THAT ITS NOT A TYPEARROW
                 {
                     fp_ProgramTokens.emplace_back(f_TypeArrow, TokenType::NegativeOperator, fp_CurrentLineNumber);
-                    break; //start loop again or hit error u choose owo
+                    return LEX_OPERATOR_FOUND_SOMETHING; //start loop again or hit error u choose owo
                 }
                 else if (f_TypeArrow.size() == 2)
                 {
                     fp_ProgramTokens.emplace_back(f_TypeArrow, TokenType::MinusMinusOperator, fp_CurrentLineNumber);
-                    break; //start loop again or hit error u choose owo
+                    return LEX_OPERATOR_FOUND_SOMETHING; //start loop again or hit error u choose owo
                 }
                 else
                 {
                     logger->Error(format("Error at Line Number: {}, too many '-' minus signs brother pick 1 for subtraction or 2 for the decrement operator uwu", fp_CurrentLineNumber), "Lexer");
-                    return false;
+                    return LEX_OPERATOR_SYNTAX_ERROR;
                 }
             }
 
-            fp_CurrentChar = ShiftForward(fp_Src); //look for equals or arrow tip uwu
+            fp_Src.ShiftForwardUnsafe(fp_CurrentChar); //can shift unsafe here since peek was valid uwu
 
             if (fp_CurrentChar == '>') //this goes first so that subtraction doesn't get confused with '->', since they both have only 1 dash
             {
-                f_TypeArrow += fp_CurrentChar;
+                f_TypeArrow += '>';
                 fp_ProgramTokens.emplace_back(f_TypeArrow, TokenType::TypeArrow, fp_CurrentLineNumber);
-                break; //just iterate as normal, and make sure the equals character isn't double counted
+
+                return LEX_OPERATOR_FOUND_SOMETHING; //just iterate as normal, and make sure the equals character isn't double counted
             }
             else if (fp_CurrentChar == '=' and f_TypeArrow.size() == 1) //check for single minus equals so '-=' not '-----=' srry m8 thats 2 far for m9
             {
-                f_TypeArrow += fp_CurrentChar; //IDC THAT ITS NOT A TYPEARROW
+                f_TypeArrow += '='; 
                 fp_ProgramTokens.emplace_back(f_TypeArrow, TokenType::MinusEqualsOperator, fp_CurrentLineNumber);
-                break; //just iterate as normal, and make sure the equals character isn't double counted
+
+                return LEX_OPERATOR_FOUND_SOMETHING; //just iterate as normal, and make sure the equals character isn't double counted
             }
             else if (fp_CurrentChar == '=' and f_TypeArrow.size() > 1) //check for single minus equals so '-=' not '-----=' srry m8 thats 2 far for m9
             {
                 logger->Error(format("Error at Line Number: {}, minus equals definition has too many dashes COMON", fp_CurrentLineNumber), "Lexer");
-                fp_Src.clear(); //dump the source code vector, so that the compiler will stop processing the source code
-                return false;
+                return LEX_OPERATOR_SYNTAX_ERROR;
             }
             else //if we have more than one consecutive '-', then it's a mistake regardless of what you were trying to do // Handle error: Unterminated type arrow
             {
                 logger->Error(format("Error at Line Number: {}", fp_CurrentLineNumber), "Lexer");
                 logger->Warning("Unterminated type arrow brother!, looks like you're missing an arrow head to your type arrow definition", "Lexer");
-                fp_Src.clear(); //dump the source code vector, so that the compiler will stop processing the source code
-                return false;
+                return LEX_OPERATOR_SYNTAX_ERROR;
             }
         }
         break;
@@ -271,189 +332,285 @@ namespace BongoJam {
         {
             string f_DivString = "/";
 
-            char sv_Peek = Peek(fp_Src);
+            char sv_Peek;
+
+            if (not fp_Src.Peek(sv_Peek))
+            {
+                logger->Error(format("Found END__OF__FILE while parsing '/'! Did you forget to finish a division or comment statement? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+                return LEX_OPERATOR_SYNTAX_ERROR;
+            }
 
             if (sv_Peek == '=')
             {
-                fp_CurrentChar = ShiftForward(fp_Src); //look for an equals sign for the "+=" operator
+                fp_Src.ShiftForwardUnsafe(fp_CurrentChar); 
                 f_DivString += fp_CurrentChar;
                 fp_ProgramTokens.emplace_back(f_DivString, TokenType::DivEqualsOperator, fp_CurrentLineNumber);
 
-                break; //just iterate as normal, and make sure the equals character isn't double counted
+                return LEX_OPERATOR_FOUND_SOMETHING; //just iterate as normal, and make sure the equals character isn't double counted
             }
             else if (sv_Peek == '/')
             {
-                fp_CurrentChar = ShiftForward(fp_Src); //get on '/' character then start parsing comment
+                fp_Src.ShiftForwardUnsafe(fp_CurrentChar); //get on '/' character then start parsing comment
                 fp_IsCurrentlyInsideComment = true;
-                break;
+                return LEX_OPERATOR_FOUND_SOMETHING;
             }
             else if (sv_Peek == '*')
             {
+                fp_Src.ShiftForwardUnsafe(fp_CurrentChar); //get off '/' character then start parsing comment
+
                 while (1)
                 {
-                    fp_CurrentChar = ShiftForward(fp_Src); //get on '/' character then start parsing comment
-
-                    if (fp_CurrentChar == '*' and Peek(fp_Src) == '/')
+                    if (not fp_Src.ShiftForward(fp_CurrentChar) or not fp_Src.Peek(sv_Peek)) //--> alpha char hopefully uwu
                     {
-                        fp_CurrentChar = ShiftForward(fp_Src); //move onto '/' so loop can shift onto new token uwu
-                        break;
+                        logger->Error(format("Found END__OF__FILE! 7Unterminated comment block found UwU, Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+                        return LEX_OPERATOR_SYNTAX_ERROR;
                     }
-                    else if (fp_CurrentChar == '\0')
+
+                    if (fp_CurrentChar == '*' and sv_Peek == '/')
                     {
-                        logger->Error(format("Error at Line Number: {}, unterminated comment block found UwU", fp_CurrentLineNumber), "Lexer");
-                        return false;
+                        fp_Src.ShiftForwardUnsafe(fp_CurrentChar); //move onto '/' so loop can shift onto new token uwu
+                        break;
                     }
                     else if (fp_CurrentChar == '\n')
                     {
                         fp_CurrentLineNumber++;
                     }
                 }
-                break;
-            }
 
-            fp_ProgramTokens.emplace_back(f_DivString, TokenType::DivisionOperator, fp_CurrentLineNumber);
+                return LEX_OPERATOR_FOUND_SOMETHING;
+            }
+            else
+            {
+                fp_ProgramTokens.emplace_back(f_DivString, TokenType::DivisionOperator, fp_CurrentLineNumber);
+                return LEX_OPERATOR_FOUND_SOMETHING;
+            }
         }
         break;
         case '%':
         {
             string f_ModString = "%";
 
-            if (Peek(fp_Src) == '=')
+            char sv_Peek;
+
+            if (not fp_Src.Peek(sv_Peek))
             {
-                fp_CurrentChar = ShiftForward(fp_Src); //look for an equals sign for the "+=" operator                
-                f_ModString += fp_CurrentChar;
-                fp_ProgramTokens.emplace_back(f_ModString, TokenType::ModuloEqualsOperator, fp_CurrentLineNumber);
-                break; //just iterate as normal, and make sure the equals character isn't double counted
+                logger->Error(format("Found END__OF__FILE while parsing '%'! Did you forget to finish a modulo statement? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+                return LEX_OPERATOR_SYNTAX_ERROR;
             }
 
-            fp_ProgramTokens.emplace_back(f_ModString, TokenType::ModulusOperator, fp_CurrentLineNumber);
-            break; //otherwise the continue will just move the current over-stepped character back to the top of the lexer's logical flow
+            if (sv_Peek == '=')
+            {
+                fp_Src.ShiftForwardUnsafe(fp_CurrentChar); //look for an equals sign for the "+=" operator                
+                f_ModString += '=';
+                fp_ProgramTokens.emplace_back(f_ModString, TokenType::ModuloEqualsOperator, fp_CurrentLineNumber);
+
+                return LEX_OPERATOR_FOUND_SOMETHING;
+            }
+            else
+            {
+                fp_ProgramTokens.emplace_back(f_ModString, TokenType::ModulusOperator, fp_CurrentLineNumber);
+                return LEX_OPERATOR_FOUND_SOMETHING;
+            }
         }
         break;
         case '<': //idrc about inserting this into the branch above with '>'
         {
             string f_LesserThanString = "<";
 
-            if (Peek(fp_Src) == '=')
+            char sv_Peek;
+
+            if (not fp_Src.Peek(sv_Peek))
             {
-                fp_CurrentChar = ShiftForward(fp_Src);
-                f_LesserThanString += fp_CurrentChar;
-                fp_ProgramTokens.emplace_back(f_LesserThanString, TokenType::LesserThanOrEqual, fp_CurrentLineNumber);
-                break; //just iterate as normal, and make sure the equals character isn't double counted
+                logger->Error(format("Found END__OF__FILE while parsing '<'! Did you forget to finish a less than equals or bitshift/equals statement? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+                return LEX_OPERATOR_SYNTAX_ERROR;
             }
-            else if (Peek(fp_Src) == '<')
+            else if (sv_Peek == '=')
             {
-                fp_CurrentChar = ShiftForward(fp_Src);
-                f_LesserThanString += fp_CurrentChar;
-                fp_ProgramTokens.emplace_back(f_LesserThanString, TokenType::BitshiftLeftOperator, fp_CurrentLineNumber);
+                fp_Src.ShiftForwardUnsafe(fp_CurrentChar);
 
-                if (Peek(fp_Src) == '=')
+                f_LesserThanString += '=';
+                fp_ProgramTokens.emplace_back(f_LesserThanString, TokenType::LesserThanOrEqual, fp_CurrentLineNumber);
+
+                return LEX_OPERATOR_FOUND_SOMETHING;
+            }
+            else if (sv_Peek == '<')
+            {
+                fp_Src.ShiftForwardUnsafe(fp_CurrentChar);
+
+                f_LesserThanString += '<';
+
+                if (not fp_Src.Peek(sv_Peek))
                 {
-                    fp_CurrentChar = ShiftForward(fp_Src); //look for an equals sign for the "+=" operator
-                    f_LesserThanString += fp_CurrentChar;
-                    fp_ProgramTokens.emplace_back(f_LesserThanString, TokenType::BitshiftLeftEquals, fp_CurrentLineNumber);
-
-                    break; //just iterate as normal, and make sure the equals character isn't double counted
+                    logger->Error(format("Found END__OF__FILE while parsing '<'! Did you forget to finish your bitshift left operator? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+                    return LEX_OPERATOR_SYNTAX_ERROR;
                 }
 
-                break; //just iterate as normal, and make sure the equals character isn't double counted
-            }
+                if (sv_Peek == '=')
+                {
+                    fp_Src.ShiftForwardUnsafe(fp_CurrentChar);
 
-            //handles the case for just '<'
-            fp_ProgramTokens.emplace_back(f_LesserThanString, TokenType::LesserThan, fp_CurrentLineNumber);
-            break;
+                    f_LesserThanString += '=';
+                    fp_ProgramTokens.emplace_back(f_LesserThanString, TokenType::BitshiftLeftEquals, fp_CurrentLineNumber);
+
+                    return LEX_OPERATOR_FOUND_SOMETHING;
+                }
+                else
+                {
+                    fp_ProgramTokens.emplace_back(f_LesserThanString, TokenType::BitshiftLeftOperator, fp_CurrentLineNumber);
+                    return LEX_OPERATOR_FOUND_SOMETHING;
+                }
+            }
+            else //handles the case for just '<'
+            {
+                fp_ProgramTokens.emplace_back(f_LesserThanString, TokenType::LesserThan, fp_CurrentLineNumber);
+                return LEX_OPERATOR_FOUND_SOMETHING;
+            }
         }
         break;
         case '>':
         {
             string f_GreaterThanString = ">";
 
-            if (Peek(fp_Src) == '=')
+            char sv_Peek;
+
+            if (not fp_Src.Peek(sv_Peek))
             {
-                fp_CurrentChar = ShiftForward(fp_Src);
+                logger->Error(format("Found END__OF__FILE while parsing '>'! Did you forget to finish a greater than equals or bitshift/equals statement? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+                return LEX_OPERATOR_SYNTAX_ERROR;
+            }
+
+            if (sv_Peek == '=')
+            {
+                fp_Src.ShiftForwardUnsafe(fp_CurrentChar);
+
                 f_GreaterThanString += fp_CurrentChar;
                 fp_ProgramTokens.emplace_back(f_GreaterThanString, TokenType::GreaterThanOrEqual, fp_CurrentLineNumber);
 
-                break; //just iterate as normal, and make sure the equals character isn't double counted
+                return LEX_OPERATOR_FOUND_SOMETHING;
             }
-            else if (Peek(fp_Src) == '>')
+            else if (sv_Peek == '>')
             {
-                fp_CurrentChar = ShiftForward(fp_Src);
-                f_GreaterThanString += fp_CurrentChar;
-                fp_ProgramTokens.emplace_back(f_GreaterThanString, TokenType::BitshiftRightOperator, fp_CurrentLineNumber);
+                fp_Src.ShiftForwardUnsafe(fp_CurrentChar);
 
-                if (Peek(fp_Src) == '=')
+                f_GreaterThanString += '>';
+
+                if (not fp_Src.Peek(sv_Peek))
                 {
-                    fp_CurrentChar = ShiftForward(fp_Src); //look for an equals sign for the "+=" operator
-                    f_GreaterThanString += fp_CurrentChar;
-                    fp_ProgramTokens.emplace_back(f_GreaterThanString, TokenType::BitshiftRightEquals, fp_CurrentLineNumber);
-
-                    break; //just iterate as normal, and make sure the equals character isn't double counted
+                    logger->Error(format("Found END__OF__FILE while parsing '<'! Did you forget to finish your bitshift left operator? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+                    return LEX_OPERATOR_SYNTAX_ERROR;
                 }
 
-                break; //just iterate as normal, and make sure the equals character isn't double counted
+                if (sv_Peek == '=')
+                {
+                    fp_Src.ShiftForwardUnsafe(fp_CurrentChar);
+
+                    f_GreaterThanString += '=';
+                    fp_ProgramTokens.emplace_back(f_GreaterThanString, TokenType::BitshiftRightEquals, fp_CurrentLineNumber);
+
+                    return LEX_OPERATOR_FOUND_SOMETHING;
+                }
+                else
+                {
+                    fp_ProgramTokens.emplace_back(f_GreaterThanString, TokenType::BitshiftRightOperator, fp_CurrentLineNumber);
+                    return LEX_OPERATOR_FOUND_SOMETHING;
+                }
             }
 
             //handles the case for just '>'
             fp_ProgramTokens.emplace_back(f_GreaterThanString, TokenType::GreaterThan, fp_CurrentLineNumber);
+            return LEX_OPERATOR_FOUND_SOMETHING;
         }
         break;
         case '&':
         {
             string sv_And = "&";
 
-            if (Peek(fp_Src) == '=')
-            {
-                fp_CurrentChar = ShiftForward(fp_Src); //look for an equals sign for the "+=" operator
-                sv_And += fp_CurrentChar;
-                fp_ProgramTokens.emplace_back(sv_And, TokenType::BitAndEquals, fp_CurrentLineNumber);
+            char sv_Peek;
 
-                break; //just iterate as normal, and make sure the equals character isn't double counted
+            if (not fp_Src.Peek(sv_Peek))
+            {
+                logger->Error(format("Found END__OF__FILE while parsing '&'! Did you forget to finish your bitand or bitand equals statement? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+                return LEX_OPERATOR_SYNTAX_ERROR;
             }
 
-            fp_ProgramTokens.emplace_back(sv_And, TokenType::Ampersand, fp_CurrentLineNumber);
+            if (sv_Peek == '=')
+            {
+                fp_Src.ShiftForwardUnsafe(fp_CurrentChar);
+
+                sv_And += '=';
+                fp_ProgramTokens.emplace_back(sv_And, TokenType::BitAndEquals, fp_CurrentLineNumber);
+
+                return LEX_OPERATOR_FOUND_SOMETHING;
+            }
+            else
+            {
+                fp_ProgramTokens.emplace_back(sv_And, TokenType::Ampersand, fp_CurrentLineNumber);
+                return LEX_OPERATOR_FOUND_SOMETHING;
+            }
         }
         break;
         case '|':
         {
             string sv_BitOr = "|";
 
-            if (Peek(fp_Src) == '=')
-            {
-                fp_CurrentChar = ShiftForward(fp_Src); //look for an equals sign for the "+=" operator
-                sv_BitOr += fp_CurrentChar;
-                fp_ProgramTokens.emplace_back(sv_BitOr, TokenType::BitOrEquals, fp_CurrentLineNumber);
+            char sv_Peek;
 
-                break; //just iterate as normal, and make sure the equals character isn't double counted
+            if (not fp_Src.Peek(sv_Peek))
+            {
+                logger->Error(format("Found END__OF__FILE while parsing '|'! Did you forget to finish your bitor or (>w<) bitor equals statement? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+                return LEX_OPERATOR_SYNTAX_ERROR;
             }
 
-            fp_ProgramTokens.emplace_back(sv_BitOr, TokenType::BitOrOperator, fp_CurrentLineNumber);
+            if (sv_Peek == '=')
+            {
+                fp_Src.ShiftForwardUnsafe(fp_CurrentChar);
+
+                sv_BitOr += '=';
+                fp_ProgramTokens.emplace_back(sv_BitOr, TokenType::BitOrEquals, fp_CurrentLineNumber);
+
+                return LEX_OPERATOR_FOUND_SOMETHING;
+            }
+            else
+            {
+                fp_ProgramTokens.emplace_back(sv_BitOr, TokenType::BitOrOperator, fp_CurrentLineNumber);
+                return LEX_OPERATOR_FOUND_SOMETHING;
+            }
         }
         break;
         case '~':
             fp_ProgramTokens.emplace_back(fp_CurrentChar, TokenType::BitNotOperator, fp_CurrentLineNumber);
-            break;
+            return LEX_OPERATOR_FOUND_SOMETHING;
         case '^':
         {
             string sv_BitXor = "^";
 
-            if (Peek(fp_Src) == '=')
-            {
-                fp_CurrentChar = ShiftForward(fp_Src); //look for an equals sign for the "+=" operator
-                sv_BitXor += fp_CurrentChar;
-                fp_ProgramTokens.emplace_back(sv_BitXor, TokenType::BitXorEquals, fp_CurrentLineNumber);
+            char sv_Peek;
 
-                break; //just iterate as normal, and make sure the equals character isn't double counted
+            if (not fp_Src.Peek(sv_Peek))
+            {
+                logger->Error(format("Found END__OF__FILE while parsing '^'! Did you forget to finish your xor or (>w<) xor equals statement? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+                return LEX_OPERATOR_SYNTAX_ERROR;
             }
 
-            fp_ProgramTokens.emplace_back(sv_BitXor, TokenType::BitXorOperator, fp_CurrentLineNumber);
+            if (sv_Peek == '=')
+            {
+                fp_Src.ShiftForwardUnsafe(fp_CurrentChar);
+
+                sv_BitXor += '=';
+                fp_ProgramTokens.emplace_back(sv_BitXor, TokenType::BitXorEquals, fp_CurrentLineNumber);
+
+                return LEX_OPERATOR_FOUND_SOMETHING;
+            }
+            else
+            {
+                fp_ProgramTokens.emplace_back(sv_BitXor, TokenType::BitXorOperator, fp_CurrentLineNumber);
+                return LEX_OPERATOR_FOUND_SOMETHING;
+            }
         }
         break;
         default:
-            return false;
+            return LEX_OPERATOR_NOTHING_FOUND;
         }
-
-        return true; //otherwise the continue will just move the current over-stepped character back to the top of the lexer's logical flow   
     }
     
     //////////////////////////////////////////////
@@ -463,7 +620,7 @@ namespace BongoJam {
     bool
         Tokenize
         (
-            string& fp_SourceCode,
+            VectorStream<char>&& fp_SourceCode,
             vector<Token>& fp_Tokens,
             Logger* logger
         )
@@ -474,17 +631,24 @@ namespace BongoJam {
 
         bool f_IsCurrentlyInsideComment = false;
 
-        while (fp_SourceCode.size() > 0)
+        while (1)
         {
             //////////////////// Iterate Current Character ////////////////////
 
-            f_CurrentChar = ShiftForward(fp_SourceCode);
+            if (not fp_SourceCode.ShiftForward(f_CurrentChar)) //idk only way i get nullptr is if vector iterator is at the end
+            {
+                break;
+            }
+
+            char f_PeekedChar;
+            fp_SourceCode.Peek(f_PeekedChar);
+
 
             //////////////////// Handle Spaces, New-Lines, and Comments ////////////////////
 
             if (f_CurrentChar == '\n') //used to keep track of what line number we're at in the source code, we only have single line comments, so this is sufficient
             {
-                f_IsCurrentlyInsideComment = false;
+                f_IsCurrentlyInsideComment = false; //reset if in comment because checking if its true is more expensive then just setting it to false everytime uwu
                 f_CurrentLineNumber++;
                 continue; //we can shift forwards confidently since we're currently on the newline character
             }
@@ -497,30 +661,38 @@ namespace BongoJam {
 
             if (isdigit(f_CurrentChar))
             {
-                Token sv_NumberToken = LexNumber(fp_SourceCode, f_CurrentChar, fp_Tokens, f_CurrentLineNumber, logger);
-
-                if (sv_NumberToken.m_Type == TokenType::NO_TOKEN_VALUE)
+                if (not LexNumber(fp_SourceCode, f_CurrentChar, fp_Tokens, f_CurrentLineNumber, logger))
                 {
                     logger->Error(format("Error at Line Number: {}, failed to Lex number definition", f_CurrentLineNumber), "Lexer");
                     return false;
                 }
-
-                fp_Tokens.push_back(sv_NumberToken);
-
-                continue; //move to next iteration
+                else
+                {
+                    continue; //move to next iteration
+                }
             }
             
             //////////////////////////////////////////////////////////// Formatted Strings ////////////////////////////////////////////////////////////
 
-            else if (f_CurrentChar == 'f' and (Peek(fp_SourceCode) == '"' or Peek(fp_SourceCode) == '@')) //only valid tokens after f if used for a formatted string, otherwise it'll fall down to the regular word/keyword checks uwu
+            else if (f_CurrentChar == 'f' and (f_PeekedChar == '"' or f_PeekedChar == '@')) //only valid tokens after f if used for a formatted string, otherwise it'll fall down to the regular word/keyword checks uwu
             {
-                f_CurrentChar = ShiftForward(fp_SourceCode); //-->'"' or '@'
+                fp_SourceCode.ShiftForwardUnsafe(f_CurrentChar); //-->'"' or '@', can do this since peek was successful
 
                 if (f_CurrentChar == '@')
                 {
-                    f_CurrentChar = ShiftForward(fp_SourceCode); //--> alpha char hopefully uwu
+                    if (not fp_SourceCode.ShiftForward(f_CurrentChar)) //--> alpha char hopefully uwu
+                    {
+                        logger->Error(format("Found END__OF__FILE after a '@' brother! You seemed to pass a misformed formatted string uwu, Error occured at line number: {}", f_CurrentLineNumber), "Lexer");
+                        return false;
+                    } 
 
-                    string f_ColourIdentifier = LexWord(fp_SourceCode, f_CurrentChar, fp_Tokens, f_CurrentLineNumber);
+                    string f_ColourIdentifier;
+
+                    if (not LexWord(f_ColourIdentifier, fp_SourceCode, f_CurrentChar, f_CurrentLineNumber, logger))
+                    {
+                        logger->Error(format("Found END__OF__FILE! You seemed to pass an incomplete coloured string uwu, Error occured at line number: {}", f_CurrentLineNumber), "Lexer");
+                        return false;
+                    }
 
                     if (find(ANSI_COLOURS.begin(), ANSI_COLOURS.end(), f_ColourIdentifier) == ANSI_COLOURS.end()) //if identifier is not a keyword then its just tokenized assuming its a var name or smth
                     {
@@ -530,9 +702,13 @@ namespace BongoJam {
                     
                     fp_Tokens.emplace_back(f_ColourIdentifier, TokenType::Colourize, f_CurrentLineNumber);
 
-                    f_CurrentChar = ShiftForward(fp_SourceCode); //--> '"' hopefully uwu, this'll fall through and shift again 
+                    if (not fp_SourceCode.ShiftForward(f_CurrentChar)) //--> '"' hopefully uwu 
+                    {
+                        logger->Error(format("Found END__OF__FILE when opening '\"' was expected! You seemed to pass a misformed formatted string uwu, Error occured at line number : {}", f_CurrentLineNumber), "Lexer");
+                        return false;
+                    }  
 
-                    if (f_CurrentChar != '"') //push back an empty string ig idk
+                    if (f_CurrentChar != '"') //WTF MAN
                     {
                         logger->Error(format("Error at Line Number: {}, expected text after colour identifier: '{}' but found: {} instead >:(", f_CurrentLineNumber, "@" + f_ColourIdentifier, f_CurrentChar), "Lexer");
                         return false;
@@ -541,7 +717,11 @@ namespace BongoJam {
 
                 string f_FormattedString; //default val at ""
 
-                f_CurrentChar = ShiftForward(fp_SourceCode); //shift twice since we wanna enter the string quotes
+                if (not fp_SourceCode.ShiftForward(f_CurrentChar)) //shift twice since we wanna enter the string quotes
+                {
+                    logger->Error(format("Found END__OF__FILE when closing '\"' was expected! Unterminated formatted string found, Error occured at line number : {}", f_CurrentLineNumber), "Lexer");
+                    return false;
+                }   
 
                 if (f_CurrentChar == '"') //push back an empty string ig idk
                 {
@@ -555,22 +735,31 @@ namespace BongoJam {
 
                 //////////////////////////////////////////////////////////// Main Loop ////////////////////////////////////////////////////////////
 
-                while (fp_SourceCode.size() > 0 and f_CurrentChar != '"')
+                while (f_CurrentChar != '"')
                 {
-                    f_CurrentChar = ShiftForward(fp_SourceCode);
+                    if (not fp_SourceCode.ShiftForward(f_CurrentChar)) //shift twice since we wanna enter the string quotes
+                    {
+                        logger->Error(format("Found END__OF__FILE when closing '\"' was expected! Unterminated formatted string found, Error occured at line number : {}", f_CurrentLineNumber), "Lexer");
+                        return false;
+                    }
 
                     //////////////////////////////////////////////////////////// Keep Track of Line Number UwU ////////////////////////////////////////////////////////////
 
                     if (f_CurrentChar == '\n')
                     {
                         f_CurrentLineNumber++;
+                        continue;
                     }
 
                     //////////////////////////////////////////////////////////// Handle Escape Characters ////////////////////////////////////////////////////////////
 
                     if (f_CurrentChar == '\\')
                     {
-                        f_CurrentChar = ShiftForward(fp_SourceCode); //shift to next character
+                        if (not fp_SourceCode.ShiftForward(f_CurrentChar)) //shift to find specific escape character uwu
+                        {
+                            logger->Error(format("Found END__OF__FILE when closing escape character was expected! Unterminated formatted string found, Error occured at line number : {}", f_CurrentLineNumber), "Lexer");
+                            return false;
+                        }
 
                         switch (f_CurrentChar)
                         {
@@ -613,16 +802,20 @@ namespace BongoJam {
                         //used for tracking identifiers, so I can do this iteratively instead of definish a recursive LexNumber style function
 
                         /*
-                        hard to use a LexString function for both spots is hard since the functions are just barely different, where the end condition for lexing a normal string is '"', a FormattedStringStart ends when it finds '{',
+                        hard to use a LexString function for both spots is hard since the functions are just barely different, where the end condition for lexing a normal string is '"', a FormattedStringStart ends when it finds '}',
 
                         if no insert values are found then the Token gets lexed as a singular FormattedStringEnd, so when the parser sees that it just assumes the programmer typed smth like : print(f"Hello World"), so tha parser can
                         interpret that as a a regular StringLiteral
                         */
 
                         //////////////////////////////////////////////////////////// Parse Inserted String Value ////////////////////////////////////////////////////////////
-                        while (fp_SourceCode.size() > 0 and f_CurrentChar != '}')
+                        while (f_CurrentChar != '}')
                         {
-                            f_CurrentChar = ShiftForward(fp_SourceCode);
+                            if (not fp_SourceCode.ShiftForward(f_CurrentChar)) //shift twice since we wanna enter the string quotes
+                            {
+                                logger->Error(format("Found END__OF__FILE when closing '}}' was expected! Unterminated formatted string insert found, Error occured at line number : {}", f_CurrentLineNumber), "Lexer");
+                                return false;
+                            }
 
                             if (isspace(f_CurrentChar)) //spaces can be ignored here since it's not part of the literal string uwu
                             {
@@ -637,23 +830,30 @@ namespace BongoJam {
 
                             if (isdigit(f_CurrentChar))
                             {
-                                Token sv_NumberToken = LexNumber(fp_SourceCode, f_CurrentChar, fp_Tokens, f_CurrentLineNumber, logger);
-
-                                if (sv_NumberToken.m_Type == TokenType::NO_TOKEN_VALUE)
+                                if (not LexNumber(fp_SourceCode, f_CurrentChar, fp_Tokens, f_CurrentLineNumber, logger))
                                 {
                                     logger->Error(format("Error at Line Number: {}, failed to parse number inside formatted string", f_CurrentLineNumber), "Lexer");
                                     return false;
                                 }
-
-                                fp_Tokens.push_back(sv_NumberToken);
-                                continue; //move to next iteration to shift forwards uwu
+                                else
+                                {
+                                    continue; //move to next iteration to shift forwards uwu
+                                }
                             }
 
                             if (isalpha(f_CurrentChar))
                             {
+                                string f_VariableInsert;
+
+                                if (not LexWord(f_VariableInsert, fp_SourceCode, f_CurrentChar, f_CurrentLineNumber, logger)) //dont shift off current character since LexWord consumes the entry token
+                                {
+                                    logger->Error(format("Found END__OF__FILE when closing '}}' was expected! Unterminated formatted string insert found: '{}', Error occured at line number : {}", f_VariableInsert, f_CurrentLineNumber), "Lexer");
+                                    return false;
+                                }
+
                                 fp_Tokens.emplace_back
                                 (
-                                    LexWord(fp_SourceCode, f_CurrentChar, fp_Tokens, f_CurrentLineNumber), //dont shift off current character since LexWord consumes the entry token
+                                    f_VariableInsert,
                                     TokenType::UserIdentifier,
                                     f_CurrentLineNumber
                                 );
@@ -661,10 +861,16 @@ namespace BongoJam {
                                 continue; //LexWord ends f_CurrentChar on the last alpha character in sequence uwu, could look for primitive types or other keywords but dont really care here atm
                             }
 
-                            if (LexOperator(fp_SourceCode, f_CurrentChar, fp_Tokens, f_CurrentLineNumber, f_IsCurrentlyInsideComment, logger))
+                            int8_t f_Result = LexOperator(fp_SourceCode, f_CurrentChar, fp_Tokens, f_CurrentLineNumber, f_IsCurrentlyInsideComment, logger);
+
+                            if (f_Result == LEX_OPERATOR_FOUND_SOMETHING) //just doing this since i dont feel like writing the cases into the current switch uwu
+                            {
+                                continue;
+                            }
+                            else if (f_Result == LEX_OPERATOR_SYNTAX_ERROR)
                             {
 
-                                continue;
+                                return false;
                             }
 
                             if (f_IsCurrentlyInsideComment) //THROW ERROR: comment not allowed here uwu
@@ -678,7 +884,6 @@ namespace BongoJam {
                             case '"':  //THROW ERROR: string terminated before formatted variable was closed
                             {
                                 logger->Error(format("Unterminated variable inside your string literal, brother! Error occured at line number: {}", f_CurrentLineNumber), "Lexer");
-                                fp_SourceCode.clear();
                                 return false;
                             }
                             break;
@@ -700,37 +905,17 @@ namespace BongoJam {
                             case '}': //needed for parsing uwu
                                 fp_Tokens.emplace_back("}", TokenType::CloseBracket, f_CurrentLineNumber); //need this for the base case recursion of parse reg expr
                             break;
-                            case '\0': //found end of file uwu
-                            {
-
-                            }
-                            break;
                             default:
-                                break;
+                                logger->Error(format("Unexpected token found inside formatted string: '{}', Error occured at line number: {}", f_CurrentChar, f_CurrentLineNumber), "Lexer");
+                                return false;
                             }
                         }
-
-                        if (f_CurrentChar != '}') //THROW ERROR: string terminated before formatted variable was closed , used to catch EOF stuff
-                        {
-                            logger->Error(format("Unterminated variable inside your string literal, brother! Error occured at line number: {}", f_CurrentLineNumber), "Lexer");
-                            fp_SourceCode.clear();
-                            return false;
-                        }
-
                         //no shift here since --> '}', and top of loop will shift off of it
                     }
                     else
                     {
                         f_FormattedString += f_CurrentChar; //proceed as usual
                     }
-                }
-
-                // Check if we've ended on the closing quotation mark
-                if (f_CurrentChar != '"')  // Handle error: Unterminated string literal, and exit program execution
-                {
-                    logger->Error(format("Unterminated string literal, brother! Error occured at line number: {}", f_CurrentLineNumber), "Lexer");
-                    fp_SourceCode.clear();
-                    return false;
                 }
 
                 // Push the final string token without the quotes
@@ -743,7 +928,13 @@ namespace BongoJam {
 
             else if (isalpha(f_CurrentChar) or f_CurrentChar == '_') //used for keywords, and user identifiers like enum, class or var names
             {
-                string f_Identifier = LexWord(fp_SourceCode, f_CurrentChar, fp_Tokens, f_CurrentLineNumber);
+                string f_Identifier; 
+
+                if (not LexWord(f_Identifier, fp_SourceCode, f_CurrentChar, f_CurrentLineNumber, logger))
+                {
+                    logger->Error(format("Found END__OF__FILE when identifier was expected, token in question: '{}' Error occured at line number: {}", f_Identifier, f_CurrentLineNumber), "Lexer");
+                    return false;
+                }
 
                 if (KEYWORDS.find(f_Identifier) == KEYWORDS.end()) //if identifier is not a keyword then its just tokenized assuming its a var name or smth
                 {
@@ -757,9 +948,16 @@ namespace BongoJam {
                 continue; //move to next iteration since
             }
 
-            if (LexOperator(fp_SourceCode, f_CurrentChar, fp_Tokens, f_CurrentLineNumber, f_IsCurrentlyInsideComment, logger)) //returns true for either lexed, will throw error in function w.e
+            int8_t f_Result = LexOperator(fp_SourceCode, f_CurrentChar, fp_Tokens, f_CurrentLineNumber, f_IsCurrentlyInsideComment, logger);
+
+            if (f_Result == LEX_OPERATOR_FOUND_SOMETHING) //returns true for either lexed, will throw error in function w.e
             {
                 continue;
+            }
+            else if (f_Result == LEX_OPERATOR_SYNTAX_ERROR)
+            {
+
+                return false;
             }
 
             //////////////////////////////////////////////////////////// Special Tokens ////////////////////////////////////////////////////////////
@@ -806,24 +1004,39 @@ namespace BongoJam {
             {
                 string f_CurrentStringLiteral = "";
 
-                f_CurrentChar = ShiftForward(fp_SourceCode); // Shift to the next character to start capturing the string, not the opening quote
+                if (not fp_SourceCode.ShiftForward(f_CurrentChar)) // Shift to the next character to start capturing the string, not the opening quote
+                {
+                    logger->Error(format("Found END__OF__FILE when closing '\"' was expected! Unterminated string found, Error occured at line number : {}", f_CurrentLineNumber), "Lexer");
+                    return false;
+                } 
+
+                if (f_CurrentChar == '"') //push back an empty string ig idk
+                {
+                    fp_Tokens.emplace_back("", TokenType::StringLiteral, f_CurrentLineNumber); //need this for the base case recursion of parse reg expr
+                    continue; //back to the main loop uwu
+                }
 
                 //////////////////////////////////////////////////////////// Main Loop ////////////////////////////////////////////////////////////
 
-                while (not fp_SourceCode.empty() and f_CurrentChar != '"')
+                while (f_CurrentChar != '"')
                 {
                     //////////////////////////////////////////////////////////// Keep Track of Line Number UwU ////////////////////////////////////////////////////////////
 
                     if (f_CurrentChar == '\n')
                     {
                         f_CurrentLineNumber++;
+                        continue;
                     }
 
                     //////////////////////////////////////////////////////////// Handle Escape Characters ////////////////////////////////////////////////////////////
 
                     if (f_CurrentChar == '\\')
                     {
-                        f_CurrentChar = ShiftForward(fp_SourceCode); //shift to next character
+                        if (not fp_SourceCode.ShiftForward(f_CurrentChar)) // Find Escape character owo
+                        {
+                            logger->Error(format("Found END__OF__FILE when expected escape character was expected! Unterminated string found, Error occured at line number : {}", f_CurrentLineNumber), "Lexer");
+                            return false;
+                        }
 
                         switch (f_CurrentChar)
                         {
@@ -851,15 +1064,11 @@ namespace BongoJam {
                         f_CurrentStringLiteral += f_CurrentChar; //proceed as usual
                     }
 
-                    f_CurrentChar = ShiftForward(fp_SourceCode); //shift to next character
-                }
-
-                // Check if we've ended on the closing quotation mark // Handle error: Unterminated string literal, and exit program execution
-                if (f_CurrentChar != '"')
-                {
-                    logger->Error(format("Unterminated string literal, brother! Error occured at line number: {}", f_CurrentLineNumber), "Lexer");
-                    fp_SourceCode.clear();
-                    return false;
+                    if (not fp_SourceCode.ShiftForward(f_CurrentChar)) // Shift to the next character to start capturing the string, not the opening quote
+                    {
+                        logger->Error(format("Found END__OF__FILE when closing '\"' was expected! Unterminated string found, Error occured at line number : {}", f_CurrentLineNumber), "Lexer");
+                        return false;
+                    }
                 }
                 
                 // Push the final string token without the quotes
@@ -874,13 +1083,19 @@ namespace BongoJam {
             case '?':
                 fp_Tokens.emplace_back(f_CurrentChar, TokenType::QuestionMark, f_CurrentLineNumber);
                 break;
-            case '@':
+            case '@': //used when doing smth like myString = @bmaOtherString because thats totally valid or myString = @bma"11" uwu >W<
             {
-                if (isalpha(Peek(fp_SourceCode)))
+                if (isalpha(f_PeekedChar)) //can use this since it was never utilized because we only reach here if every other branch is skipped uwu owo >O<
                 {
-                    f_CurrentChar = ShiftForward(fp_SourceCode); //--> alpha char hopefully uwu
+                    fp_SourceCode.ShiftForwardUnsafe(f_CurrentChar); //can do this since f_CurrentChar = '@' and if peek fails it'll just spit out @ again which will fail isalpha() and fall into the else statement uwu!
 
-                    string f_ColourIdentifier = LexWord(fp_SourceCode, f_CurrentChar, fp_Tokens, f_CurrentLineNumber);
+                    string f_ColourIdentifier;
+
+                    if (not LexWord(f_ColourIdentifier, fp_SourceCode, f_CurrentChar, f_CurrentLineNumber, logger))
+                    {
+                        logger->Error(format("Found END__OF__FILE when colour identifier was expected, token in question: '{}' Error occured at line number: {}", f_ColourIdentifier, f_CurrentLineNumber), "Lexer");
+                        return false;
+                    }
 
                     if (find(ANSI_COLOURS.begin(), ANSI_COLOURS.end(), f_ColourIdentifier) == ANSI_COLOURS.end()) //if identifier is not a keyword then its just tokenized assuming its a var name or smth
                     {
@@ -892,6 +1107,11 @@ namespace BongoJam {
 
                     continue;
                 }
+                else
+                {
+                    logger->Error(format("Error at Line Number: {}, expected a colour identifier but found: '{}' instead >:(", f_CurrentLineNumber, f_PeekedChar), "Lexer");
+                    return false;
+                }
 
                 fp_Tokens.emplace_back(f_CurrentChar, TokenType::AtSign, f_CurrentLineNumber);
             }
@@ -901,7 +1121,6 @@ namespace BongoJam {
                 break;
             default:
                 logger->Error(format("Lexing Error: Unrecognized character found in source code at line: {}", f_CurrentLineNumber), "Lexer");
-                fp_SourceCode.clear(); //dump the source code vector, so that the compiler will stop processing the source code
                 return false;
             }
 

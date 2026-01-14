@@ -32,7 +32,7 @@ int
     signal(SIGSEGV, SegFaultHandler); //XXX: used for trying to close and flush logs on seg fault
 
     //Enable ANSI colour codes for windows console grumble grumble
-    #if defined(_WIN32) || defined(_WIN64)
+    #if (defined(_WIN32) || defined(_WIN64)) && defined(BONGO_USING_OS_CONSOLE)
         BongoJam::EnableWindowsConsoleColours();
     #endif
 
@@ -53,7 +53,7 @@ int
     {
         BongoJam::PrintError(std::format("Unhandled exception: {}", Exception.what()));
 
-        return -69;
+        return -69; //hehe Xd
     }
 
     return EXIT_SUCCESS;

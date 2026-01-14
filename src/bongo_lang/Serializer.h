@@ -695,10 +695,13 @@ namespace BongoJam {
 
             return f_Val;
         }
+    }//namespace BinaryCodec
 
+    namespace FileIO
+    {
         //////////////////////////////////////////////
-        // Binary File Read/Write Functions
-        //////////////////////////////////////////////
+// Binary File Read/Write Functions
+//////////////////////////////////////////////
 
         [[nodiscard]] inline bool
             WriteToBinary
@@ -841,7 +844,149 @@ namespace BongoJam {
 
             return true; //success! file read into vector
         }
-    }//namespace BinaryCodec
+
+        //////////////////////////////////////////////
+// JSON File Read/Write Functions
+//////////////////////////////////////////////
+
+        [[nodiscard]] inline bool
+            WriteStringToFile
+            (
+                const string& fp_DesiredOutputDirectory,
+                const string& fp_DesiredName,
+                const string& fp_FileString,
+                Logger* logger
+            )
+        {
+            if (not logger)
+            {
+                PrintError("Serialization Error: Tried to pass nullptr reference to logger during WriteToJSON()");
+                return false;
+            }
+
+            // Ensure directory exists
+            if (not filesystem::exists(fp_DesiredOutputDirectory))
+            {
+                logger->Error("Serialization Error: Tried to pass invalid write directory to WriteToJSON", "Serializer");
+                return false;
+            }
+
+            string f_FileName;
+
+            if (fp_DesiredOutputDirectory == "./")
+            {
+                f_FileName = "./" + fp_DesiredName;
+            }
+            else
+            {
+                f_FileName = fp_DesiredOutputDirectory + "/" + fp_DesiredName;
+            }
+
+            ofstream f_OpenedFile(f_FileName, ios::out);  // Open in regular string mode
+
+            if (not f_OpenedFile)
+            {
+                logger->Error(format("Serialization Error: Failed to open file: '{}' for writing.", f_FileName), "Serializer");
+                return false;
+            }
+
+            // Write JSON string -> .json file
+            f_OpenedFile.write(fp_FileString.c_str(), fp_FileString.size());
+            // Close the file
+            f_OpenedFile.close();
+
+            return true;
+        }
+
+        [[nodiscard]] inline bool
+            ReadFileIntoCharBuffer
+            (
+                const string& fp_ScriptFilePath,
+                const vector<string>& fp_Extensions,
+                vector<char>& fp_CharBuffer,
+                Logger* logger
+            )
+        {
+            ////////////////////////////////////////////// Logger nullptr Safety Check //////////////////////////////////////////////
+
+            if (not logger)
+            {
+                PrintError("Serialization Error: Tried to pass nullptr reference to logger during ReadJSONIntoString()");
+                return false;
+            }
+
+            ////////////////////////////////////////////// Ensure directory exists //////////////////////////////////////////////
+
+            if (not filesystem::exists(fp_ScriptFilePath))
+            {
+                logger->Error("Serialization Error: Tried to pass invalid filepath to ReadJSONIntoString", "Serializer");
+                return false;
+            }
+
+            ////////////////////////////////////////////// Extract file extension assuming format "filename.ext" //////////////////////////////////////////////
+
+            size_t lastDotIndex = fp_ScriptFilePath.rfind('.');
+
+            if (lastDotIndex == string::npos)
+            {
+                logger->Error("Serialization Error: No file extension found", "Serializer");
+                return false;
+            }
+
+            string f_FileExtension = fp_ScriptFilePath.substr(lastDotIndex);
+
+            bool f_IsValidExtension = false;
+
+            for (const string& lv_ExtensionName : fp_Extensions)
+            {
+                if (f_FileExtension == lv_ExtensionName) //file extension for peach-e binary encoding, get it? it's like a bin of peaches >w<
+                {
+                    f_IsValidExtension = true;
+                    break;
+                }
+            }
+
+            if (not f_IsValidExtension)
+            {
+                logger->Error(format("Serialization Error: Attempted to read from an unknown text file extension: '{}'", f_FileExtension), "Serializer");
+                return false;
+            }
+
+            ifstream f_FileStream(fp_ScriptFilePath, ios::in | ios::binary);
+
+            if (not f_FileStream)
+            {
+                logger->Error("Serialization Error: Failed to open JSON for reading.", "Serializer");
+                return false;
+            }
+
+            ////////////////////////////////////////////// Get File Size //////////////////////////////////////////////
+
+            f_FileStream.seekg(0, ios::end);
+            streampos f_FileSize = f_FileStream.tellg();
+            f_FileStream.seekg(0, ios::beg);
+
+            ////////////////////////////////////////////// Assert File Contains Data //////////////////////////////////////////////
+
+            if (f_FileSize <= 0) //Treat empty files as an error since user thinks the file has something otherwise they wouldn't have tried to read from it UwU!
+            {
+                logger->Error("Serialization Error: Tried to pass empty file to ReadJSONIntoString()", "Serializer");
+                fp_CharBuffer.clear();
+                return false;
+            }
+
+            ////////////////////////////////////////////// Store Data -> fp_CharBuffer //////////////////////////////////////////////
+
+            fp_CharBuffer.resize(static_cast<size_t>(f_FileSize));
+            f_FileStream.read(fp_CharBuffer.data(), f_FileSize);
+
+            f_FileStream.close();
+
+            ////////////////////////////////////////////// Success! //////////////////////////////////////////////
+
+            return true;
+        }
+    }//namespace FileIO
 
     struct Serializer
     {
@@ -864,7 +1009,7 @@ namespace BongoJam {
 
             JSONValue f_TempJSON;
 
-            if (not ReadFileIntoCharBuffer(fp_FilePath, f_CharBuffer, logger)) //get JSON into a string
+            if (not FileIO::ReadFileIntoCharBuffer(fp_FilePath, {".json"}, f_CharBuffer, logger)) //get JSON into a string
             {
                 logger->Error("Failed to Read JSON", "FromJSON");
                 return false;
@@ -903,7 +1048,15 @@ namespace BongoJam {
         {
             JSONValue f_TempJSON = ToJSON(fp_DesiredObject);
 
-            if (not WriteToJSON(fp_DesiredOutputDirectory, fp_DesiredFileName, f_TempJSON, logger))
+            string f_JSONString;
+
+            if (not ToString(&f_JSONString, f_TempJSON))
+            {
+                logger->Error(format("Serialization Error: Failed to stringify JSON -> file: '{}' for writing.", fp_DesiredFileName), "Serializer");
+                return false;
+            }
+
+            if (not FileIO::WriteStringToFile(fp_DesiredOutputDirectory, fp_DesiredFileName, f_TempJSON, logger))
             {
                 logger->Error(format("Failed writing to JSON file: {}, nothing was done", fp_DesiredFileName), "ToJSON");
                 return false;
@@ -2134,138 +2287,6 @@ namespace BongoJam {
                 logger->Error("Parsing Error: ill-formed JSON found, parsing failed", "ParseJSON");
                 return false;
             }
-
-            return true;
-        }
-
-        //////////////////////////////////////////////
-        // JSON File Read/Write Functions
-        //////////////////////////////////////////////
-
-        bool
-            WriteToJSON
-            (
-                const string& fp_DesiredOutputDirectory,
-                const string& fp_DesiredName,
-                const JSONValue& fp_JSON,
-                Logger* logger
-            )
-            const
-        {
-            if (not logger)
-            {
-                PrintError("Serialization Error: Tried to pass nullptr reference to logger during WriteToJSON()");
-                return false;
-            }
-
-            // Ensure directory exists
-            if (not filesystem::exists(fp_DesiredOutputDirectory))
-            {
-                logger->Error("Serialization Error: Tried to pass invalid write directory to WriteToJSON", "Serializer");
-                return false;
-            }
-
-            const string f_FileName = fp_DesiredOutputDirectory + "/" + fp_DesiredName + ".json";
-
-            ofstream f_OpenedFile(f_FileName, ios::out);  // Open in regular string mode
-
-            if (not f_OpenedFile)
-            {
-                logger->Error(format("Serialization Error: Failed to open file: '{}' for writing.", f_FileName), "Serializer");
-                return false;
-            }
-
-            string f_JSONString;
-
-            if (not ToString(&f_JSONString, fp_JSON))
-            {
-                logger->Error(format("Serialization Error: Failed to stringify JSON -> file: '{}' for writing.", f_FileName), "Serializer");
-                f_OpenedFile.close(); //close the file since writing failed
-                return false;
-            }
-
-            // Write JSON string -> .json file
-            f_OpenedFile.write(f_JSONString.c_str(), f_JSONString.size());
-            // Close the file
-            f_OpenedFile.close();
-
-            return true;
-        }
-
-        bool
-            ReadFileIntoCharBuffer
-            (
-                const string& fp_ScriptFilePath,
-                vector<char>& fp_CharBuffer,
-                Logger* logger
-            )
-            const
-        {
-            ////////////////////////////////////////////// Logger nullptr Safety Check //////////////////////////////////////////////
-
-            if (not logger)
-            {
-                PrintError("Serialization Error: Tried to pass nullptr reference to logger during ReadJSONIntoString()");
-                return false;
-            }
-
-            ////////////////////////////////////////////// Ensure directory exists //////////////////////////////////////////////
-
-            if (not filesystem::exists(fp_ScriptFilePath))
-            {
-                logger->Error("Serialization Error: Tried to pass invalid filepath to ReadJSONIntoString", "Serializer");
-                return false;
-            }
-
-            ////////////////////////////////////////////// Extract file extension assuming format "filename.ext" //////////////////////////////////////////////
-
-            size_t lastDotIndex = fp_ScriptFilePath.rfind('.');
-
-            if (lastDotIndex == string::npos)
-            {
-                logger->Error("Serialization Error: No file extension found", "Serializer");
-                return false;
-            }
-
-            string f_FileExtension = fp_ScriptFilePath.substr(lastDotIndex);
-
-            if (f_FileExtension != ".json")
-            {
-                logger->Error("Serialization Error: Attempted to read from a file that isn't a JSON", "Serializer");
-                return false;
-            }
-
-            ifstream f_FileStream(fp_ScriptFilePath, ios::in | ios::binary);
-
-            if (not f_FileStream)
-            {
-                logger->Error("Serialization Error: Failed to open JSON for reading.", "Serializer");
-                return false;
-            }
-
-            ////////////////////////////////////////////// Get File Size //////////////////////////////////////////////
-
-            f_FileStream.seekg(0, ios::end);
-            streampos f_FileSize = f_FileStream.tellg();
-            f_FileStream.seekg(0, ios::beg);
-
-            ////////////////////////////////////////////// Assert File Contains Data //////////////////////////////////////////////
-
-            if (f_FileSize <= 0) //Treat empty files as an error since user thinks the file has something otherwise they wouldn't have tried to read from it UwU!
-            {
-                logger->Error("Serialization Error: Tried to pass empty file to ReadJSONIntoString()", "Serializer");
-                fp_CharBuffer.clear();
-                return false;
-            }
-
-            ////////////////////////////////////////////// Store Data -> fp_CharBuffer //////////////////////////////////////////////
-
-            fp_CharBuffer.resize(static_cast<size_t>(f_FileSize));
-            f_FileStream.read(fp_CharBuffer.data(), f_FileSize);
-
-            f_FileStream.close();
-
-            ////////////////////////////////////////////// Success! //////////////////////////////////////////////
 
             return true;
         }

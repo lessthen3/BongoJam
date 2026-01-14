@@ -13,11 +13,20 @@
 #include "BongoManager.h"
 #include <ErrorCodes.h>
 
+#define BONGO_ARRAY_SIZE(x) sizeof(x) / sizeof(x[0])
+
+template<size_t pm_MaximumAllowedThreads>
+struct BongoContext
+{
+
+};
+
 namespace BJ = BongoJam;
 
 BONGO_API BONGO_ERROR_CODE
-    BONGO_Parse()
+    BONGO_ParseArguments(int fp_ArgCount, char* fp_ArgVector[])
 {
+    int64_t result = 0;
 
     return BJ::BONGO_OK;
 }

@@ -21,9 +21,11 @@
 #include <atomic>
 #include <thread>
 
+#include <latch>
+
 namespace BongoJam {
 
-    struct CompilationTask
+    struct CompilationTask //using a raw ptr since this has to be trivially copyable so that bongomanager can pass a ref to the actual compilation unit and retrieve it to pass onto the linker
     {
         string FilePath;
         CompilationUnit* Output = nullptr;
@@ -37,11 +39,11 @@ namespace BongoJam {
     public:
         CompilerThreadPool()
         {
-            m_Stop = false;
+            pm_Stop = false;
 
             for (size_t lv_ThreadNumber = 0; lv_ThreadNumber < pm_ThreadCount; ++lv_ThreadNumber)
             {
-                m_Workers[lv_ThreadNumber] = thread(&CompilerThreadPool::Worker, this, lv_ThreadNumber);
+                pm_Workers[lv_ThreadNumber] = jthread(&CompilerThreadPool::Worker, this, lv_ThreadNumber);
             }
 
             threadpool_logger = Logger::CreateUnique("ThreadPoolLogger", DEFAULT_LOG_FLAGS, DEFAULT_LOG_OUTPUT_DIRECTORY);
@@ -58,67 +60,115 @@ namespace BongoJam {
         {
             Shutdown();
         }
+
     public:
         atomic<bool> BONGO_COMPILE_SUCCESS = true;
 
     private:
         unique_ptr<Logger> threadpool_logger = nullptr;
 
-        array<thread, pm_ThreadCount> m_Workers;
+        array<jthread, pm_ThreadCount> pm_Workers;
 
-        queue<CompilationTask> m_Tasks; // Main task queue categorized by priority, WARNING: this will forever grow but like there should be no use case where that memory leak matters
+        queue<CompilationTask> pm_Tasks; // Main task queue categorized by priority, WARNING: this will forever grow but like there should be no use case where that memory leak matters
         //although just in case TODO: implement a memory tracking thing for this to clamp its max usage or garbage collect it o this language wll have one mebbe
 
-        mutex m_QueueMutex;
+        mutex pm_QueueMutex;
+        condition_variable pm_Condition;
 
-        condition_variable m_Condition;
-        condition_variable m_CompletionCondition;
+        atomic<bool> pm_Stop{ false };
 
-        atomic<bool> m_Stop{ false };
-
-        atomic<size_t> m_IdleThreadCount{ 0 };
+        // latch to track a batch of tasks, this threadpool doesn't do continuous operation, it does everything inshort bursts since thats how compilation requests typically work where entire projects get done all at once
+        unique_ptr<latch> pm_BatchLatch;
+        atomic<bool> pm_BatchActive{ false };
 
     public:
-
-        void
-            WaitUntilAllTasksComplete()
+        void 
+            StartBatch(size_t fp_TaskCount)
         {
-            unique_lock<mutex> lock(m_QueueMutex);
+            if (fp_TaskCount == 0)
+            {
+                // No work; nothing to wait on
+                BONGO_COMPILE_SUCCESS = true;
+                pm_BatchActive = false;
+                pm_BatchLatch.reset();
+                return;
+            }
 
-            m_CompletionCondition.wait
-            (
-                lock,
-                [this]()
+            {
+                lock_guard<mutex> lock(pm_QueueMutex);
+
+                BONGO_COMPILE_SUCCESS = true;
+
+                // Clear any leftover tasks just in case
+                queue<CompilationTask>().swap(pm_Tasks);
+
+                // create a fresh latch for this batch
+                try
                 {
-                    return m_Tasks.empty();
+                    pm_BatchLatch = make_unique<latch>(fp_TaskCount);
+                    pm_BatchActive = true;
                 }
-            );
+                catch (const exception& fp_Exception)
+                {
+                    BONGO_COMPILE_SUCCESS = false;
+                    pm_BatchActive = false;
+                    pm_BatchLatch.reset();
+
+                   PrintError(format("Unhandled exception: {}", fp_Exception.what()));
+                }
+            }
         }
 
+        void 
+            WaitUntilAllTasksComplete()
+        {
+            if (pm_BatchLatch)
+            {
+                pm_BatchLatch->wait();
+            }
 
-        void
+            pm_BatchActive = false;
+        }
+
+        void 
             EnqueueTask(const CompilationTask& fp_Task)
         {
             {
-                lock_guard<mutex> lock(m_QueueMutex);
-                threadpool_logger->Debug(format("Enqueueing Task with script path: {}", fp_Task.FilePath), "ThreadPoolLogger");
-                m_Tasks.push(fp_Task);
+                lock_guard<mutex> lock(pm_QueueMutex);
+
+                if (not pm_BatchActive)
+                {
+                    threadpool_logger->Error("Tried to enqueue task without an active batch", "ThreadPool");
+                    return;
+                }
+
+                threadpool_logger->Debug(format("Enqueueing Task with script path: {}", fp_Task.FilePath), "ThreadPool");
+
+                pm_Tasks.push(fp_Task);
             }
 
-            m_Condition.notify_one();
+            pm_Condition.notify_one();
         }
 
+        [[nodiscard]] inline bool
+            IsBatchActive()
+            const noexcept
+        {
+            return pm_BatchActive;
+        }
+
+    private:
         void
             Shutdown()
         {
             {
-                lock_guard<mutex> lock(m_QueueMutex);
-                m_Stop = true;
+                lock_guard<mutex> lock(pm_QueueMutex);
+                pm_Stop = true;
                 threadpool_logger->Debug("Shutting down compiler thread pool", "ThreadPoolLogger");
-                m_Condition.notify_all();
+                pm_Condition.notify_all();
             }
 
-            for (thread& worker : m_Workers)
+            for (jthread& worker : pm_Workers)
             {
                 if (worker.joinable())
                 {
@@ -127,95 +177,109 @@ namespace BongoJam {
             }
         }
 
-    private:
-        void
-            Worker(uint64_t fp_ThreadNumber) //maybe have a worker ID idk for tracking might as well w the logger name right
+        void 
+            Worker(uint64_t fp_ThreadNumber)
         {
-            thread_local BongoCompiler f_Compiler("CompilerThreadPool__ThreadID( " + to_string(fp_ThreadNumber)  + " )");
+            thread_local BongoCompiler f_Compiler("CompilerThreadPool__ThreadID( " + to_string(fp_ThreadNumber) + " )");
             Logger* f_CompilerLogger = f_Compiler.compiler_logger.get();
 
-            while (true)
+            while(1)
             {
                 CompilationTask f_Task;
 
+                // --------- Take a task or exit ---------
                 {
-                    unique_lock<mutex> lock(m_QueueMutex);
-                    m_Condition.wait
+                    unique_lock<mutex> lock(pm_QueueMutex);
+                    pm_Condition.wait
                     (
                         lock,
                         [this]
                         {
-                            return m_Stop or not AreTasksEmpty();
+                            return pm_Stop or not pm_Tasks.empty();
                         }
                     );
 
-                    if (m_Stop)
+                    // true shutdown path: destructor called Shutdown()
+                    if (pm_Stop and pm_Tasks.empty())
                     {
                         f_CompilerLogger->Debug("Worker exiting due to stop flag", "Worker");
                         return;
                     }
+                    
+                    if (pm_Tasks.empty()) // Nothing to do, go back to waiting
+                    {
+                        continue; 
+                    }
 
+                    // if we woke up and there IS work, grab it
                     f_CompilerLogger->Debug("Worker taking compilation task using this compiler", "Worker");
-                    f_Task = move(m_Tasks.front());
-                    m_Tasks.pop();
+
+                    f_Task = move(pm_Tasks.front());
+                    pm_Tasks.pop();
                 }
 
-                f_CompilerLogger->Debug("Worker compiling unit with this compiler you scoundrel!", "Worker");
-                
+                // --------- Compile the unit ---------
+                bool f_IsSuccessful = true;
+
                 try
                 {
-                    int result = f_Compiler.CompileUnit(f_Task.FilePath, f_Task.Output);
+                    int f_Result = f_Compiler.CompileUnit(f_Task.FilePath, f_Task.Output);
 
-                    if (result != BONGO_OK)
+                    if (f_Result != BONGO_OK)
                     {
-                        f_CompilerLogger->Error(format("Failed to compile : '{}', with compiler exit code : {} ", f_Task.FilePath, result), "Worker");
-
-                        {
-                            lock_guard<mutex> lock(m_QueueMutex);
-                            BONGO_COMPILE_SUCCESS = false;
-                            m_Stop = true;
-                            queue<CompilationTask>().swap(m_Tasks); // Clear task queue safely
-                        }                        
-
-                        m_Condition.notify_all(); // Wake all threads to exit
-
-                        return;
+                        f_IsSuccessful = false;
+                        f_CompilerLogger->Error(format("Failed to compile : '{}', with compiler exit code : {} ", f_Task.FilePath, f_Result), "Worker");
                     }
-
-                    f_CompilerLogger->Info(format("Worker successfully compiled: '{}'!", f_Task.FilePath), "Worker");
-                }
-                catch (const exception& Exception) ///Try to ensure all destructors are called especially close() on LogManager
-                {
-                    f_CompilerLogger->Error(format("Unhandled exception: {}, while compiling : '{}' " , Exception.what(), f_Task.FilePath), "Worker");
-
+                    else
                     {
-                        lock_guard<mutex> lock(m_QueueMutex);
+                        f_CompilerLogger->Info(format("Worker successfully compiled: '{}'!", f_Task.FilePath), "Worker");
+                    }
+                }
+                catch (const exception& Exception)
+                {
+                    f_IsSuccessful = false;
+                    f_CompilerLogger->Error(format("Unhandled exception: {}, while compiling : '{}' ", Exception.what(), f_Task.FilePath), "Worker");
+                }
+
+                // --------- Update global state + latch ---------
+                if (not f_IsSuccessful)
+                {
+                    // On first failure, flip flags and drain the queue, and count down the latch for all remaining tasks.
+                    {
+                        lock_guard<mutex> lock(pm_QueueMutex);
+
                         BONGO_COMPILE_SUCCESS = false;
-                        m_Stop = true;
-                        queue<CompilationTask>().swap(m_Tasks); // Clear task queue safely and exit compilation for all threads workers rawr UwU
+
+                        if (pm_BatchLatch)
+                        {
+                            // one count for *this* failed task
+                            pm_BatchLatch->count_down();
+
+                            // drain remaining tasks and count them as "done"
+                            while (not pm_Tasks.empty())
+                            {
+                                pm_Tasks.pop();
+                                pm_BatchLatch->count_down();
+                            }
+                        }
                     }
 
-                    m_Condition.notify_all();
-                    return;
+                    // wake other workers: they’ll see an empty queue and just wait
+                    pm_Condition.notify_all();
+
+                    // IMPORTANT: do NOT return here, We want this worker to stay alive for future batches.
+                    continue;
                 }
-
+                else if (pm_BatchLatch) // Successful compile: mark this task as done
                 {
-                    lock_guard<mutex> lock(m_QueueMutex);
-
-                    if (m_Tasks.empty())
-                    {
-                        m_CompletionCondition.notify_all();
-                    }
+                    pm_BatchLatch->count_down();
+                }
+                else
+                {
+                    f_CompilerLogger->Error(format("Invalid nullptr ref to latch threadpool cannot operate uwu, while compiling : '{}' ", f_Task.FilePath), "Worker");
+                    return;
                 }
             }
         }
-
-        inline bool
-            AreTasksEmpty()
-            const noexcept
-        {
-            return m_Tasks.empty();
-        }
     };
-
 }//namespace BongoJam
