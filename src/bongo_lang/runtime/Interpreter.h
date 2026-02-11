@@ -28,13 +28,18 @@
 #include <functional>
 #include <cmath>
 
+#define BONGO_INT int64_t
+#define BONGO_UINT uint64_t
+#define BONGO_BOOL int64_t
+#define BONGO_FLOAT double
+
 constexpr const uint32_t MAX_STACK_SIZE = 8192;
 
 namespace BongoJam {
 
     enum class ValueType : uint8_t
     {
-        I32, I64, F32, F64, BOOL, STRING, CLASS_REF, STRUCT_REF, INVALID
+        U8, U16, U32, U64, I8, I16, I32, I64, F32, F64, BOOL, STRING, CLASS_REF, STRUCT_REF, INVALID
     };
 
     struct Value
@@ -43,35 +48,19 @@ namespace BongoJam {
 
         union
         {
-            int32_t i32;
             int64_t i64;
-            float   f32;
-            double f64;
+            uint64_t u64;
+            double dbl;
             void* ref;
             uint64_t raw;
-            bool boolean;
-        } u;
+        } val;
 
-        explicit Value(ValueType fp_Type, int32_t fp_Value) : Type(fp_Type) { u.i32 = fp_Value; }
-        explicit Value(ValueType fp_Type, float   fp_Value) : Type(fp_Type) { u.f32 = fp_Value; }
-        explicit Value(ValueType fp_Type, double fp_Value) : Type(fp_Type) { u.f64 = fp_Value; }
-        explicit Value(ValueType fp_Type, void* fp_Value) : Type(fp_Type) { u.ref = fp_Value; }
+        explicit Value(ValueType fp_Type, int64_t fp_Value) : Type(fp_Type) { val.i64 = fp_Value; }
+        explicit Value(ValueType fp_Type, uint64_t   fp_Value) : Type(fp_Type) { val.u64 = fp_Value; }
+        explicit Value(ValueType fp_Type, double fp_Value) : Type(fp_Type) { val.dbl = fp_Value; }
+        explicit Value(ValueType fp_Type, void* fp_Value) : Type(fp_Type) { val.ref = fp_Value; }
 
         Value() = default;
-
-        // Primitives
-        static Value FromInt(int32_t v) { Value val; val.Type = ValueType::I32;   val.u.i32 = v; return val; }
-        static Value FromFloat(float v) { Value val; val.Type = ValueType::F32;   val.u.f32 = v; return val; }
-        static Value FromBool(bool v) { Value val; val.Type = ValueType::BOOL;  val.u.boolean = v; return val; }
-
-        // Heap Refs
-        static Value FromRef(void* ref, ValueType type)
-        {
-            Value val;
-            val.Type = type;
-            val.u.ref = ref;
-            return val;
-        }
 
         void 
             DebugPrintOut() 
@@ -79,12 +68,12 @@ namespace BongoJam {
         {
             switch (Type)
             {
-                case ValueType::I32:      printf("int: %d\n", u.i32); break;
-                case ValueType::F32:      printf("float: %f\n", u.f32); break;
-                case ValueType::BOOL:     printf("bool: %s\n", u.boolean ? "true" : "false"); break;
-                case ValueType::STRING:   printf("string ptr: %p\n", u.ref); break;
-                case ValueType::CLASS_REF:printf("class ref: %p\n", u.ref); break;
-                case ValueType::STRUCT_REF:printf("struct ref: %p\n", u.ref); break;
+                case ValueType::I64:      printf("int: %d\n", val.i64); break;
+                case ValueType::U64:      printf("float: %f\n", val.u64); break;
+                case ValueType::F64:     printf("bool: %s\n", val.dbl ? "true" : "false"); break;
+                case ValueType::STRING:   printf("string ptr: %p\n", val.ref); break;
+                case ValueType::CLASS_REF:printf("class ref: %p\n", val.ref); break;
+                case ValueType::STRUCT_REF:printf("struct ref: %p\n", val.ref); break;
                 default: printf("invalid or uninitialized value\n");
             }
         }
@@ -97,7 +86,7 @@ namespace BongoJam {
         size_t StackBase; // where this frame starts in m_Stack
     };
 
-    enum HeapTag { STRING, LIST, DICTIONARY, ARRAY, TYPE, INVALID };
+    enum HeapTag { STRING, LIST, DICTIONARY, ARRAY, CLASS, STRUCT, INVALID };
 
     struct HeapObject
     {
@@ -148,8 +137,12 @@ namespace BongoJam {
         Value* m_StackStart = static_cast<Value*>(Stack.Allocate(MAX_STACK_SIZE * sizeof(Value), alignof(Value)));
 
         size_t STACK_POINTER = 0;
+        size_t PROGRAM_COUNTER = 0;
+        size_t BASE_POINTER = 0;
 
         bool STATUS_REGISTER = false;
+
+        //int8_t ZERO_FLAG = 0;
 
         unordered_map<string, NATIVE_FUNCTION> NativeFunctions;
 
@@ -164,8 +157,8 @@ namespace BongoJam {
         // Decoding Functions
         //////////////////////////////////////////////
 
-        void
-            DecodeAndStoreUTF8Strings(vector<uint8_t>* fp_ByteCode);
+        //void
+        //    DecodeAndStoreUTF8Strings(vector<uint8_t>* fp_ByteCode);
 
         //////////////////////////////////////////////
         // Utility Functions

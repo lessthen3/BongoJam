@@ -351,7 +351,7 @@ namespace BongoJam {
             return fp_Bytecode[fp_Offset++];
         }
 
-        inline uint16_t
+        [[nodiscard]] inline uint16_t
             DecodeUint16
             (
                 const vector<uint8_t>& fp_ByteCode,
@@ -380,7 +380,7 @@ namespace BongoJam {
             return f_Value;
         }
 
-        inline uint32_t
+        [[nodiscard]] inline uint32_t
             DecodeUint32
             (
                 const vector<uint8_t>& fp_ByteCode,
@@ -411,7 +411,7 @@ namespace BongoJam {
             return f_Value;
         }
 
-        inline uint64_t
+        [[nodiscard]] inline uint64_t
             DecodeUint64
             (
                 const vector<uint8_t>& fp_ByteCode,
@@ -446,7 +446,7 @@ namespace BongoJam {
             return f_Value;
         }
 
-        inline int8_t
+        [[nodiscard]] inline int8_t
             DecodeInt8
             (
                 const vector<uint8_t>& fp_ByteCode,
@@ -456,7 +456,7 @@ namespace BongoJam {
             return static_cast<int8_t>(DecodeUint8(fp_ByteCode, fp_Offset));
         }
 
-        inline int16_t
+        [[nodiscard]] inline int16_t
             DecodeInt16
             (
                 const vector<uint8_t>& fp_ByteCode,
@@ -466,7 +466,7 @@ namespace BongoJam {
             return static_cast<int16_t>(DecodeUint16(fp_ByteCode, fp_Offset));
         }
 
-        inline int32_t
+        [[nodiscard]] inline int32_t
             DecodeInt32
             (
                 const vector<uint8_t>& fp_ByteCode,
@@ -476,7 +476,7 @@ namespace BongoJam {
             return static_cast<int32_t>(DecodeUint32(fp_ByteCode, fp_Offset));
         }
 
-        inline int64_t
+        [[nodiscard]] inline int64_t
             DecodeInt64
             (
                 const vector<uint8_t>& fp_ByteCode,
@@ -487,7 +487,7 @@ namespace BongoJam {
         }
 
         template <typename T>
-        inline T
+        [[nodiscard]] inline T
             DecodeInt
             (
                 const vector<uint8_t>& fp_Bytecode,

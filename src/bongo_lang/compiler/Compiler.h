@@ -189,7 +189,7 @@ namespace BongoJam {
         size_t pm_CompiledThreadID = 0;
         
         string pm_CompilerName = "NO_COMPILER_NAME";
-        uint8_t pm_NextAvailableStackSlot = 0;
+        size_t pm_NextAvailableStackSlot = 0;
 
     private:
         ////////////////////////////////////////////// Utility Functions //////////////////////////////////////////////
@@ -215,6 +215,20 @@ namespace BongoJam {
                 const string& fp_DesiredBongoScriptFilePath,
                 CompilationUnit* fp_CompilationUnit,
                 const bool fp_IsDebug = false
+            );
+
+        bool
+            CompileRegularExpr
+            (
+                Expr* fp_Expression,
+                CompilationUnit* fp_CompilationUnit
+            );
+
+        [[nodiscard]] bool
+            CompileStringExpr
+            (
+                Expr* fp_Expression,
+                CompilationUnit* fp_CompilationUnit
             );
 
         bool
@@ -268,13 +282,6 @@ namespace BongoJam {
             CompileFieldDeclaration
             (
                 VarDeclaration* fp_VarDeclaration,
-                CompilationUnit* fp_CompilationUnit
-            );
-
-        bool
-            CompileRegularExpr
-            (
-                Expr* fp_Expression,
                 CompilationUnit* fp_CompilationUnit
             );
 

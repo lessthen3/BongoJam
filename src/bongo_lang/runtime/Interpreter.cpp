@@ -64,6 +64,7 @@ namespace BongoJam {
 
         CallStack.emplace_back(fp_ReturnAddress, STACK_POINTER);
 
+        BASE_POINTER = STACK_POINTER;
         STACK_POINTER += fp_LocalCount;
     }
 
@@ -84,7 +85,7 @@ namespace BongoJam {
     //////////////////////////////////////////////
     // Decoding Functions
     //////////////////////////////////////////////
-
+    /*
     void
         BongoJamInterpreter::DecodeAndStoreUTF8Strings(vector<uint8_t>* fp_ByteCode)
     {
@@ -121,7 +122,8 @@ namespace BongoJam {
             }
         }
     }
-
+    */
+ 
     //////////////////////////////////////////////
     // Runtime Functions
     //////////////////////////////////////////////
@@ -146,50 +148,32 @@ namespace BongoJam {
 
         size_t _l = 0; //line counter
 
-        size_t BASE_POINTER = 0;
-        size_t PROGRAM_COUNTER = 0;
-
         STACK_POINTER = 0; //in case the interpreter runs multiple programs during its lifetime uwu
+        PROGRAM_COUNTER = 0;
+        BASE_POINTER = 0;
 
         while(1)
         {
             switch (BONGO_PROGRAM[PROGRAM_COUNTER])
             {
-            case PUSH:
+            case PUSH_I:
             {
-                PROGRAM_COUNTER++; // Skip past PUSH opcode
-                uint8_t valueType = BONGO_PROGRAM[PROGRAM_COUNTER++];
-
-                switch (valueType) //decoding starts on the offset passed, so the program pointer has to be shifted onto the first byte val of the number uwu
-                {
-                case INT_VALUE:
-                {
-                    PROGRAM_COUNTER++; // Skip past INT_VALUE opcode
-                    Push(Value{ ValueType::I32, BinaryCodec::DecodeInt32(BONGO_PROGRAM, PROGRAM_COUNTER) });
-                } 
-                break;
-                case FLOAT_VALUE:
-                {
-                    PROGRAM_COUNTER++; // Skip past FLOAT_VALUE opcode
-                    Push(Value{ ValueType::F32, BinaryCodec::DecodeFloat(BONGO_PROGRAM, PROGRAM_COUNTER) });
-                } 
-                break;
-                case DOUBLE_VALUE:
-                {
-                    PROGRAM_COUNTER++; // Skip past DOUBLE_VALUE opcode
-                    Push(Value{ ValueType::F64, BinaryCodec::DecodeDouble(BONGO_PROGRAM, PROGRAM_COUNTER) });
-                }
-                break;
-                case STRING_VALUE:
-                {
-                    PROGRAM_COUNTER++; // Skip past STRING_VALUE opcode
-                    Push(Value{ ValueType::STRING,  (void*) new string(BinaryCodec::DecodeStringUTF8<uint32_t>(BONGO_PROGRAM, PROGRAM_COUNTER)) });
-                }
-                break;
-                default:
-
-                    throw runtime_error("BAD PUSH UWU");
-                }
+                Push(Value{ ValueType::I64, BinaryCodec::DecodeInt<int64_t>(BONGO_PROGRAM, ++PROGRAM_COUNTER) });
+            }
+            break;
+            case PUSH_F:
+            {
+                Push(Value{ ValueType::F64, BinaryCodec::DecodeDouble(BONGO_PROGRAM, ++PROGRAM_COUNTER) });
+            }
+            break;
+            case PUSH_U:
+            {
+                Push(Value{ ValueType::U64, BinaryCodec::DecodeInt<uint64_t>(BONGO_PROGRAM, ++PROGRAM_COUNTER) });
+            }
+            break;
+            case PUSH_S:
+            {
+                Push(Value{ ValueType::STRING,  (void*) new string(BinaryCodec::DecodeStringUTF8<uint32_t>(BONGO_PROGRAM, ++PROGRAM_COUNTER)) });
             }
             break;
             case POP:
@@ -211,19 +195,17 @@ namespace BongoJam {
             break;
             case JMP:
             {
-                PROGRAM_COUNTER++;
                 //jump offset should figure out that its -1 the actual offset in bytecode since decode advances a byte uwu, but thats a compile time thing not a runtime thing
-                uint64_t sv_JmpOffset = BinaryCodec::DecodeInt<uint64_t>(BONGO_PROGRAM, PROGRAM_COUNTER);
+                int64_t sv_JmpOffset = BinaryCodec::DecodeInt<int64_t>(BONGO_PROGRAM, ++PROGRAM_COUNTER);
 
                 PROGRAM_COUNTER += sv_JmpOffset; //offset is signed so can go backwards or forwards
             }
             break;
             case STORE_LOCAL: 
             {
-                PROGRAM_COUNTER++; //move to index
-                uint8_t slot = BinaryCodec::DecodeInt<uint32_t>(BONGO_PROGRAM, PROGRAM_COUNTER);
+                uint8_t slot = BinaryCodec::DecodeInt<uint32_t>(BONGO_PROGRAM, ++PROGRAM_COUNTER);
                 Value val = Pop();
-                size_t addr = CallStack.back().StackBase + slot;
+                size_t addr = BASE_POINTER + slot;
 
                 if (addr >= MAX_STACK_SIZE)
                 {
@@ -235,8 +217,8 @@ namespace BongoJam {
             break;
             case LOAD_LOCAL:
             {
-                uint8_t slot = BONGO_PROGRAM[PROGRAM_COUNTER++];
-                size_t addr = CallStack.back().StackBase + slot;
+                uint8_t slot = BONGO_PROGRAM[++PROGRAM_COUNTER]; //inc first because sitting on LOAD_LOCAL atm uwu
+                size_t addr = BASE_POINTER + slot;
                 if (addr >= MAX_STACK_SIZE) 
                 {
                     throw runtime_error("MEMORY VIOLATION ERROR: tried to access variable located outside of stack memory");
@@ -251,196 +233,230 @@ namespace BongoJam {
                 continue;
             }
             break;
-            case ADD: 
+            case CAST_I_TO_F: //new-line bongo-code
+            {
+                Value sv_TopVal = Pop();
+
+                sv_TopVal.val.dbl = static_cast<double>(sv_TopVal.val.i64);
+            }
+            break;
+            case CAST_U_TO_F: //new-line bongo-code
+            {
+            }
+            break;
+            case CAST_I_TO_U: //new-line bongo-code
+            {
+            }
+            break;
+            case CAST_F_TO_U: //new-line bongo-code
+            {
+            }
+            break;
+            case CAST_U_TO_I: //new-line bongo-code
+            {
+            }
+            break;
+            case CAST_F_TO_I: //new-line bongo-code
+            {
+            }
+            break;
+            case ADD_I: 
             {
                 Value b = Pop();
                 Value a = Pop();
 
-                if (a.Type == ValueType::I32 and b.Type == ValueType::I32)
-                {
-                    Push(Value{ ValueType::I32, a.u.i32 + b.u.i32 });
-                }
-                else 
-                {
-                    throw runtime_error("Invalid types for ADD");
-                }
+                Push(Value{ ValueType::I64, a.val.i64 + b.val.i64 });
 
                 PROGRAM_COUNTER++; //move to next instruction 
             }
             break;
-            case SUB:
+            case SUB_I:
             {
                 Value b = Pop();
                 Value a = Pop();
 
-                if (a.Type == ValueType::I32 and b.Type == ValueType::I32)
-                {
-                    Push(Value{ ValueType::I32, a.u.i32 - b.u.i32 });
-                }
-                else
-                {
-                    throw runtime_error("Invalid types for SUB");
-                }
+                Push(Value{ ValueType::I64, a.val.i64 - b.val.i64 });
 
                 PROGRAM_COUNTER++; //move to next instruction 
             }
             break;
-            case MULT:
+            case MULT_I:
             {
                 Value b = Pop();
                 Value a = Pop();
 
-                if (a.Type == ValueType::I32 and b.Type == ValueType::I32)
-                {
-                    Push(Value{ ValueType::I32, a.u.i32 * b.u.i32 });
-                }
-                else
-                {
-                    throw runtime_error("Invalid types for MULT");
-                }
+                Push(Value{ ValueType::I64, a.val.i64 * b.val.i64 });
 
                 PROGRAM_COUNTER++; //move to next instruction 
             }
                 break;
-            case DIV:
+            case DIV_I:
             {
                 Value b = Pop();
                 Value a = Pop();
 
-                if (a.Type == ValueType::I32 and b.Type == ValueType::I32)
-                {
-                    Push(Value{ ValueType::I32, a.u.i32 / b.u.i32 });
-                }
-                else
-                {
-                    throw runtime_error("Invalid types for DIV");
-                }
+                Push(Value{ ValueType::F64, static_cast<double>(a.val.i64 / b.val.i64) });
 
                 PROGRAM_COUNTER++; //move to next instruction 
             }
             break;
-            case CMP_EQ:
+            case CMP_EQ_I:
             {
                 Value b = Pop();
                 Value a = Pop();
 
-                if (a.Type == ValueType::I32 and b.Type == ValueType::I32)
-                {
-                    Push(Value{ ValueType::BOOL, a.u.i32 == b.u.i32 });
-                }
-                else if (a.Type == ValueType::F32 and b.Type == ValueType::F32)
-                {
-                    Push(Value{ ValueType::BOOL, a.u.i32 == b.u.i32 });
-                }
-                else
-                {
-                    throw runtime_error("Invalid types for ADD");
-                }
+                STATUS_REGISTER = static_cast<bool>(a.val.i64 == b.val.i64);
 
                 PROGRAM_COUNTER++; //move to next instruction 
             }
             break;
-            case CMP_NE:
+            case CMP_EQ_F:
             {
                 Value b = Pop();
                 Value a = Pop();
 
-                if (a.Type == ValueType::I32 and b.Type == ValueType::I32)
-                {
-                    Push(Value{ ValueType::BOOL, a.u.i32 != b.u.i32 });
-                }
-                else if (a.Type == ValueType::F32 and b.Type == ValueType::F32)
-                {
-                    Push(Value{ ValueType::BOOL, a.u.i32 != b.u.i32 });
-                }
-                else
-                {
-                    throw runtime_error("Invalid types for ADD");
-                }
+                STATUS_REGISTER = static_cast<bool>(a.val.dbl == b.val.dbl);
 
                 PROGRAM_COUNTER++; //move to next instruction 
             }
             break;
-            case CMP_GE:
+            break;
+            case CMP_EQ_U:
             {
                 Value b = Pop();
                 Value a = Pop();
 
-                if (a.Type == ValueType::I32 and b.Type == ValueType::I32)
-                {
-                    Push(Value{ ValueType::BOOL, a.u.i32 >= b.u.i32 });
-                }
-                else if (a.Type == ValueType::F32 and b.Type == ValueType::F32)
-                {
-                    Push(Value{ ValueType::BOOL, a.u.i32 >= b.u.i32 });
-                }
-                else
-                {
-                    throw runtime_error("Invalid types for ADD");
-                }
+                STATUS_REGISTER = static_cast<bool>(a.val.u64 == b.val.u64);
 
                 PROGRAM_COUNTER++; //move to next instruction 
             }
             break;
-            case CMP_GT:
+            case CMP_NE_I:
             {
                 Value b = Pop();
                 Value a = Pop();
 
-                if (a.Type == ValueType::I32 and b.Type == ValueType::I32)
-                {
-                    Push(Value{ ValueType::BOOL, a.u.i32 > b.u.i32 });
-                }
-                else if (a.Type == ValueType::F32 and b.Type == ValueType::F32)
-                {
-                    Push(Value{ ValueType::BOOL, a.u.i32 > b.u.i32 });
-                }
-                else
-                {
-                    throw runtime_error("Invalid types for ADD");
-                }
+                STATUS_REGISTER = static_cast<bool>(a.val.i64 != b.val.i64);
 
                 PROGRAM_COUNTER++; //move to next instruction 
             }
             break;
-            case CMP_LE:
+            case CMP_LT_I:
             {
                 Value b = Pop();
                 Value a = Pop();
 
-                if (a.Type == ValueType::I32 and b.Type == ValueType::I32)
-                {
-                    Push(Value{ ValueType::BOOL, a.u.i32 <= b.u.i32 });
-                }
-                else if (a.Type == ValueType::F32 and b.Type == ValueType::F32)
-                {
-                    Push(Value{ ValueType::BOOL, a.u.i32 <= b.u.i32 });
-                }
-                else
-                {
-                    throw runtime_error("Invalid types for ADD");
-                }
+                STATUS_REGISTER = static_cast<bool>(a.val.i64 < b.val.i64);
 
                 PROGRAM_COUNTER++; //move to next instruction 
             }
             break;
-            case CMP_LT:
+            case CMP_LT_F:
             {
                 Value b = Pop();
                 Value a = Pop();
 
-                if (a.Type == ValueType::I32 and b.Type == ValueType::I32)
-                {
-                    Push(Value{ ValueType::BOOL, a.u.i32 < b.u.i32 });
-                }
-                else if (a.Type == ValueType::F32 and b.Type == ValueType::F32)
-                {
-                    Push(Value{ ValueType::BOOL, a.u.i32 < b.u.i32 });
-                }
-                else
-                {
-                    throw runtime_error("Invalid types for ADD");
-                }
+                STATUS_REGISTER = static_cast<bool>(a.val.dbl < b.val.dbl);
+
+                PROGRAM_COUNTER++; //move to next instruction 
+            }
+            break;
+            case CMP_LT_U:
+            {
+                Value b = Pop();
+                Value a = Pop();
+
+                STATUS_REGISTER = static_cast<bool>(a.val.u64 < b.val.u64);
+
+                PROGRAM_COUNTER++; //move to next instruction 
+            }
+            break;
+            case CMP_LT_I_F:
+            {
+                Value b = Pop();
+                Value a = Pop();
+
+                STATUS_REGISTER = static_cast<bool>(a.val.i64 < b.val.dbl);
+
+                PROGRAM_COUNTER++; //move to next instruction 
+            }
+            break;
+            case CMP_LT_I_U:
+            {
+                Value b = Pop();
+                Value a = Pop();
+
+                STATUS_REGISTER = static_cast<bool>(a.val.i64 < b.val.u64);
+
+                PROGRAM_COUNTER++; //move to next instruction 
+            }
+            break;
+            case CMP_LT_U_F:
+            {
+                Value b = Pop();
+                Value a = Pop();
+
+                STATUS_REGISTER = static_cast<bool>(a.val.u64 < b.val.dbl);
+
+                PROGRAM_COUNTER++; //move to next instruction 
+            }
+            break;
+            case CMP_GT_I_F:
+            {
+                Value b = Pop();
+                Value a = Pop();
+
+                STATUS_REGISTER = static_cast<bool>(a.val.i64 > b.val.dbl);
+
+                PROGRAM_COUNTER++; //move to next instruction 
+            }
+            break;
+            case CMP_GT_I_U:
+            {
+                Value b = Pop();
+                Value a = Pop();
+
+                STATUS_REGISTER = static_cast<bool>(a.val.i64 > b.val.u64);
+
+                PROGRAM_COUNTER++; //move to next instruction 
+            }
+            break;
+            case CMP_GT_U_F:
+            {
+                Value b = Pop();
+                Value a = Pop();
+
+                STATUS_REGISTER = static_cast<bool>(a.val.u64 > b.val.dbl);
+
+                PROGRAM_COUNTER++; //move to next instruction 
+            }
+            break;
+            case CMP_LE_I:
+            {
+                Value b = Pop();
+                Value a = Pop();
+
+                STATUS_REGISTER = static_cast<bool>(a.val.i64 <= b.val.i64);
+
+                PROGRAM_COUNTER++; //move to next instruction 
+            }
+            break;
+            case CMP_LE_F:
+            {
+                Value b = Pop();
+                Value a = Pop();
+
+                STATUS_REGISTER = static_cast<bool>(a.val.dbl <= b.val.dbl);
+
+                PROGRAM_COUNTER++; //move to next instruction 
+            }
+            break;
+            case CMP_LE_U:
+            {
+                Value b = Pop();
+                Value a = Pop();
+
+                STATUS_REGISTER = static_cast<bool>(a.val.u64 <= b.val.u64);
 
                 PROGRAM_COUNTER++; //move to next instruction 
             }
@@ -450,14 +466,7 @@ namespace BongoJam {
                 Value b = Pop();
                 Value a = Pop();
 
-                if (a.Type == ValueType::I32 and b.Type == ValueType::I32)
-                {
-                    Push(Value{ ValueType::I32, a.u.i32 & b.u.i32 });
-                }
-                else
-                {
-                    throw runtime_error("Invalid types for AND");
-                }
+                Push(Value{ ValueType::U64, a.val.u64 & b.val.u64 });
 
                 PROGRAM_COUNTER++; //move to next instruction 
             }
@@ -467,14 +476,7 @@ namespace BongoJam {
                 Value b = Pop();
                 Value a = Pop();
 
-                if (a.Type == ValueType::I32 and b.Type == ValueType::I32)
-                {
-                    Push(Value{ ValueType::I32, a.u.i32 | b.u.i32 });
-                }
-                else
-                {
-                    throw runtime_error("Invalid types for AND");
-                }
+                Push(Value{ ValueType::U64, a.val.u64 | b.val.u64 });
 
                 PROGRAM_COUNTER++; //move to next instruction 
             }
@@ -484,14 +486,7 @@ namespace BongoJam {
                 Value b = Pop();
                 Value a = Pop();
 
-                if (a.Type == ValueType::I32 and b.Type == ValueType::I32)
-                {
-                    Push(Value{ ValueType::I32, a.u.i32 ^ b.u.i32 });
-                }
-                else
-                {
-                    throw runtime_error("Invalid types for AND");
-                }
+                Push(Value{ ValueType::U64, a.val.u64 ^ b.val.u64 });
 
                 PROGRAM_COUNTER++; //move to next instruction 
             }
@@ -517,9 +512,7 @@ namespace BongoJam {
             case STDOUT: //print function
             {
                 //we're going to decode the utf8 string directly from the bytecode, however we should do a once-over and decode all function names for the lib versions of the compiled bytecode
-                PROGRAM_COUNTER++; //Shift -> STRING_VALUE
-                PROGRAM_COUNTER++; //shift past STRING_VALUE byte cause idk havent implemented memory arenas yet, probs store after creation for constant strings
-                cout << BinaryCodec::DecodeStringUTF8<uint32_t>(BONGO_PROGRAM, PROGRAM_COUNTER);
+                cout << BinaryCodec::DecodeStringUTF8<uint32_t>(BONGO_PROGRAM, ++PROGRAM_COUNTER);
             }
             break;
             case STDIN:
@@ -534,38 +527,29 @@ namespace BongoJam {
             case STDERR:
             {
                 //we're going to decode the utf8 string directly from the bytecode, however we should do a once-over and decode all function names for the lib versions of the compiled bytecode
-                PROGRAM_COUNTER++; //shift program pointer to the next byte so that we can read the string
-                PROGRAM_COUNTER++; //shift past STRING_VALUE byte cause idk havent implemented memory arenas yet, probs store after creation for constant strings
-                cerr << BinaryCodec::DecodeStringUTF8<uint32_t>(BONGO_PROGRAM, PROGRAM_COUNTER);
+                cerr << BinaryCodec::DecodeStringUTF8<uint32_t>(BONGO_PROGRAM, ++PROGRAM_COUNTER);
             }
             break;
-            case CEIL:
+            case CEIL:  //IMPORTANT: static analysis will prevent invalid values being pushed onto the stack here, and we just treat any value here as a double then recast after ig
             {
                 Value sv_Val = Pop();
 
-                int sv_Result = ceil(sv_Val.u.f64); //IMPORTANT: static analysis will prevent invalid values being pushed onto the stack here, and we just treat any value here as a double then recast after ig
-
-                Push(Value{ ValueType::I32, sv_Result });
+                Push(Value{ ValueType::I64, static_cast<int64_t>(ceil(sv_Val.val.dbl)) });
 
                 PROGRAM_COUNTER++;
             }
             break;
-            case FLOOR:
+            case FLOOR: //IMPORTANT: static analysis will prevent invalid values being pushed onto the stack here, and we just treat any value here as a double then recast after ig
             {
                 Value sv_Val = Pop();
-
-                int sv_Result = floor(sv_Val.u.f64); //IMPORTANT: static analysis will prevent invalid values being pushed onto the stack here, and we just treat any value here as a double then recast after ig
-
-                Push(Value{ ValueType::I32, sv_Result });
+                Push(Value{ ValueType::I64, static_cast<int64_t>(floor(sv_Val.val.dbl)) });
 
                 PROGRAM_COUNTER++;
             }
             break;
             case NATIVE_CALL:
             {
-                PROGRAM_COUNTER++; //shift program pointer 
-
-                string sv_FuncName = ListOfDecodedStrings[BinaryCodec::DecodeInt<uint32_t>(BONGO_PROGRAM, PROGRAM_COUNTER)];
+                string sv_FuncName = BinaryCodec::DecodeStringUTF8<uint32_t>(BONGO_PROGRAM, ++PROGRAM_COUNTER);
 
                 if (NativeFunctions.contains(sv_FuncName))
                 {
@@ -584,8 +568,7 @@ namespace BongoJam {
             //XXX: Compiler should always pad a halt call w a exit code after
             case HALT: //XXX: used for exit() or abort() calls
             {
-                PROGRAM_COUNTER++; //shift stack pointer ahead once to check for exit code
-                int64_t f_ExitCode = BinaryCodec::DecodeInt<int64_t>(BONGO_PROGRAM, PROGRAM_COUNTER);
+                int64_t f_ExitCode = BinaryCodec::DecodeInt<int64_t>(BONGO_PROGRAM, ++PROGRAM_COUNTER);
                 cout << "\n\n"; //XXX: padding for exit msg and last print msg from user script
                 Print(format("\nBongoJam program exited with code {}", f_ExitCode), Colours::BrightCyan);
                 return f_ExitCode; //SHOULD return number returned by bj script main func

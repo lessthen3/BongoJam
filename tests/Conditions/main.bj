@@ -1,0 +1,17 @@
+func main() -> int
+{
+    var one->int = 12; //slot 0
+
+    if(one == 10) 
+    {
+        var y->int = 2; //slot 1
+    }
+    elif(one == 9)
+    {
+        var m->int = 3; //slot 1 since if this hits the if above doesnt matter
+    }
+
+    var z->int =4; //also slot 1 since branch vars live and die there uwu
+
+    return 0;
+}

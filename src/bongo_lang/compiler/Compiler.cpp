@@ -132,34 +132,34 @@ bool
     {
     case SyntaxNodeType::SingleValueExpr: //each operator 
     {
-        fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::PUSH); //push new valus
-
         SingleValueExpr* sv_SingleValueExpr = dynamic_cast<SingleValueExpr*>(fp_Expression);
 
         switch (sv_SingleValueExpr->m_Value.m_Type)
         {
             case TokenType::FloatNumber:
             {
-                fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::FLOAT_VALUE);
-                BinaryCodec::EncodeFloat(fp_CompilationUnit->CompiledByteCode, stof(sv_SingleValueExpr->m_Value.m_Value));
+                fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::PUSH_F);
+                BinaryCodec::EncodeDouble(fp_CompilationUnit->CompiledByteCode, stod(sv_SingleValueExpr->m_Value.m_Value));
             }
             break;
             case TokenType::IntNumber:
             {
-                fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::INT_VALUE);
-                BinaryCodec::EncodeInt32(fp_CompilationUnit->CompiledByteCode, stoi(sv_SingleValueExpr->m_Value.m_Value));
+                fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::PUSH_I);
+                BinaryCodec::EncodeInt<int64_t>(fp_CompilationUnit->CompiledByteCode, stoll(sv_SingleValueExpr->m_Value.m_Value));
             }
             break;
             case TokenType::StringLiteral:
             {
-                fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::STRING_VALUE);
+                fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::PUSH_S);
                 BinaryCodec::EncodeStringUTF8<uint32_t>(fp_CompilationUnit->CompiledByteCode, sv_SingleValueExpr->m_Value.m_Value);
             }
             break;
             case TokenType::UnsignedIntNumber:
-                fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::UNSIGNED_INT_VALUE);
+            {
+                fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::PUSH_U);
                 BinaryCodec::EncodeInt<uint64_t>(fp_CompilationUnit->CompiledByteCode, stoull(sv_SingleValueExpr->m_Value.m_Value));
-                break;
+            }
+            break;
             default: //THROW ERROR:
                 compiler_logger->Error(format("Error at Line: {}, Invalid value found while compiling a single value expression OwO", sv_SingleValueExpr->m_Value.m_SourceCodeLineNumber), "BongoCompiler");
                 return false;
@@ -274,7 +274,7 @@ bool
     SingleValueExpr* f_StringVal = dynamic_cast<SingleValueExpr*>(fp_PrintFunction->Arguments[0].get());
 
     //WARNING: just assuming single val expr strings atm need to rework this w a switch to handle more complicated expressions using CompileRegularExpr()
-    fp_CompilationUnit->CompiledByteCode.push_back(STRING_VALUE); //print function opcode
+    //fp_CompilationUnit->CompiledByteCode.push_back(STRING_VALUE); //print function opcode
 
     string f_PrintString;
 
@@ -300,6 +300,117 @@ bool
     return true;
 }
 
+[[nodiscard]] bool
+    BongoCompiler::CompileStringExpr
+    (
+        Expr* fp_Expression,
+        CompilationUnit* fp_CompilationUnit
+    )
+{
+    string f_PrintString;
+
+    switch (fp_Expression->m_Domain)
+    {
+    case SyntaxNodeType::SingleValueExpr:
+    {
+        //////////////////// Recast to single val expr ////////////////////
+
+        SingleValueExpr* f_StringVal = dynamic_cast<SingleValueExpr*>(fp_Expression);
+
+        //////////////////// Look for colour decorator ////////////////////
+
+        if (f_StringVal->Decorator.m_Type != TokenType::NO_TOKEN_VALUE)
+        {
+            //////////////////// Encode String UwU ////////////////////
+
+            BinaryCodec::EncodeStringUTF8<uint32_t>
+            (
+                fp_CompilationUnit->CompiledByteCode,
+                CreateColouredText(f_StringVal->m_Value.m_Value, f_StringVal->Decorator.m_Value)
+            );
+        }
+        else
+        {
+            BinaryCodec::EncodeStringUTF8<uint32_t>
+            (
+                fp_CompilationUnit->CompiledByteCode,
+                f_StringVal->m_Value.m_Value
+            );
+        }
+    }
+    break;
+    case SyntaxNodeType::IdentifierExpr:
+    {
+        IdentifierExpr* sv_IdentifierExpr = dynamic_cast<IdentifierExpr*>(fp_Expression);
+
+        //TryToResolveSymbol()
+    }
+    break;
+    case SyntaxNodeType::ContainerIndexedAccessExpr:
+    {
+
+    }
+    break;
+    case SyntaxNodeType::BinaryOperationExpr:
+    {
+        BinaryOperationExpr* f_AdditionExpr = dynamic_cast<BinaryOperationExpr*>(fp_Expression);
+
+        if (f_AdditionExpr->m_Operator.m_Type != TokenType::AdditionOperator)
+        {
+
+            return false;
+        }
+
+        if (f_AdditionExpr->First->m_Domain == SyntaxNodeType::SingleValueExpr and f_AdditionExpr->Second->m_Domain == SyntaxNodeType::SingleValueExpr)
+        {
+            SingleValueExpr* f_FirstValue = dynamic_cast<SingleValueExpr*>(f_AdditionExpr->First.get());
+            SingleValueExpr* f_SecondValue = dynamic_cast<SingleValueExpr*>(f_AdditionExpr->Second.get());
+
+            if (f_FirstValue->Decorator.m_Type != TokenType::NO_TOKEN_VALUE)
+            {
+                f_PrintString += CreateColouredText(f_FirstValue->m_Value.m_Value, f_FirstValue->Decorator.m_Value);
+            }
+            else
+            {
+                f_PrintString += f_FirstValue->m_Value.m_Value;
+            }
+            if (f_SecondValue->Decorator.m_Type != TokenType::NO_TOKEN_VALUE)
+            {
+                f_PrintString += CreateColouredText(f_SecondValue->m_Value.m_Value, f_SecondValue->Decorator.m_Value);
+            }
+            else
+            {
+                f_PrintString += f_SecondValue->m_Value.m_Value;
+            }
+        }
+        else if (f_AdditionExpr->First->m_Domain == SyntaxNodeType::IdentifierExpr)
+        {
+
+            if (not CompileStringExpr(f_AdditionExpr->Second.get(), fp_CompilationUnit))
+            {
+
+                return false;
+            }
+        }
+        else if (f_AdditionExpr->First->m_Domain == SyntaxNodeType::ContainerIndexedAccessExpr)
+        {
+
+        }
+
+    }
+    break;
+    default:
+        compiler_logger->Error("Invalid string expression found!", "Compiler");
+        break;
+    }
+    //WARNING: just assuming single val expr strings atm need to rework this w a switch to handle more complicated expressions using CompileRegularExpr()
+    //fp_CompilationUnit->CompiledByteCode.push_back(STRING_VALUE); //print function opcode
+
+
+
+    return true;
+}
+
 bool
     BongoCompiler::CompileInputFunction
     (
@@ -311,30 +422,11 @@ bool
     {
         fp_CompilationUnit->CompiledByteCode.push_back(STDOUT); //print function opcode
 
-        SingleValueExpr* f_StringVal = dynamic_cast<SingleValueExpr*>(fp_InputFunction->Arguments[0].get());
-
-        //WARNING: just assuming single val expr strings atm need to rework this w a switch to handle more complicated expressions using CompileRegularExpr()
-        fp_CompilationUnit->CompiledByteCode.push_back(STRING_VALUE); //print function opcode
-
-        string f_PrintString;
-
-        if (f_StringVal->Decorator.m_Type != TokenType::NO_TOKEN_VALUE)
+        if (not CompileStringExpr(fp_InputFunction->Arguments[0].get(), fp_CompilationUnit))
         {
-            f_PrintString = CreateColouredText(f_StringVal->m_Value.m_Value, f_StringVal->Decorator.m_Value);
+            compiler_logger->Error(format("Error at Line Number: {}, invalid string expression found when compiling input() function call", fp_InputFunction->FuncName.m_SourceCodeLineNumber), "Compiler");
+            return false;
         }
-        else
-        {
-            f_PrintString = f_StringVal->m_Value.m_Value;
-        }
-
-        //////////////////// Encode String UwU ////////////////////
-
-        BinaryCodec::EncodeStringUTF8<uint32_t>
-        (
-            fp_CompilationUnit->CompiledByteCode,
-            f_PrintString
-        );
-
     }
     else if (fp_InputFunction->Arguments.size() != 0)
     {
@@ -355,6 +447,9 @@ bool
     )
 {
     //////////////////////////////////////////////////////////// Bytecode ////////////////////////////////////////////////////////////
+
+    size_t f_InitialOffset = 0; //calculate stack slot offset and reuse across each branch
+
 
     //////////////////////////////////////////////////////////// SSA ////////////////////////////////////////////////////////////////
 
@@ -615,27 +710,27 @@ bool
     {
     case TokenType::PlusEqualsOperator:
     {
-        fp_CompilationUnit->CompiledByteCode.push_back(ADD); //print function opcode
+        //fp_CompilationUnit->CompiledByteCode.push_back(ADD); //print function opcode
     }
     break;
     case TokenType::MinusEqualsOperator:
     {
-        fp_CompilationUnit->CompiledByteCode.push_back(SUB); //print function opcode
+        //fp_CompilationUnit->CompiledByteCode.push_back(SUB); //print function opcode
     }
     break;
     case TokenType::DivEqualsOperator:
     {
-        fp_CompilationUnit->CompiledByteCode.push_back(DIV); 
+        //fp_CompilationUnit->CompiledByteCode.push_back(DIV); 
     }
     break;
     case TokenType::MultEqualsOperator:
     {
-        fp_CompilationUnit->CompiledByteCode.push_back(MULT);
+        //fp_CompilationUnit->CompiledByteCode.push_back(MULT);
     }
     break;
     case TokenType::ModuloEqualsOperator:
     {
-        fp_CompilationUnit->CompiledByteCode.push_back(MOD);
+        //fp_CompilationUnit->CompiledByteCode.push_back(MOD);
     }
     break;
     case TokenType::BitAndEquals:
@@ -853,9 +948,7 @@ int
 
     //////////////////// Define Main Loop Variables ////////////////////
 
-    size_t f_ProgramCounter = 0; //idk why but ill keep track of where we are -- future ryan: was hella useful for bytecode offset uwu but useless in parser since its a tree OwO
-
-    bool f_ShouldShift = true;
+    pm_NextAvailableStackSlot = 0; //reset for repeated compilation using the same compiler owo
 
     string f_CurrentNamespace; //track current namespace uwu
 
@@ -866,7 +959,6 @@ int
     while (f_BongoProgram->ParsedScript.size() > 0) //compiling the main function code body
     {
         f_CurrentProgramStatement = ShiftForward(f_BongoProgram->ParsedScript);
-        f_ProgramCounter++;
 
         switch (f_CurrentProgramStatement->m_Domain) //unique ptr's get thrown out each scope and cleaned up for me uwu
         {
