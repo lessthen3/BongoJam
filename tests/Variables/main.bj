@@ -2,9 +2,9 @@ func main() -> int
 {
     print(@bma"UwU\n");
 
-    var neilsen_would_love_suyogs_neighbourhood->int = input(@bgn"gREEN Vein: ");
+    var neilsen_would_love_suyogs_neighbourhood->int = input(@bma"Yeah it is nice (help me): ");
 
-    print(@byw"Fudge you neilsen UwU!");
+    print(@byw"Hey whats up spl33n");
     
     // const var f_UwU->string = ">O<" + "UwU" + "OwO"; //+ ("1" + ("2" + "3")); 
 

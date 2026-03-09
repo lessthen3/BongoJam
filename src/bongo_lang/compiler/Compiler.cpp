@@ -174,7 +174,12 @@ bool
     case SyntaxNodeType::FunctionCallExpr:
     {
         FunctionCallExpr* sv_FunctionCallExpr = dynamic_cast<FunctionCallExpr*>(fp_Expression);
-        CompileFuncCall(sv_FunctionCallExpr, fp_CompilationUnit);
+
+        if (not CompileFuncCall(sv_FunctionCallExpr, fp_CompilationUnit))
+        {
+
+            return false;
+        }
     }
     break;
     case SyntaxNodeType::IdentifierExpr:
