@@ -149,7 +149,7 @@ namespace BongoJam {
             (
                 f_OperatorToken,
                 make_unique<SingleValueExpr>(f_EntryToken),
-                move(f_RegExpr)
+                std::move(f_RegExpr)
             );
         }
         break;
@@ -208,7 +208,7 @@ namespace BongoJam {
                 (
                     f_OperatorToken,
                     make_unique<SingleValueExpr>(f_EntryToken, fp_Decorator),
-                    move(f_RegExpr)
+                    std::move(f_RegExpr)
                 );
         }
         break;
@@ -293,36 +293,36 @@ namespace BongoJam {
             {
             case SyntaxNodeType::BinaryOperationExpr:
             {
-                auto sv_RecastedBinaryExpr = unique_dynamic_cast<BinaryOperationExpr>(move(sv_PossibleExprExtension));
-                sv_RecastedBinaryExpr->First = move(sv_IndexedContainerExpr);
-                return move(sv_RecastedBinaryExpr);
+                auto sv_RecastedBinaryExpr = unique_dynamic_cast<BinaryOperationExpr>(std::move(sv_PossibleExprExtension));
+                sv_RecastedBinaryExpr->First = std::move(sv_IndexedContainerExpr);
+                return sv_RecastedBinaryExpr;
             }
             break;
             case SyntaxNodeType::UnaryOperatorExpr:
             {
-                auto sv_RecastedUnaryExpr = unique_dynamic_cast<UnaryOperatorExpr>(move(sv_PossibleExprExtension));
-                sv_RecastedUnaryExpr->Value = move(sv_IndexedContainerExpr);
-                return move(sv_RecastedUnaryExpr);
+                auto sv_RecastedUnaryExpr = unique_dynamic_cast<UnaryOperatorExpr>(std::move(sv_PossibleExprExtension));
+                sv_RecastedUnaryExpr->Value = std::move(sv_IndexedContainerExpr);
+                return sv_RecastedUnaryExpr;
             }
             break;
             case SyntaxNodeType::VariableReassignmentExpr:
             {
-                auto sv_RecastedVarReassignExpr = unique_dynamic_cast<VariableReassignmentExpr>(move(sv_PossibleExprExtension));
-                sv_RecastedVarReassignExpr->VariableName = move(sv_IndexedContainerExpr);
-                return move(sv_RecastedVarReassignExpr);
+                auto sv_RecastedVarReassignExpr = unique_dynamic_cast<VariableReassignmentExpr>(std::move(sv_PossibleExprExtension));
+                sv_RecastedVarReassignExpr->VariableName = std::move(sv_IndexedContainerExpr);
+                return sv_RecastedVarReassignExpr;
             }
             break;
             case SyntaxNodeType::SingleValueExpr: //IMPORTANT: this val is only returned if the base case is hit or a chained call like "myList[69].MyMethod()", otherwise its improper grammar and the compiler will find that ig
             {
-                return move(sv_IndexedContainerExpr);
+                return sv_IndexedContainerExpr;
             }
             break;
             case SyntaxNodeType::FunctionCallExpr: //all the same shit chained expr
             case SyntaxNodeType::ContainerIndexedAccessExpr:
             case SyntaxNodeType::IdentifierExpr:
             {
-                sv_IndexedContainerExpr->ChainedExpr = move(sv_PossibleExprExtension); //simply just return the identifier expr since the recursive call above will always parse x.y.z.func().uwu[0] ...
-                return move(sv_IndexedContainerExpr);
+                sv_IndexedContainerExpr->ChainedExpr = std::move(sv_PossibleExprExtension); //simply just return the identifier expr since the recursive call above will always parse x.y.z.func().uwu[0] ...
+                return sv_IndexedContainerExpr;
             }
             break;
             default:
@@ -358,9 +358,9 @@ namespace BongoJam {
                 return nullptr;
             }
 
-            sv_IdentifierExpr->ChainedExpr = move(sv_ChainedExpr);
+            sv_IdentifierExpr->ChainedExpr = std::move(sv_ChainedExpr);
 
-            return move(sv_IdentifierExpr); //will recurse until hits base case or any other valid case at some point it'll crash uwu,
+            return sv_IdentifierExpr; //will recurse until hits base case or any other valid case at some point it'll crash uwu,
         }
         break;
         case TokenType::BitXorEquals:
@@ -385,7 +385,7 @@ namespace BongoJam {
                 return nullptr;
             }
 
-            return move(sv_VarChange);
+            return sv_VarChange;
         }
         break;
         case TokenType::OpenParen: //function or constructor call
@@ -406,31 +406,31 @@ namespace BongoJam {
             {
             case SyntaxNodeType::BinaryOperationExpr:
             {
-                auto sv_RecastedBinaryExpr = unique_dynamic_cast<BinaryOperationExpr>(move(sv_PossibleExprExtension));
-                sv_RecastedBinaryExpr->First = move(sv_FuncCallExpr);
-                return move(sv_RecastedBinaryExpr);
+                auto sv_RecastedBinaryExpr = unique_dynamic_cast<BinaryOperationExpr>(std::move(sv_PossibleExprExtension));
+                sv_RecastedBinaryExpr->First = std::move(sv_FuncCallExpr);
+                return sv_RecastedBinaryExpr;
             }
             break;
             case SyntaxNodeType::UnaryOperatorExpr:
             {
-                auto sv_RecastedUnaryExpr = unique_dynamic_cast<UnaryOperatorExpr>(move(sv_PossibleExprExtension));
-                sv_RecastedUnaryExpr->Value = move(sv_FuncCallExpr);
-                return move(sv_RecastedUnaryExpr);
+                auto sv_RecastedUnaryExpr = unique_dynamic_cast<UnaryOperatorExpr>(std::move(sv_PossibleExprExtension));
+                sv_RecastedUnaryExpr->Value = std::move(sv_FuncCallExpr);
+                return sv_RecastedUnaryExpr;
             }
             break;
             case SyntaxNodeType::VariableReassignmentExpr:
             {
-                auto sv_RecastedVarReassignExpr = unique_dynamic_cast<VariableReassignmentExpr>(move(sv_PossibleExprExtension));
-                sv_RecastedVarReassignExpr->VariableName = move(sv_FuncCallExpr);
-                return move(sv_RecastedVarReassignExpr);
+                auto sv_RecastedVarReassignExpr = unique_dynamic_cast<VariableReassignmentExpr>(std::move(sv_PossibleExprExtension));
+                sv_RecastedVarReassignExpr->VariableName = std::move(sv_FuncCallExpr);
+                return sv_RecastedVarReassignExpr;
             }
             break;
             case SyntaxNodeType::FunctionCallExpr: //all the same shit chained expr
             case SyntaxNodeType::ContainerIndexedAccessExpr:
             case SyntaxNodeType::IdentifierExpr: //IMPORTANT: this val is only returned if the base case is hit or a chained call like "myList[69].MyMethod()", otherwise its improper grammar and the compiler will find that ig
             {
-                sv_FuncCallExpr->ChainedIdentifier = move(sv_PossibleExprExtension); //daisy chain identifiers into a tree
-                return move(sv_FuncCallExpr);
+                sv_FuncCallExpr->ChainedIdentifier = std::move(sv_PossibleExprExtension); //daisy chain identifiers into a tree
+                return sv_FuncCallExpr;
             }
             break;
             default:
@@ -440,7 +440,7 @@ namespace BongoJam {
             }
 
             //return with tupled or non tupled arg
-            return move(sv_FuncCallExpr); //Current token should be ',' (nested function call or field access), ';'--single statement "MyFunc();" or '}' if inside a in-place struct construction
+            return sv_FuncCallExpr; //Current token should be ',' (nested function call or field access), ';'--single statement "MyFunc();" or '}' if inside a in-place struct construction
         }
         break;
         case TokenType::StrictlyEquals:
@@ -470,21 +470,21 @@ namespace BongoJam {
 
             //success! parsed expr properly and signing + sealing for delivery back up the call stack
             return make_unique<BinaryOperationExpr>
-                (
-                    f_OperatorToken,
-                    make_unique<SingleValueExpr>(f_NameToken),
-                    move(f_RegExpr)
-                );
+            (
+                f_OperatorToken,
+                make_unique<SingleValueExpr>(f_NameToken),
+                std::move(f_RegExpr)
+            );
         }
         break;
         case TokenType::MinusMinusOperator:
         case TokenType::PlusPlusOperator:
         {
             return make_unique<UnaryOperatorExpr>
-                (
-                    f_NameToken,
-                    make_unique<IdentifierExpr>(fp_CurrentToken)
-                );
+            (
+                f_NameToken,
+                make_unique<IdentifierExpr>(fp_CurrentToken)
+            );
         }
         break;
         default:
@@ -533,7 +533,7 @@ namespace BongoJam {
                     return nullptr;
                 }
 
-                f_FormattedString->FullString.push_back(move(sv_RegExpr)); //push back regular expr to insert into string uwu
+                f_FormattedString->FullString.push_back(std::move(sv_RegExpr)); //push back regular expr to insert into string uwu
                 //will exit branch and shift at top of loop off of '}'
             }
             else if (fp_CurrentToken.m_Type == TokenType::StringLiteral or fp_CurrentToken.m_Type == TokenType::FormattedStringLiteralEnd)
@@ -556,7 +556,7 @@ namespace BongoJam {
 
         //UNSURE: should parse commands end on the last parsed token or the
 
-        return move(f_FormattedString);
+        return f_FormattedString;
     }
 
     //================================================================================================= Parenthesis =================================================================================================//
@@ -586,7 +586,7 @@ namespace BongoJam {
             return nullptr;
         }
 
-        return move(f_ParenExpr);
+        return f_ParenExpr;
     }
 
     //================================================================================================= Regular Expressions =================================================================================================//
@@ -616,7 +616,7 @@ namespace BongoJam {
                 return nullptr;
             }
 
-            return move(sv_FmtString);
+            return sv_FmtString;
         }
         break;
         case TokenType::UnsignedIntNumber: //fallthrough to number
@@ -632,7 +632,7 @@ namespace BongoJam {
                 return nullptr;
             }
 
-            return move(sv_ParsedNumber);
+            return sv_ParsedNumber;
         }
         break;
         case TokenType::BitNotOperator: //no binary operator should show up here only unary uwu 
@@ -647,7 +647,7 @@ namespace BongoJam {
                 return nullptr;
             }
 
-            return make_unique<UnaryOperatorExpr>(fp_CurrentToken, move(sv_UnaryExpr));
+            return make_unique<UnaryOperatorExpr>(fp_CurrentToken, std::move(sv_UnaryExpr));
         }
         break;
         case TokenType::CharLiteral: //INFO: for now chars are all strings uwu idk maybe later fix that uwu
@@ -661,7 +661,7 @@ namespace BongoJam {
                 return nullptr;
             }
 
-            return move(sv_ParsedString);
+            return sv_ParsedString;
         }
         break;
         case TokenType::UserIdentifier: //XXX: used for function calls and variables
@@ -674,7 +674,7 @@ namespace BongoJam {
                 return nullptr;
             }
 
-            return move(sv_ParsedUserIdentifier);
+            return sv_ParsedUserIdentifier;
         }
         break;
         case TokenType::OpenParen:
@@ -687,7 +687,7 @@ namespace BongoJam {
                 return nullptr;
             }
 
-            return move(sv_ParsedOpenParen);
+            return sv_ParsedOpenParen;
         }
         break;
         case TokenType::True: //same shit uwu
@@ -706,7 +706,7 @@ namespace BongoJam {
                 return nullptr;
             }
 
-            return move(sv_StructConstruc);
+            return sv_StructConstruc;
             //current token should be '}' should be safe to shift  
         }
         break;
@@ -724,7 +724,7 @@ namespace BongoJam {
 
                 auto sv_StringExpr = ParseString(fp_CurrentToken, fp_ProgramTokens, sv_ColourToken);
 
-                return move(sv_StringExpr);
+                return sv_StringExpr;
             }
             break;
             case TokenType::UserIdentifier:
@@ -748,6 +748,8 @@ namespace BongoJam {
             return nullptr;
         }
         //XXX: probaly should keep parsing after finding an error for intellisense and to list ALL errors not just one at a time so multiple compile attempts arent required
+
+        return nullptr;
     }
 
     //================================================================================================= General Statement Blocks =================================================================================================//
@@ -793,7 +795,7 @@ namespace BongoJam {
                     return nullptr;
                 }
 
-                f_StatementBloc->CodeBody.push_back(move(sv_ReturnStatement));
+                f_StatementBloc->CodeBody.push_back(std::move(sv_ReturnStatement));
             }
             break;
             case TokenType::Break:
@@ -830,7 +832,7 @@ namespace BongoJam {
                     return nullptr;
                 }
 
-                f_StatementBloc->CodeBody.push_back(move(sv_NestedIfStatement));
+                f_StatementBloc->CodeBody.push_back(std::move(sv_NestedIfStatement));
             }
             break;
             case TokenType::CloseBracket:
@@ -847,7 +849,7 @@ namespace BongoJam {
                     return nullptr;
                 }
 
-                f_StatementBloc->CodeBody.push_back(move(sv_UserDefinedAction));
+                f_StatementBloc->CodeBody.push_back(std::move(sv_UserDefinedAction));
                 //current token should be ';' should be safe to shift
             } //end of scope
             break;
@@ -861,7 +863,7 @@ namespace BongoJam {
                     return nullptr;
                 }
 
-                f_StatementBloc->CodeBody.push_back(move(sv_VariableDefinition));
+                f_StatementBloc->CodeBody.push_back(std::move(sv_VariableDefinition));
                 //current token should be ';' should be safe to shift
             }
             break;
@@ -875,7 +877,7 @@ namespace BongoJam {
                     return nullptr;
                 }
 
-                f_StatementBloc->CodeBody.push_back(move(sv_WhileDec));
+                f_StatementBloc->CodeBody.push_back(std::move(sv_WhileDec));
             }
             break;
             case TokenType::For:
@@ -888,7 +890,7 @@ namespace BongoJam {
                     return nullptr;
                 }
 
-                f_StatementBloc->CodeBody.push_back(move(sv_ForDec));
+                f_StatementBloc->CodeBody.push_back(std::move(sv_ForDec));
             }
             break;
             case TokenType::Try:
@@ -901,7 +903,7 @@ namespace BongoJam {
                     return nullptr;
                 }
 
-                f_StatementBloc->CodeBody.push_back(move(sv_TryCatch));
+                f_StatementBloc->CodeBody.push_back(std::move(sv_TryCatch));
                 //~~~~~~~~~ uwu
             }
             break;
@@ -915,7 +917,7 @@ namespace BongoJam {
                     return nullptr;
                 }
 
-                f_StatementBloc->CodeBody.push_back(move(sv_OpenParen));
+                f_StatementBloc->CodeBody.push_back(std::move(sv_OpenParen));
             }
             break;
             case TokenType::Const:
@@ -930,7 +932,7 @@ namespace BongoJam {
                     return nullptr;
                 }
 
-                f_StatementBloc->CodeBody.push_back(move(sv_ConstStatement));
+                f_StatementBloc->CodeBody.push_back(std::move(sv_ConstStatement));
             }
             break;
             case TokenType::Static:
@@ -945,7 +947,7 @@ namespace BongoJam {
                     return nullptr;
                 }
 
-                f_StatementBloc->CodeBody.push_back(move(sv_StaticStatement)); //scoped static var idk should only be used in functions but whatever
+                f_StatementBloc->CodeBody.push_back(std::move(sv_StaticStatement)); //scoped static var idk should only be used in functions but whatever
             }
             break; //should shiftforward at top of loop at work fine uwu
             default:
@@ -961,7 +963,7 @@ namespace BongoJam {
             return nullptr;
         }
 
-        return move(f_StatementBloc);
+        return f_StatementBloc;
     }
 
     //================================================================================================= Try/Catch =================================================================================================//
@@ -987,7 +989,7 @@ namespace BongoJam {
                 return nullptr;
             }
 
-            f_TryCatchDec->TryBlock = move(sv_TryCodeBlock);
+            f_TryCatchDec->TryBlock = std::move(sv_TryCodeBlock);
         }
         {
             auto sv_CatchCondition = ParseRegularExpr(fp_CurrentToken, fp_ProgramTokens);
@@ -998,7 +1000,7 @@ namespace BongoJam {
                 return nullptr;
             }
 
-            f_TryCatchDec->CatchCondition = move(sv_CatchCondition);
+            f_TryCatchDec->CatchCondition = std::move(sv_CatchCondition);
         }
         //WARNING: NOT SURE IF I NEEDA SHIFT HERE OR NOT IK STATEMENTBLOCK ENDS ON A CLOSEBRACKET ALWAYS SO IDK WE SEE UWU
         {
@@ -1010,10 +1012,10 @@ namespace BongoJam {
                 return nullptr;
             }
 
-            f_TryCatchDec->TryBlock = move(sv_CatchBlock);
+            f_TryCatchDec->TryBlock = std::move(sv_CatchBlock);
         }
 
-        return move(f_TryCatchDec);
+        return f_TryCatchDec;
     }
 
     //================================================================================================= If/Else =================================================================================================//
@@ -1057,7 +1059,7 @@ namespace BongoJam {
         //    return nullptr;
         //}
 
-        f_IfDec->m_Condition = move(f_ConditionExpr);
+        f_IfDec->m_Condition = std::move(f_ConditionExpr);
 
         //needa shift forward because the last token should be the end of the expression still so if(..."text") <-- current token should = 'text' rn since the close paren shouldnt parse 
 
@@ -1080,7 +1082,7 @@ namespace BongoJam {
             return nullptr;
         }
 
-        f_IfDec->CodeBody = move(f_CodeBlock->CodeBody);
+        f_IfDec->CodeBody = std::move(f_CodeBlock->CodeBody);
 
         //end of processing code block, ParseStatementBlock exits on '}' so fp_CurrentToken = '}'
 
@@ -1103,7 +1105,7 @@ namespace BongoJam {
                     return nullptr;
                 }
 
-                f_IfDec->m_ElseIfStatements.push_back(move(sv_FallThroughCondition));
+                f_IfDec->m_ElseIfStatements.push_back(std::move(sv_FallThroughCondition));
             }
 
             fp_ProgramTokens.Peek(fp_CurrentToken);
@@ -1120,11 +1122,11 @@ namespace BongoJam {
                     return nullptr;
                 }
 
-                f_IfDec->m_ElseStatement = move(f_ElseStatement);
+                f_IfDec->m_ElseStatement = std::move(f_ElseStatement);
             }
         }
 
-        return move(f_IfDec);
+        return f_IfDec;
     }
 
     unique_ptr<ElseDeclaration>
@@ -1147,9 +1149,9 @@ namespace BongoJam {
             return nullptr;
         }
 
-        f_ElseDec->CodeBody = move(f_StatementBlock->CodeBody); //move codebody over idk kinda lazy but whatever fits the ptr return error structure better maybe ptr -> vec but idk eh
+        f_ElseDec->CodeBody = std::move(f_StatementBlock->CodeBody); //move codebody over idk kinda lazy but whatever fits the ptr return error structure better maybe ptr -> vec but idk eh
 
-        return move(f_ElseDec);
+        return (f_ElseDec);
     }
 
     //================================================================================================= While Loop =================================================================================================//
@@ -1176,7 +1178,7 @@ namespace BongoJam {
             parser_logger->Error(format("Error occured at line: {}, while-loop condition doesn't evaluate ->bool, wtf man?", f_EntryToken.m_SourceCodeLineNumber), "Parser");
             return nullptr;
         }
-        f_WhileDec->m_Condition = move(f_ParsedCondition);
+        f_WhileDec->m_Condition = std::move(f_ParsedCondition);
 
         auto f_ParsedStatementBlock = ParseStatementBlock(fp_CurrentToken, fp_ProgramTokens, true);
         if (not f_ParsedStatementBlock)
@@ -1185,9 +1187,9 @@ namespace BongoJam {
             return nullptr;
         }
 
-        f_WhileDec->CodeBody = move(f_ParsedStatementBlock->CodeBody);
+        f_WhileDec->CodeBody = std::move(f_ParsedStatementBlock->CodeBody);
 
-        return move(f_WhileDec);
+        return f_WhileDec;
     }
 
     //================================================================================================= For Loop =================================================================================================//
@@ -1230,9 +1232,9 @@ namespace BongoJam {
             return nullptr;
         }
 
-        f_ForDec->CodeBody = move(f_ParsedStatementBlock->CodeBody);
+        f_ForDec->CodeBody = std::move(f_ParsedStatementBlock->CodeBody);
 
-        return move(f_ForDec);
+        return f_ForDec;
     }
 
     //================================================================================================= Function Return =================================================================================================//
@@ -1264,7 +1266,7 @@ namespace BongoJam {
             return nullptr;
         }
 
-        return move(f_ReturnStatement);
+        return f_ReturnStatement;
     }
 
     //================================================================================================= Function Declaration =================================================================================================//
@@ -1422,7 +1424,7 @@ namespace BongoJam {
             return nullptr;
         }
 
-        f_FuncDec->CodeBody = move(f_FuncBody->CodeBody);
+        f_FuncDec->CodeBody = std::move(f_FuncBody->CodeBody);
 
         //since we successfully parsed the function body, due to our while-loop condition, f_CurrentToken = '}',
         //we don't need to ShiftForward() here because when this function exits, it leaves that responsibility up to the while loop that called it
@@ -1434,7 +1436,7 @@ namespace BongoJam {
             return nullptr;
         }
 
-        return move(f_FuncDec);
+        return f_FuncDec;
     }
 
     //================================================================================================= Function Call =================================================================================================//
@@ -1472,7 +1474,7 @@ namespace BongoJam {
                 return nullptr;
             }
 
-            f_FuncCallExpr->Arguments.push_back(move(f_FuncArg)); //uwu
+            f_FuncCallExpr->Arguments.push_back(std::move(f_FuncArg)); //uwu
 
             fp_ProgramTokens.Peek(fp_CurrentToken);
 
@@ -1500,10 +1502,11 @@ namespace BongoJam {
             return nullptr;
         }
 
-        return move(f_FuncCallExpr);
+        return f_FuncCallExpr;
     }
 
     //================================================================================================= Class Declaration =================================================================================================//
+    
     unique_ptr<ClassDeclaration>
         Parser::ParseClassDeclaration
         (
@@ -1559,7 +1562,7 @@ namespace BongoJam {
 
                 sv_FieldDec->Modifiers |= f_CurrentAccessLevel; //set access level
 
-                f_ClassDec->Fields.push_back(move(sv_FieldDec));
+                f_ClassDec->Fields.push_back(std::move(sv_FieldDec));
             }
             break;
             case TokenType::Func:
@@ -1578,11 +1581,11 @@ namespace BongoJam {
 
                 if (sv_FuncDeclaration->m_FuncName.m_Value == f_ClassDec->ClassName.m_Value)
                 {
-                    f_ClassDec->Constructors.push_back(move(sv_FuncDeclaration));
+                    f_ClassDec->Constructors.push_back(std::move(sv_FuncDeclaration));
                 }
                 else
                 {
-                    f_ClassDec->Methods.push_back(move(sv_FuncDeclaration));
+                    f_ClassDec->Methods.push_back(std::move(sv_FuncDeclaration));
                 }
                 //Success! function parsed uwu
             }
@@ -1601,14 +1604,14 @@ namespace BongoJam {
                 {
                 case SyntaxNodeType::FuncDeclaration:
                 {
-                    auto sv_RecastedFuncDec = unique_dynamic_cast<FuncDeclaration>(move(sv_StaticDeclaration));
-                    f_ClassDec->Methods.push_back(move(sv_RecastedFuncDec)); //global static var
+                    auto sv_RecastedFuncDec = unique_dynamic_cast<FuncDeclaration>(std::move(sv_StaticDeclaration));
+                    f_ClassDec->Methods.push_back(std::move(sv_RecastedFuncDec)); //global static var
                 }
                 break;
                 case SyntaxNodeType::VarDeclaration:
                 {
-                    auto sv_RecastedVarDec = unique_dynamic_cast<VarDeclaration>(move(sv_StaticDeclaration));
-                    f_ClassDec->Fields.push_back(move(sv_RecastedVarDec)); //global static var
+                    auto sv_RecastedVarDec = unique_dynamic_cast<VarDeclaration>(std::move(sv_StaticDeclaration));
+                    f_ClassDec->Fields.push_back(std::move(sv_RecastedVarDec)); //global static var
                 }
                 break;
                 default:
@@ -1645,7 +1648,7 @@ namespace BongoJam {
                     return nullptr;
                 }
 
-                f_ClassDec->NestedClassDecs.push_back(move(sv_NestedClassDec));
+                f_ClassDec->NestedClassDecs.push_back(std::move(sv_NestedClassDec));
 
                 f_ClassDec->Modifiers |= f_CurrentAccessLevel; //add accessor level uwu
 
@@ -1663,11 +1666,11 @@ namespace BongoJam {
                 }
                 else if (sv_ConstStatement->m_Domain == SyntaxNodeType::VarDeclaration)
                 {
-                    f_ClassDec->Fields.push_back(unique_dynamic_cast<VarDeclaration>(move(sv_ConstStatement)));
+                    f_ClassDec->Fields.push_back(unique_dynamic_cast<VarDeclaration>(std::move(sv_ConstStatement)));
                 }
                 else if (sv_ConstStatement->m_Domain == SyntaxNodeType::FuncDeclaration)
                 {
-                    f_ClassDec->Methods.push_back(unique_dynamic_cast<FuncDeclaration>(move(sv_ConstStatement)));
+                    f_ClassDec->Methods.push_back(unique_dynamic_cast<FuncDeclaration>(std::move(sv_ConstStatement)));
                 }
             }
             break;
@@ -1719,7 +1722,7 @@ namespace BongoJam {
             }
         }
 
-        return move(f_ClassDec);
+        return f_ClassDec;
     }
 
     unique_ptr<InPlaceStructConstruction> //assumed entry token is '{'
@@ -1765,7 +1768,7 @@ namespace BongoJam {
                 }
 
                 f_StructConstruc->ArgumentNames.push_back(f_VarName.m_Value);
-                f_StructConstruc->Arguments.emplace_back(move(sv_RegExpr));
+                f_StructConstruc->Arguments.push_back(std::move(sv_RegExpr));
             }
             else if (fp_CurrentToken.m_Type == TokenType::Comma) //repeat loop uwu
             {
@@ -1787,14 +1790,14 @@ namespace BongoJam {
                     return nullptr;
                 }
 
-                f_StructConstruc->Arguments.emplace_back(move(sv_RegExpr));
+                f_StructConstruc->Arguments.push_back(std::move(sv_RegExpr));
 
                 //now parse reg expr should've ended on a comma or close bracket, and this function will decide what to do w those tokens using Peek() as well when the loop goes again
             }
 
         }
 
-        return move(f_StructConstruc);
+        return f_StructConstruc;
     }
 
     unique_ptr<StructDeclaration>
@@ -1843,7 +1846,7 @@ namespace BongoJam {
                     return nullptr;
                 }
 
-                f_StructDec->Members.push_back(move(sv_VariableDeclaration));
+                f_StructDec->Members.push_back(std::move(sv_VariableDeclaration));
             }
             break;
             case TokenType::CloseBracket:
@@ -1855,7 +1858,7 @@ namespace BongoJam {
             }
         }
 
-        return move(f_StructDec);
+        return f_StructDec;
     }
 
     unique_ptr<ScopeDeclaration>
@@ -1867,7 +1870,7 @@ namespace BongoJam {
     {
         unique_ptr<ScopeDeclaration> f_ScopeDec = make_unique<ScopeDeclaration>();
 
-        return move(f_ScopeDec);
+        return f_ScopeDec;
     }
 
     unique_ptr<ListDeclaration>
@@ -1928,7 +1931,7 @@ namespace BongoJam {
 
         if (fp_CurrentToken.m_Type == TokenType::SemiDot) //for var decs like 'var x->int;' but every primitive type has a default initializer so w/e
         {
-            return move(f_VarDec); //already done, just default value is nullptr uwu
+            return f_VarDec; //already done, just default value is nullptr uwu
         }
 
         if (fp_CurrentToken.m_Type != TokenType::Equals)
@@ -1948,7 +1951,7 @@ namespace BongoJam {
         }
 
         //now can move value expr into default value since if no compatible result is found, the function exits early with nullptr signaling failed parse
-        f_VarDec->DefaultValue = move(f_ParsedRegExpr);
+        f_VarDec->DefaultValue = std::move(f_ParsedRegExpr);
 
         fp_ProgramTokens.ShiftForward(fp_CurrentToken); //shift off expr, parse reg expr ends at the base case but it uses Peek() so only the expr is contained inside the Expr node uwu probably cleaner for compilation
 
@@ -1958,7 +1961,7 @@ namespace BongoJam {
             return nullptr;
         }
 
-        return move(f_VarDec);
+        return f_VarDec;
     }
 
     unique_ptr<StatementNode>
@@ -1990,7 +1993,7 @@ namespace BongoJam {
 
             f_StaticVarDec->Modifiers |= ModifierFlags::STATIC;
 
-            return move(f_StaticVarDec);
+            return f_StaticVarDec;
         }
         break;
         case TokenType::Func:
@@ -2010,7 +2013,7 @@ namespace BongoJam {
 
             sv_StaticFuncDec->Modifiers |= ModifierFlags::STATIC;
 
-            return move(sv_StaticFuncDec);
+            return sv_StaticFuncDec;
         }
         break;
         case TokenType::Const: //parse as regular var and just add const decorator on top of static
@@ -2034,7 +2037,7 @@ namespace BongoJam {
 
                 sv_StaticConstFuncDec->Modifiers |= ModifierFlags::STATIC | ModifierFlags::CONSTANT;
 
-                return move(sv_StaticConstFuncDec);
+                return sv_StaticConstFuncDec;
             }
             else if (fp_CurrentToken.m_Type == TokenType::Var)
             {
@@ -2053,7 +2056,7 @@ namespace BongoJam {
 
                 sv_StaticConstVarDec->Modifiers |= ModifierFlags::STATIC | ModifierFlags::CONSTANT;
 
-                return move(sv_StaticConstVarDec);
+                return sv_StaticConstVarDec;
             }
             else //TODO: add a way to convert from token type -> string for error messages
             {
@@ -2102,7 +2105,7 @@ namespace BongoJam {
 
             f_StaticVarDec->Modifiers |= ModifierFlags::CONSTANT;
 
-            return move(f_StaticVarDec);
+            return f_StaticVarDec;
         }
         break;
         case TokenType::Func:
@@ -2122,7 +2125,7 @@ namespace BongoJam {
 
             sv_StaticFuncDec->Modifiers |= ModifierFlags::CONSTANT;
 
-            return move(sv_StaticFuncDec);
+            return sv_StaticFuncDec;
         }
         break;
         case TokenType::Static: //parse as regular var and just add const decorator on top of static
@@ -2146,7 +2149,7 @@ namespace BongoJam {
 
                 sv_StaticConstFuncDec->Modifiers |= ModifierFlags::STATIC | ModifierFlags::CONSTANT;
 
-                return move(sv_StaticConstFuncDec);
+                return sv_StaticConstFuncDec;
             }
             else if (fp_CurrentToken.m_Type == TokenType::Var)
             {
@@ -2165,7 +2168,7 @@ namespace BongoJam {
 
                 sv_StaticConstVarDec->Modifiers |= ModifierFlags::STATIC | ModifierFlags::CONSTANT;
 
-                return move(sv_StaticConstVarDec);
+                return sv_StaticConstVarDec;
             }
             else //TODO: add a way to convert from token type -> string for error messages
             {
@@ -2239,7 +2242,7 @@ namespace BongoJam {
                     return nullptr;
                 }
 
-                f_Program->ParsedScript.push_back(move(sv_FunctionDefintion));
+                f_Program->ParsedScript.push_back(std::move(sv_FunctionDefintion));
 
                 //after parsing the function successfully we should be pointing to an already processed token, so we can safely iterate and ShiftForward() at the top of the loop
             }
@@ -2260,7 +2263,7 @@ namespace BongoJam {
                     return nullptr;
                 }
 
-                f_Program->ParsedScript.push_back(move(sv_ClassBlock));
+                f_Program->ParsedScript.push_back(std::move(sv_ClassBlock));
                 f_IsSingle = false; //reset so that the next class definition doesn't get falsely labelled as a singleton
             }
             break;
@@ -2274,7 +2277,7 @@ namespace BongoJam {
                     return nullptr;
                 }
 
-                f_Program->ParsedScript.push_back(move(sv_StructBlock));
+                f_Program->ParsedScript.push_back(std::move(sv_StructBlock));
             }
             break;
             case TokenType::NameSpace:
@@ -2291,7 +2294,7 @@ namespace BongoJam {
 
                 sv_NameSpace->m_Name = f_CurrentToken;
 
-                f_Program->ParsedScript.push_back(move(sv_NameSpace));
+                f_Program->ParsedScript.push_back(std::move(sv_NameSpace));
             }
             break;
             case TokenType::Include:
@@ -2312,7 +2315,7 @@ namespace BongoJam {
                 }
 
                 sv_Include->m_IncludePath = f_CurrentToken;
-                f_Program->ParsedScript.push_back(move(sv_Include));
+                f_Program->ParsedScript.push_back(std::move(sv_Include));
 
                 continue; //should shiftforward at top of loop at work fine uwu
             }
@@ -2330,7 +2333,7 @@ namespace BongoJam {
                     );
                 }
 
-                f_Program->ParsedScript.push_back(move(sv_GlobalVariable)); //global var owo
+                f_Program->ParsedScript.push_back(std::move(sv_GlobalVariable)); //global var owo
             }
             break;
             case TokenType::Static:
@@ -2343,7 +2346,7 @@ namespace BongoJam {
                     return nullptr;
                 }
 
-                f_Program->ParsedScript.push_back(move(sv_StaticStatement)); //global static var
+                f_Program->ParsedScript.push_back(std::move(sv_StaticStatement)); //global static var
             }
             break; //should shiftforward at top of loop at work fine uwu
             case TokenType::Const:
@@ -2358,13 +2361,13 @@ namespace BongoJam {
 
                 if (sv_ConstantStatement->m_Domain == SyntaxNodeType::FuncDeclaration)
                 {
-                    auto sv_RecastedFuncDec = unique_dynamic_cast<FuncDeclaration>(move(sv_ConstantStatement));
+                    auto sv_RecastedFuncDec = unique_dynamic_cast<FuncDeclaration>(std::move(sv_ConstantStatement));
 
                     parser_logger->Error(format("Syntax Error at Line Number: {}, function named : '{}' cannot be declared 'const' since it isn't a member of a class", f_EntryToken.m_SourceCodeLineNumber, sv_RecastedFuncDec->m_FuncName.m_Value), "Parser");
                     return nullptr;
                 }
 
-                f_Program->ParsedScript.push_back(move(sv_ConstantStatement)); //global const var
+                f_Program->ParsedScript.push_back(std::move(sv_ConstantStatement)); //global const var
             }
             break;
             case TokenType::ENDF:
@@ -2384,6 +2387,6 @@ namespace BongoJam {
         }
         //end of while-switch loop
 
-        return move(f_Program);
+        return f_Program;
     }
 }
