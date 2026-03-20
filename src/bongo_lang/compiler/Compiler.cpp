@@ -47,10 +47,10 @@ unique_ptr<StatementNode>
         return make_unique<StatementNode>(); //return escape char when source code is done being read
     }
 
-    unique_ptr<StatementNode> f_FirstElement = move(fp_ProgramBody.front());
+    unique_ptr<StatementNode> f_FirstElement = std::move(fp_ProgramBody.front());
     fp_ProgramBody.erase(fp_ProgramBody.begin());
 
-    return move(f_FirstElement);
+    return f_FirstElement;
 }
 
 bool

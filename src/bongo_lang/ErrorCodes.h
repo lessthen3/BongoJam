@@ -22,8 +22,8 @@ namespace BongoJam{
     constexpr int64_t TRIED_TO_PASS_NULLPTR_REF_TO_COMPILATION_UNIT = -1000;
     constexpr int64_t UNABLE_TO_START_BATCH_COMPILATION = -1001;
 
-    constexpr int64_t BONGO_NO_MAIN_FOUND = -1100;
-    constexpr int64_t BONGO_MULTIPLE_MAINS_FOUND = -1101;
+    constexpr int64_t BONGO_NO_MAIN_FOUND = -10100;
+    constexpr int64_t BONGO_MULTIPLE_MAINS_FOUND = -10101;
 
     constexpr int64_t NO_ARGUMENT_PROVIDED = -1101;
     constexpr int64_t UNKNOWN_OR_INCOMPLETE_ARGUMENT = -1102;
