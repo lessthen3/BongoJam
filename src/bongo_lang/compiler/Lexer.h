@@ -21,8 +21,13 @@
 #include "../VectorStream.h"
 
 #define BONGO_PI std::numbers::pi
+#define BONGO_PI_INV std::numbers::inv_pi
+
 #define BONGO_EULERS_NUMBER std::numbers::e
-#define BONGO_GOLDEN_RATIO std::numbers::phi
+#define BONGO_GOLDEN_RATIO std::numbers::phi 
+#define BONGO_SQRT_3 std::numbers::sqrt3
+#define BONGO_SQRT_2 std::numbers::sqrt2
+#define BONGO_LN_2 std::numbers::ln2
 
 
 namespace BongoJam {
@@ -156,6 +161,9 @@ namespace BongoJam {
         Is,
 
         //////////////////// Modifiers ////////////////////
+
+        Constexpr,
+        Consteval,
 
         Const,
         Static,
@@ -331,6 +339,8 @@ namespace BongoJam {
         {"is", TokenType::Is}, // used for type checking
 
         //////////////////// Modifiers ////////////////////
+        {"constexpr", TokenType::Constexpr},
+        {"consteval", TokenType::Consteval},
 
         {"const", TokenType::Const},
         {"static", TokenType::Static},
