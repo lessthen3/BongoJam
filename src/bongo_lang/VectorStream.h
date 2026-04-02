@@ -25,7 +25,12 @@ namespace BongoJam
     struct VectorStream
     {
         explicit
-            VectorStream(vector<T>&& fp_Vector) : pm_Vector(move(fp_Vector)) {}
+            VectorStream
+            (
+                vector<T>&& fp_Vector
+            ) 
+            : pm_Vector(move(fp_Vector)) 
+        {}
 
         [[nodiscard]] bool
             IsEmpty()
@@ -39,6 +44,7 @@ namespace BongoJam
         {
             if (IsEmpty())
             {
+                fp_Out = pm_Vector.back();
                 return false;
             }
 
@@ -59,6 +65,7 @@ namespace BongoJam
         {
             if (IsEmpty())
             {
+                fp_Out = pm_Vector.back();
                 return false;
             }
 
@@ -91,5 +98,6 @@ namespace BongoJam
     private:
         const vector<T> pm_Vector;
         size_t pm_Position = 0;
+        size_t pm_VectorSize = 0;
     };
 }

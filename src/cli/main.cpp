@@ -79,11 +79,13 @@ int
 
     try
     {
-        std::unique_ptr<BongoJam::BongoManager<1>> bongo_manager = std::make_unique<BongoJam::BongoManager<1>>();
+        //these boys are < 1kb so stack is fine for a CLI tool owo
+        BongoJam::CLI bongo_cli;
+        BongoJam::CompilerThreadPool<1> f_CompilerThreadPool;
 
         //int result = bongo_manager->ParseArguments(fp_ArgCount, fp_ArgVector);
 
-        int result = bongo_manager->RunTest(f_ProjectRootDirectory + "/tests/Variables/main.bj");
+        int result = bongo_cli.RunTest(f_ProjectRootDirectory + "/tests/Variables/main.bj", f_CompilerThreadPool);
 
         if (result != BONGO_OK)
         {

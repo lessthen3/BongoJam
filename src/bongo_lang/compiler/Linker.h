@@ -49,7 +49,7 @@ namespace BongoJam {
         int
             LinkCompilationUnits
             (
-                vector<BongoScriptUnit>&& fp_CompiledUnits, 
+                vector<unique_ptr<SSA::CompilationUnit>>&& fp_CompiledUnits, 
                 vector<uint8_t>& fp_FinalByteCode
             );
 

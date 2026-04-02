@@ -259,15 +259,15 @@ namespace BongoJam {
             ValidateFunctionReturnPaths();
 
         //ValidateAST's main job is to check for things like scope errors, where a variable is being referenced outside its scope of definition, type checking
-        bool
-            ValidateAST(vector<StatementNode>& fp_ProgramStatements);
+        unique_ptr<TranslationUnit>
+            ValidateAST(unique_ptr<TranslationUnit>&& fp_ProgramStatements);
     
     public:
         //////////////////////////////////////////////
         // Main Processing Function
         //////////////////////////////////////////////
 
-        unique_ptr<Program>
+        unique_ptr<TranslationUnit>
             ConstructAST(VectorStream<Token>&& fp_ProgramTokens);
     };
 }

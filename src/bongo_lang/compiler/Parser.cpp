@@ -2196,20 +2196,21 @@ namespace BongoJam {
     }
 
     //ValidateAST's main job is to check for things like scope errors, where a variable is being referenced outside its scope of definition
-    bool
-        Parser::ValidateAST(vector<StatementNode>& fp_ProgramStatements)
+    unique_ptr<TranslationUnit>
+        Parser::ValidateAST(unique_ptr<TranslationUnit>&& fp_ProgramStatements)
     {
-        return true;
+
+        return fp_ProgramStatements;
     }
 
     //////////////////////////////////////////////
     // Main Processing Function
     //////////////////////////////////////////////
 
-    unique_ptr<Program>
+    unique_ptr<TranslationUnit>
         Parser::ConstructAST(VectorStream<Token>&& fp_ProgramTokens)
     {
-        unique_ptr<Program> f_Program = make_unique<Program>();
+        unique_ptr<TranslationUnit> f_Program = make_unique<TranslationUnit>();
 
         Token f_CurrentToken;
         Token f_EntryToken; //used for debugging 
@@ -2299,9 +2300,7 @@ namespace BongoJam {
             break;
             case TokenType::Include:
             {
-                unique_ptr<IncludeStatement> sv_Include = make_unique<IncludeStatement>();
-                //Shift forward to look for a string token
-                fp_ProgramTokens.ShiftForward(f_CurrentToken);
+                fp_ProgramTokens.ShiftForward(f_CurrentToken); //Shift forward to look for a string token
 
                 if (f_CurrentToken.m_Type != TokenType::StringLiteral)
                 {
@@ -2314,8 +2313,7 @@ namespace BongoJam {
                     return nullptr;
                 }
 
-                sv_Include->m_IncludePath = f_CurrentToken;
-                f_Program->ParsedScript.push_back(std::move(sv_Include));
+                f_Program->IncludePaths.push_back(f_CurrentToken.m_Value);
 
                 continue; //should shiftforward at top of loop at work fine uwu
             }
@@ -2387,6 +2385,6 @@ namespace BongoJam {
         }
         //end of while-switch loop
 
-        return f_Program;
+        return ValidateAST(std::move(f_Program));
     }
 }

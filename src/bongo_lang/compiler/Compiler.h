@@ -19,74 +19,38 @@
 
 #include "../Serializer.h"
 
-namespace BongoJam {
+enum BongoCompilerFlags : uint16_t
+{
+    DEFAULT = 0,
 
-    enum BongoCompilerFlags : uint64_t
-    {
-        DEFAULT = 0,
+    DEBUG = 1U << 0,
+    RELEASE = 1U << 1,
 
-        DEBUG = 1U << 0,
-        RELEASE = 1U << 1,
+    BUILD_STATIC_LIBRARY = 1U << 2,
+    BUILD_DYNAMIC_LIBRARY = 1U << 3,
+    BUILD_EXECUTABLE = 1U << 5
+};
 
-        BUILD_STATIC_LIBRARY = 1U << 2,
-        BUILD_DYNAMIC_LIBRARY = 1U << 3,
-        BUILD_EXECUTABLE = 1U << 5
-    };
-
-    enum SymbolKind : uint8_t
-    { 
-        INVALID_SYMBOL = 0, 
-        Variable = 1 << 0, 
-        Field = 1 << 1, 
-        Function = 1 << 2, 
-        Method = 1 << 3, 
-        Struct = 1 << 4,
-        Class = 1 << 5 
-    };
-
-    struct Symbol
-    {
-        string Name;
-
-        TokenType Type = TokenType::NO_TOKEN_VALUE; // for type checking
-
-        uint8_t Flags = ModifierFlags::NONE;
-        uint8_t Kind = SymbolKind::INVALID_SYMBOL; // FUNCTION, STRUCT, CLASS, GLOBAL_VAR
-
-        size_t Slot = 0;
-        size_t OffsetInBytecode = 0; // Offset based off the compilation unit the compilationunit base offset will be recorded by the linker for resolving symbols
-
-        bool IsResolved = false;
-
-        Symbol(const string& fp_Name, SymbolKind fp_Kind, TokenType fp_Type, const size_t fp_Offset, const uint8_t fp_SymFlags)
-            : Name(fp_Name), Kind(fp_Kind), Type(fp_Type), OffsetInBytecode(fp_Offset), Flags(fp_SymFlags) {}
-
-        Symbol() = default;
-    };
+namespace BongoJam::SSA {
 
     struct CompilationUnit
     {
-        string ScriptPath; //compilation units rae generated per script so # of scripts = # of compilation units
+        CompilationUnit() = default;
+        ~CompilationUnit() = default;
 
-        vector<uint8_t> CompiledByteCode; //bytecode
-        vector<SSAInstruction> SSA_IR; //
+        CompilationUnit(const CompilationUnit&) = delete;
+        CompilationUnit& operator=(const CompilationUnit&) = delete; //nix assignment owo
 
-        unordered_map<string, Symbol> SymbolTable; // symbol name : symbol information
-        unordered_map<string, Symbol> UnresolvedSymbolTable; //hf linker
+        vector<uint8_t> CompiledByteCode; 
+        //vector<SSAInstruction> SSA_IR; //
 
-        vector<string> Includes;
+        unique_ptr<TranslationUnit> TU = make_unique<TranslationUnit>();
 
         //debugname table quesiton mark???_????
     };
-
-    struct BongoScriptUnit
-    {
-        filesystem::path FilePath;
-        unique_ptr<CompilationUnit> CompiledUnit = make_unique<CompilationUnit>();
-    };
 }
 
-namespace BongoJam {
+namespace BongoJam::SSA {
 
     [[nodiscard]] constexpr string
         CreateColouredText
@@ -173,11 +137,11 @@ namespace BongoJam {
         }
     }
 
-    struct BongoCompiler
+    struct Compiler
     {
-        ~BongoCompiler() = default;
+        ~Compiler() = default;
 
-        BongoCompiler(const string& fp_CompilerName);
+        Compiler(const string& fp_CompilerName);
 
     public:
         shared_ptr<Logger> compiler_logger = nullptr; //shared for now cause idk how else work

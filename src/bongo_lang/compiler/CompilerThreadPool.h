@@ -26,16 +26,34 @@
 
 namespace BongoJam {
 
-    struct CompilationTask //using a raw ptr since this has to be trivially copyable so that bongomanager can pass a ref to the actual compilation unit and retrieve it to pass onto the linker
+    namespace SSA
     {
-        string FilePath;
-        CompilationUnit* Output = nullptr;
+        struct CompilationTask //using a raw ptr since this has to be trivially copyable so that bongomanager can pass a ref to the actual compilation unit and retrieve it to pass onto the linker
+        {
+            filesystem::path FilePath;
+            SSA::CompilationUnit* Output = nullptr;
+        };
+    }
+
+    //interface so i dont gotta template everything owo
+    struct ICompilerThreadPool 
+    {
+        atomic<bool> BONGO_COMPILE_SUCCESS = true;
+
+        virtual void EnqueueTask(const SSA::CompilationTask& fp_Task) = 0;
+        virtual void StartBatch(size_t fp_TaskCount) = 0;
+        virtual void WaitUntilAllTasksComplete() = 0;
+        virtual bool IsBatchActive() const = 0;
+        virtual ~ICompilerThreadPool() = default;
     };
 
     template<size_t pm_ThreadCount>
-    struct CompilerThreadPool
+    struct CompilerThreadPool final : public ICompilerThreadPool
     {
         static_assert(pm_ThreadCount > 0, "Thread count must be greater than 0");
+
+        CompilerThreadPool(const CompilerThreadPool&) = delete;
+        CompilerThreadPool& operator=(const CompilerThreadPool&) = delete; //nix assignment owo
 
     public:
         CompilerThreadPool()
@@ -62,15 +80,12 @@ namespace BongoJam {
             Shutdown();
         }
 
-    public:
-        atomic<bool> BONGO_COMPILE_SUCCESS = true;
-
     private:
         unique_ptr<Logger> threadpool_logger = nullptr;
 
         array<jthread, pm_ThreadCount> pm_Workers;
 
-        queue<CompilationTask> pm_Tasks; // Main task queue categorized by priority, WARNING: this will forever grow but like there should be no use case where that memory leak matters
+        queue<SSA::CompilationTask> pm_Tasks; // Main task queue categorized by priority, WARNING: this will forever grow but like there should be no use case where that memory leak matters
         //although just in case TODO: implement a memory tracking thing for this to clamp its max usage or garbage collect it o this language wll have one mebbe
 
         mutex pm_QueueMutex;
@@ -101,7 +116,7 @@ namespace BongoJam {
                 BONGO_COMPILE_SUCCESS = true;
 
                 // Clear any leftover tasks just in case
-                queue<CompilationTask>().swap(pm_Tasks);
+                queue<SSA::CompilationTask>().swap(pm_Tasks);
 
                 // create a fresh latch for this batch
                 try
@@ -132,7 +147,7 @@ namespace BongoJam {
         }
 
         void 
-            EnqueueTask(const CompilationTask& fp_Task)
+            EnqueueTask(const SSA::CompilationTask& fp_Task)
         {
             {
                 lock_guard<mutex> lock(pm_QueueMutex);
@@ -143,7 +158,7 @@ namespace BongoJam {
                     return;
                 }
 
-                threadpool_logger->Debug(fmt::format("Enqueueing Task with script path: {}", fp_Task.FilePath), "ThreadPool");
+                threadpool_logger->Debug(fmt::format("Enqueueing Task with script path: {}", fp_Task.FilePath.string()), "ThreadPool");
 
                 pm_Tasks.push(fp_Task);
             }
@@ -181,12 +196,12 @@ namespace BongoJam {
         void 
             Worker(uint64_t fp_ThreadNumber)
         {
-            thread_local BongoCompiler f_Compiler("CompilerThreadPool__ThreadID( " + to_string(fp_ThreadNumber) + " )");
+            thread_local SSA::Compiler f_Compiler("CompilerThreadPool__ThreadID( " + to_string(fp_ThreadNumber) + " )");
             Logger* f_CompilerLogger = f_Compiler.compiler_logger.get();
 
             while(1)
             {
-                CompilationTask f_Task;
+                SSA::CompilationTask f_Task;
 
                 // --------- Take a task or exit ---------
                 {
@@ -224,22 +239,22 @@ namespace BongoJam {
 
                 try
                 {
-                    int f_Result = f_Compiler.CompileUnit(f_Task.FilePath, f_Task.Output);
+                    int f_Result = f_Compiler.CompileUnit(f_Task.FilePath.string(), f_Task.Output);
 
                     if (f_Result != BONGO_OK)
                     {
                         f_IsSuccessful = false;
-                        f_CompilerLogger->Error(fmt::format("Failed to compile : '{}', with compiler exit code : {} ", f_Task.FilePath, f_Result), "Worker");
+                        f_CompilerLogger->Error(fmt::format("Failed to compile : '{}', with compiler exit code : {} ", f_Task.FilePath.string(), f_Result), "Worker");
                     }
                     else
                     {
-                        f_CompilerLogger->Info(fmt::format("Worker successfully compiled: '{}'!", f_Task.FilePath), "Worker");
+                        f_CompilerLogger->Info(fmt::format("Worker successfully compiled: '{}'!", f_Task.FilePath.string()), "Worker");
                     }
                 }
                 catch (const exception& Exception)
                 {
                     f_IsSuccessful = false;
-                    f_CompilerLogger->Error(fmt::format("Unhandled exception: {}, while compiling : '{}' ", Exception.what(), f_Task.FilePath), "Worker");
+                    f_CompilerLogger->Error(fmt::format("Unhandled exception: {}, while compiling : '{}' ", Exception.what(), f_Task.FilePath.string()), "Worker");
                 }
 
                 // --------- Update global state + latch ---------
@@ -277,7 +292,7 @@ namespace BongoJam {
                 }
                 else
                 {
-                    f_CompilerLogger->Error(fmt::format("Invalid nullptr ref to latch threadpool cannot operate uwu, while compiling : '{}' ", f_Task.FilePath), "Worker");
+                    f_CompilerLogger->Error(fmt::format("Invalid nullptr ref to latch threadpool cannot operate uwu, while compiling : '{}' ", f_Task.FilePath.string()), "Worker");
                     return;
                 }
             }

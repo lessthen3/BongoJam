@@ -23,23 +23,23 @@ namespace BongoJam{
     }
 
     int
-        BongoLinker::LinkCompilationUnits(vector<BongoScriptUnit>&& fp_CompiledUnits, vector<uint8_t>& fp_FinalByteCode)
+        BongoLinker::LinkCompilationUnits(vector<unique_ptr<SSA::CompilationUnit>>&& fp_CompiledUnits, vector<uint8_t>& fp_FinalByteCode)
     {
         {
             int f_CurrentOffset = -1; //start at -1 for the list index offset starts at 0 , so eg if the file was one bytecode then it would index at 0 here
             //combine all compiled units into a single list
             for (int __i = 0; __i < fp_CompiledUnits.size(); __i++)
             {
-                fp_FinalByteCode.insert(fp_FinalByteCode.end(), fp_CompiledUnits[__i].CompiledUnit->CompiledByteCode.begin(), fp_CompiledUnits[__i].CompiledUnit->CompiledByteCode.end());
-                pm_CompilationUnitByteOffsets.insert({ fp_CompiledUnits[__i].CompiledUnit->ScriptPath, fp_CompiledUnits[__i].CompiledUnit->CompiledByteCode.size() + f_CurrentOffset });
-                f_CurrentOffset += fp_CompiledUnits[__i].CompiledUnit->CompiledByteCode.size();
+                fp_FinalByteCode.insert(fp_FinalByteCode.end(), fp_CompiledUnits[__i]->CompiledByteCode.begin(), fp_CompiledUnits[__i]->CompiledByteCode.end());
+                pm_CompilationUnitByteOffsets.emplace(fp_CompiledUnits[__i]->TU->ScriptPath.filename().string(), fp_CompiledUnits[__i]->CompiledByteCode.size() + f_CurrentOffset);
+                f_CurrentOffset += fp_CompiledUnits[__i]->CompiledByteCode.size();
             }
         }
 
         for (int __i = 0; __i < fp_CompiledUnits.size(); __i++)
         {
             //resolve symbols if any
-            for (const auto& [lv_Key, lv_Val] : fp_CompiledUnits[__i].CompiledUnit->UnresolvedSymbolTable)
+            for (const auto& [lv_Key, lv_Val] : fp_CompiledUnits[__i]->TU->UnresolvedSymbols)
             {
 
             }   

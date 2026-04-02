@@ -13,9 +13,9 @@
 
 #include "../ErrorCodes.h"
 
-namespace BongoJam{
+namespace BongoJam::SSA {
 
-    BongoCompiler::BongoCompiler(const string& fp_CompilerName)
+    Compiler::Compiler(const string& fp_CompilerName)
     {
         stringstream f_UckCPlusPlus; //XXX: cpp is a dumb fucking language sometimes holy please make good features and not dumbass nonsense holy shit
         f_UckCPlusPlus << this_thread::get_id();
@@ -42,7 +42,7 @@ namespace BongoJam{
 //////////////////////////////////////////////
 
 unique_ptr<StatementNode>
-    BongoCompiler::ShiftForward(vector<unique_ptr<StatementNode>>& fp_ProgramBody)
+    Compiler::ShiftForward(vector<unique_ptr<StatementNode>>& fp_ProgramBody)
 {
     if (fp_ProgramBody.empty())
     {
@@ -56,15 +56,15 @@ unique_ptr<StatementNode>
 }
 
 bool
-    BongoCompiler::TryToResolveSymbol(const string& fp_SymbolName, CompilationUnit* fp_CompilationUnit)
+    Compiler::TryToResolveSymbol(const string& fp_SymbolName, CompilationUnit* fp_CompilationUnit)
 {
-    return fp_CompilationUnit->SymbolTable.find(fp_SymbolName) == fp_CompilationUnit->SymbolTable.end();
+    return fp_CompilationUnit->TU->ResolvedSymbols.find(fp_SymbolName) == fp_CompilationUnit->TU->ResolvedSymbols.end();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool
-    BongoCompiler::CompileFuncCall
+    Compiler::CompileFuncCall
     (
         FunctionCallExpr* fp_FunctionCallExpr,
         CompilationUnit* fp_CompilationUnit
@@ -89,7 +89,7 @@ bool
     {
         if (not CompileInputFunction(fp_FunctionCallExpr, fp_CompilationUnit))
         {
-            compiler_logger->Error(fmt::format("Error at Line: {}, Unable to compile input() function oof", fp_FunctionCallExpr->FuncName.m_SourceCodeLineNumber), "BongoCompiler");
+            compiler_logger->Error(fmt::format("Error at Line: {}, Unable to compile input() function oof", fp_FunctionCallExpr->FuncName.m_SourceCodeLineNumber), "Compiler");
             return false;
         }
     }
@@ -98,7 +98,7 @@ bool
     {
         if (not CompilePrintFunction(fp_FunctionCallExpr, fp_CompilationUnit))
         {
-            compiler_logger->Error(fmt::format("Error at Line: {}, Unable to compile print() function oof", fp_FunctionCallExpr->FuncName.m_SourceCodeLineNumber), "BongoCompiler");
+            compiler_logger->Error(fmt::format("Error at Line: {}, Unable to compile print() function oof", fp_FunctionCallExpr->FuncName.m_SourceCodeLineNumber), "Compiler");
             return false;
         }
     }
@@ -122,7 +122,7 @@ bool
 
 //this function parses expression trees recursively to produce bytecode consistent with operation order and programmer's expected output
 bool
-    BongoCompiler::CompileRegularExpr //this is gonna be recursive i bet -check 
+    Compiler::CompileRegularExpr //this is gonna be recursive i bet -check 
     (
         Expr* fp_Expression,
         CompilationUnit* fp_CompilationUnit
@@ -163,7 +163,7 @@ bool
             }
             break;
             default: //THROW ERROR:
-                compiler_logger->Error(fmt::format("Error at Line: {}, Invalid value found while compiling a single value expression OwO", sv_SingleValueExpr->m_Value.m_SourceCodeLineNumber), "BongoCompiler");
+                compiler_logger->Error(fmt::format("Error at Line: {}, Invalid value found while compiling a single value expression OwO", sv_SingleValueExpr->m_Value.m_SourceCodeLineNumber), "Compiler");
                 return false;
         }
     }
@@ -262,7 +262,7 @@ bool
 }
 
 bool
-    BongoCompiler::CompilePrintFunction
+    Compiler::CompilePrintFunction
     (
         FunctionCallExpr* fp_PrintFunction,
         CompilationUnit* fp_CompilationUnit
@@ -273,8 +273,6 @@ bool
         compiler_logger->Error(fmt::format("Error at Line Number: {}, invalid argument count found when compiling print() function call", fp_PrintFunction->FuncName.m_SourceCodeLineNumber), "Compiler");
         return false;
     }
-
-    //////////////////////////////////////////////////////////// Bytecode ////////////////////////////////////////////////////////////
 
     fp_CompilationUnit->CompiledByteCode.push_back(STDOUT); //print function opcode
 
@@ -302,13 +300,11 @@ bool
         f_PrintString
     );
 
-    //////////////////////////////////////////////////////////// SSA ////////////////////////////////////////////////////////////
-
     return true;
 }
 
 [[nodiscard]] bool
-    BongoCompiler::CompileStringExpr
+    Compiler::CompileStringExpr
     (
         Expr* fp_Expression,
         CompilationUnit* fp_CompilationUnit
@@ -419,7 +415,7 @@ bool
 }
 
 bool
-    BongoCompiler::CompileInputFunction
+    Compiler::CompileInputFunction
     (
         FunctionCallExpr* fp_InputFunction,
         CompilationUnit* fp_CompilationUnit
@@ -447,52 +443,44 @@ bool
 }
 
 bool
-    BongoCompiler::CompileIfStatement
+    Compiler::CompileIfStatement
     (
         IfDeclaration* fp_VarDeclaration,
         CompilationUnit* fp_CompilationUnit
     )
 {
-    //////////////////////////////////////////////////////////// Bytecode ////////////////////////////////////////////////////////////
 
     size_t f_InitialOffset = 0; //calculate stack slot offset and reuse across each branch
 
-
-    //////////////////////////////////////////////////////////// SSA ////////////////////////////////////////////////////////////////
 
     return true;
 }
 
 bool
-    BongoCompiler::CompileWhileLoop
+    Compiler::CompileWhileLoop
     (
         WhileLoopDeclaration* fp_VarDeclaration,
         CompilationUnit* fp_CompilationUnit
     )
 {
-    //////////////////////////////////////////////////////////// Bytecode ////////////////////////////////////////////////////////////
 
-    //////////////////////////////////////////////////////////// SSA ////////////////////////////////////////////////////////////////
 
     return true;
 }
 
 bool
-    BongoCompiler::CompileForLoop
+    Compiler::CompileForLoop
     (
         ForLoopDeclaration* fp_VarDeclaration,
         CompilationUnit* fp_CompilationUnit
     )
 {
-    //////////////////////////////////////////////////////////// Bytecode ////////////////////////////////////////////////////////////
-
-    //////////////////////////////////////////////////////////// SSA ////////////////////////////////////////////////////////////////
 
     return true;
 }
 
 bool
-    BongoCompiler::CompileDeclaredFunction
+    Compiler::CompileDeclaredFunction
 (
     FuncDeclaration* fp_FuncDeclaration,
     CompilationUnit* fp_CompilationUnit,
@@ -553,7 +541,7 @@ bool
         }
         break;
         default:
-            compiler_logger->Error(fmt::format("Invalid statement unknown to compiler found inside the declaration of function: '{}' ", fp_FuncDeclaration->m_FuncName.m_Value), "BongoCompiler");
+            compiler_logger->Error(fmt::format("Invalid statement unknown to compiler found inside the declaration of function: '{}' ", fp_FuncDeclaration->m_FuncName.m_Value), "Compiler");
             return false;
         }
     }
@@ -569,13 +557,13 @@ bool
     f_FuncSymbol.Flags = fp_FuncDeclaration->Modifiers;
 
     //put symbol and offset before so the offset represents the first byte of the translated constructor declaration
-    fp_CompilationUnit->SymbolTable.insert({ f_FuncSymbol.Name, f_FuncSymbol });
+    //fp_CompilationUnit->SymbolTable.insert({ f_FuncSymbol.Name, f_FuncSymbol });
 
     return true;
 }
 
 bool
-    BongoCompiler::CompileUserIdentifier //this is gonna be recursive i bet -check 
+    Compiler::CompileUserIdentifier //this is gonna be recursive i bet -check 
     (
         Expr* fp_SymbolExpr,
         CompilationUnit* fp_CompilationUnit
@@ -586,7 +574,7 @@ bool
 }
 
 bool
-    BongoCompiler::CompileVarReassignment //this is gonna be recursive i bet -check 
+    Compiler::CompileVarReassignment //this is gonna be recursive i bet -check 
     (
         VariableReassignmentExpr* fp_Expression,
         CompilationUnit* fp_CompilationUnit
@@ -647,26 +635,26 @@ bool
     }
 
     //if the var is part of the current compilation unit then grab its symbol, otherwise var is calling to external compilation unit so the linker will resolve the symbol
-    if (fp_CompilationUnit->SymbolTable.find(f_VarName) == fp_CompilationUnit->SymbolTable.end())
-    {
-        Symbol f_UnresolvedSymbol;
+    //if (fp_CompilationUnit->SymbolTable.find(f_VarName) == fp_CompilationUnit->SymbolTable.end())
+    //{
+    //    Symbol f_UnresolvedSymbol;
 
-        f_UnresolvedSymbol.Name = f_VarName;
-        f_UnresolvedSymbol.Type = fp_Expression->EvaluatesTo; //linker will check for type mistmatching uwu
-        f_UnresolvedSymbol.OffsetInBytecode = f_EntryOffset; //record where it happened inside compilation unit uwu
+    //    f_UnresolvedSymbol.Name = f_VarName;
+    //    f_UnresolvedSymbol.Type = fp_Expression->EvaluatesTo; //linker will check for type mistmatching uwu
+    //    f_UnresolvedSymbol.OffsetInBytecode = f_EntryOffset; //record where it happened inside compilation unit uwu
 
-        fp_CompilationUnit->UnresolvedSymbolTable.insert({ f_VarName, f_UnresolvedSymbol });
+    //    fp_CompilationUnit->UnresolvedSymbolTable.insert({ f_VarName, f_UnresolvedSymbol });
 
-        return true;
-    }
+    //    return true;
+    //}
 
-    Symbol f_Symbol = fp_CompilationUnit->SymbolTable.at(f_VarName);
+    //Symbol f_Symbol = fp_CompilationUnit->SymbolTable.at(f_VarName);
 
-    if (f_Symbol.Type != fp_Expression->EvaluatesTo) //if the types dont match for storing and doing ops w uwu
-    {
+    //if (f_Symbol.Type != fp_Expression->EvaluatesTo) //if the types dont match for storing and doing ops w uwu
+    //{
 
-        return false;
-    }
+    //    return false;
+    //}
 
     //////////////////////////////////////////////////////////// check for equals since we don't need to load the val if its just a reg reassignment uwu ////////////////////////////////////////////////////////////
 
@@ -678,30 +666,30 @@ bool
             return false;
         }
         
-        if (f_Symbol.Kind & (SymbolKind::Class | SymbolKind::Struct))
-        {
-            fp_CompilationUnit->CompiledByteCode.push_back(STORE_GLOBAL);
-            //needa find address
-        }
-        else
-        {
-            fp_CompilationUnit->CompiledByteCode.push_back(STORE_LOCAL);
-            BinaryCodec::EncodeInt32(fp_CompilationUnit->CompiledByteCode, f_Symbol.Slot); //find slot in stack
-        }
+        //if (f_Symbol.Kind & (SymbolKind::Class | SymbolKind::Struct))
+        //{
+        //    fp_CompilationUnit->CompiledByteCode.push_back(STORE_GLOBAL);
+        //    //needa find address
+        //}
+        //else
+        //{
+        //    fp_CompilationUnit->CompiledByteCode.push_back(STORE_LOCAL);
+        //    BinaryCodec::EncodeInt32(fp_CompilationUnit->CompiledByteCode, f_Symbol.Slot); //find slot in stack
+        //}
 
         return true;
     }
 
     //////////////////////////////////////////////////////////// Load Current Variable ////////////////////////////////////////////////////////////
 
-    if (f_Symbol.Kind & (SymbolKind::Class | SymbolKind::Struct))
-    {
-        fp_CompilationUnit->CompiledByteCode.push_back(LOAD_GLOBAL); //print function opcode
-    }
-    else
-    {
-        fp_CompilationUnit->CompiledByteCode.push_back(LOAD_LOCAL); //print function opcode
-    }
+    //if (f_Symbol.Kind & (SymbolKind::Class | SymbolKind::Struct))
+    //{
+    //    fp_CompilationUnit->CompiledByteCode.push_back(LOAD_GLOBAL); //print function opcode
+    //}
+    //else
+    //{
+    //    fp_CompilationUnit->CompiledByteCode.push_back(LOAD_LOCAL); //print function opcode
+    //}
 
     //////////////////////////////////////////////////////////// Figure out what the new value is supposed to be ////////////////////////////////////////////////////////////
 
@@ -762,23 +750,23 @@ bool
 
     //////////////////////////////////////////////////////////// Store the result ////////////////////////////////////////////////////////////
 
-    if (f_Symbol.Kind & (SymbolKind::Class | SymbolKind::Struct))
-    {
-        fp_CompilationUnit->CompiledByteCode.push_back(STORE_GLOBAL);
-        //needa find address
-    }
-    else
-    {
-        fp_CompilationUnit->CompiledByteCode.push_back(STORE_LOCAL);
-        BinaryCodec::EncodeInt32(fp_CompilationUnit->CompiledByteCode, f_Symbol.Slot); //find slot in stack
-    }
+    //if (f_Symbol.Kind & (SymbolKind::Class | SymbolKind::Struct))
+    //{
+    //    fp_CompilationUnit->CompiledByteCode.push_back(STORE_GLOBAL);
+    //    //needa find address
+    //}
+    //else
+    //{
+    //    fp_CompilationUnit->CompiledByteCode.push_back(STORE_LOCAL);
+    //    BinaryCodec::EncodeInt32(fp_CompilationUnit->CompiledByteCode, f_Symbol.Slot); //find slot in stack
+    //}
 
 
     return true;
 }
 
 bool
-    BongoCompiler::CompileVarDeclaration //used for global scope defined vars atm but wanna rework into class scoped vars probs just pass the class namespace thru
+    Compiler::CompileVarDeclaration //used for global scope defined vars atm but wanna rework into class scoped vars probs just pass the class namespace thru
     (
         VarDeclaration* fp_VarDeclaration,
         CompilationUnit* fp_CompilationUnit,
@@ -808,13 +796,13 @@ bool
 
     pm_NextAvailableStackSlot++;
 
-    fp_CompilationUnit->SymbolTable.insert({ fp_VarDeclaration->Name.m_Value, f_Symbol });
+    //fp_CompilationUnit->SymbolTable.insert({ fp_VarDeclaration->Name.m_Value, f_Symbol });
 
     return true;
 }
 
 bool
-    BongoCompiler::CompileFieldDeclaration
+    Compiler::CompileFieldDeclaration
     (
         VarDeclaration* fp_VarDeclaration,
         CompilationUnit* fp_CompilationUnit
@@ -825,7 +813,7 @@ bool
 }
 
 bool
-    BongoCompiler::CompileDeclaredClass
+    Compiler::CompileDeclaredClass
     (
         ClassDeclaration* fp_ClassDec,
         CompilationUnit* fp_CompilationUnit,
@@ -878,21 +866,19 @@ bool
     f_Symbol.Kind = SymbolKind::Class;
     //f_Symbol.Flags = SymbolFlag::
 
-    fp_CompilationUnit->SymbolTable.insert({ fp_ClassDec->ClassName.m_Value, f_Symbol });
+    //fp_CompilationUnit->SymbolTable.insert({ fp_ClassDec->ClassName.m_Value, f_Symbol });
 
     return true;
 }
 
 bool
-    BongoCompiler::CompileDeclaredStruct
+    Compiler::CompileDeclaredStruct
     (
         StructDeclaration* fp_StructDec,
         CompilationUnit* fp_CompilationUnit,
         const string& fp_NameSpace
     )
 {
-    //////////////////////////////////////////////////////////// Bytecode ////////////////////////////////////////////////////////////
-
     for (auto& lv_Constructor : fp_StructDec->Constructors) //structs are only allowed to have constructors thats it uwu - maybeeeee idk
     {
         if (not CompileDeclaredFunction(&lv_Constructor, fp_CompilationUnit))
@@ -902,9 +888,6 @@ bool
         }
     }
 
-    //////////////////////////////////////////////////////////// SSA ////////////////////////////////////////////////////////////////
-
-
     return true;
 }
 
@@ -913,7 +896,7 @@ bool
 //////////////////////////////////////////////
 
 int
-    BongoCompiler::CompileUnit
+    Compiler::CompileUnit
     (
         const string& fp_BongoScriptFilePath,
         CompilationUnit* fp_CompilationUnit,
@@ -924,7 +907,7 @@ int
 
     if (not fp_CompilationUnit)
     {
-        compiler_logger->Fatal(fmt::format("Tried to pass nullptr reference for CompilationUnit during attempted compilation of script: '{}'", fp_BongoScriptFilePath), "BongoCompiler");
+        compiler_logger->Fatal(fmt::format("Tried to pass nullptr reference for CompilationUnit during attempted compilation of script: '{}'", fp_BongoScriptFilePath), "Compiler");
         return TRIED_TO_PASS_NULLPTR_REF_TO_COMPILATION_UNIT;
     }
 
@@ -945,11 +928,11 @@ int
         return BONGO_FAILED_TO_LEX_SCRIPT;
     }
 
-    unique_ptr<Program> f_BongoProgram = pm_BongoParser->ConstructAST(VectorStream<Token>(move(f_ProgramTokens))); //doesnt need to be heap alloc'd since its just a bunch of vectors and maps
+    fp_CompilationUnit->TU = pm_BongoParser->ConstructAST(VectorStream<Token>(move(f_ProgramTokens))); //doesnt need to be heap alloc'd since its just a bunch of vectors and maps
 
-    if (not f_BongoProgram)
+    if (not fp_CompilationUnit->TU)
     {
-        compiler_logger->Fatal(fmt::format("Failed to parse file: '{}', compilation failed :'(", fp_BongoScriptFilePath), "BongoCompiler");
+        compiler_logger->Fatal(fmt::format("Failed to parse file: '{}', compilation failed :'(", fp_BongoScriptFilePath), "Compiler");
         return EXIT_FAILURE;
     }
 
@@ -965,9 +948,9 @@ int
 
     //this could be a single switch no while, but i wanna let ppl have multiple class defs in a file, or just straight up functions owo
 
-    while (f_BongoProgram->ParsedScript.size() > 0) //compiling the main function code body
+    while (fp_CompilationUnit->TU->ParsedScript.size() > 0) //compiling the main function code body
     {
-        f_CurrentProgramStatement = ShiftForward(f_BongoProgram->ParsedScript);
+        f_CurrentProgramStatement = ShiftForward(fp_CompilationUnit->TU->ParsedScript);
 
         switch (f_CurrentProgramStatement->m_Domain) //unique ptr's get thrown out each scope and cleaned up for me uwu
         {
@@ -977,7 +960,7 @@ int
             
             if (not CompileDeclaredFunction(sv_FuncDec.get(), fp_CompilationUnit, f_CurrentNamespace))
             {
-                compiler_logger->Error(fmt::format("Invalid statement unknown to compiler found inside the declaration of function: '{}' ", sv_FuncDec->m_FuncName.m_Value), "BongoCompiler");
+                compiler_logger->Error(fmt::format("Invalid statement unknown to compiler found inside the declaration of function: '{}' ", sv_FuncDec->m_FuncName.m_Value), "Compiler");
                 return EXIT_FAILURE;
             }
         }
@@ -988,7 +971,7 @@ int
 
             if(not CompileDeclaredClass(sv_ClassDec.get(), fp_CompilationUnit, f_CurrentNamespace))
             {
-                compiler_logger->Error(fmt::format("Invalid statement unknown to compiler found inside the declaration of class: '{}' ", sv_ClassDec->ClassName.m_Value), "BongoCompiler");
+                compiler_logger->Error(fmt::format("Invalid statement unknown to compiler found inside the declaration of class: '{}' ", sv_ClassDec->ClassName.m_Value), "Compiler");
                 return EXIT_FAILURE;
             }
         }
@@ -999,7 +982,7 @@ int
 
             if (not CompileDeclaredStruct(sv_StructDec.get(), fp_CompilationUnit, f_CurrentNamespace))
             {
-                compiler_logger->Error(fmt::format("Invalid statement unknown to compiler found inside the declaration of class: '{}' ", sv_StructDec->StructName.m_Value), "BongoCompiler");
+                compiler_logger->Error(fmt::format("Invalid statement unknown to compiler found inside the declaration of class: '{}' ", sv_StructDec->StructName.m_Value), "Compiler");
                 return EXIT_FAILURE;
             }
         }
@@ -1017,16 +1000,9 @@ int
 
             if (not CompileVarDeclaration(sv_VarDec.get(), fp_CompilationUnit, f_CurrentNamespace))
             {
-                compiler_logger->Error(fmt::format("Invalid statement unknown to compiler found during the declaration of variable: '{}' ", sv_VarDec->Name.m_Value), "BongoCompiler");
+                compiler_logger->Error(fmt::format("Invalid statement unknown to compiler found during the declaration of variable: '{}' ", sv_VarDec->Name.m_Value), "Compiler");
                 return EXIT_FAILURE;
             }
-        }
-        break;
-        case SyntaxNodeType::IncludeStatement:
-        {
-            unique_ptr<IncludeStatement> f_VarDec = unique_dynamic_cast<IncludeStatement>(move(f_CurrentProgramStatement));
-
-            fp_CompilationUnit->Includes.push_back(f_VarDec->m_IncludePath.m_Value);
         }
         break;
         default:

@@ -27,7 +27,6 @@ namespace BongoJam {
         //////////////////// Compiler Specific ////////////////////
 
         NameSpace,
-        IncludeStatement,
 
         //////////////////// User Declarations ////////////////////
 
@@ -228,12 +227,6 @@ namespace BongoJam {
 
         //WARNING THIS BREAKS EVERYTHING FOR SOME REASON LMFAO
         //map<string, Token> SymbolTable; //symbols defined inside a function, important for functions that call external src files which is the case most of the time imo
-    };
-
-    struct IncludeStatement :public StatementNode
-    {
-        IncludeStatement() : StatementNode(SyntaxNodeType::IncludeStatement) {}
-        Token m_IncludePath;
     };
 
     struct NamespaceDeclaration : public StatementNode
@@ -469,9 +462,64 @@ namespace BongoJam {
 
     //////////////////////////////////////// Primitive Value Type Enum ////////////////////////////////////////
 
-    struct Program
+    enum SymbolKind : uint8_t
     {
+        INVALID_SYMBOL = 0,
+        Variable = 1 << 0,
+        Field = 1 << 1,
+        Function = 1 << 2,
+        Method = 1 << 3,
+        Struct = 1 << 4,
+        Class = 1 << 5
+    };
+
+    struct Symbol
+    {
+        string Name;
+
+        TokenType Type = TokenType::NO_TOKEN_VALUE; // for type checking
+
+        uint8_t Flags = ModifierFlags::NONE;
+        uint8_t Kind = SymbolKind::INVALID_SYMBOL; // FUNCTION, STRUCT, CLASS, GLOBAL_VAR
+
+        size_t Slot = 0;
+        size_t OffsetInBytecode = 0; // Offset based off the compilation unit the compilationunit base offset will be recorded by the linker for resolving symbols
+
+        bool IsResolved = false;
+
+        explicit
+            Symbol
+            (
+                const string& fp_Name,
+                SymbolKind fp_Kind,
+                TokenType fp_Type,
+                const size_t fp_Offset,
+                const uint8_t fp_SymFlags
+            ) :
+            Name(fp_Name),
+            Kind(fp_Kind),
+            Type(fp_Type),
+            OffsetInBytecode(fp_Offset),
+            Flags(fp_SymFlags)
+        {}
+
+        Symbol() = default;
+    };
+
+    using SyntaxTree = vector<unique_ptr<StatementNode>>;
+    using SymbolTable = unordered_map<string, Symbol>;
+
+    struct TranslationUnit
+    {
+        filesystem::path ScriptPath; //compilation units rae generated per script so # of scripts = # of compilation units
+
         //first function should be the very first function, defined in the very top level of the import tree
-        vector<unique_ptr<StatementNode>> ParsedScript; //contains all defined functions inside the script
+        SyntaxTree ParsedScript; //contains all defined functions inside the script
+
+        vector<string> IncludePaths;
+
+        SymbolTable CustomTypes; //dunno if this is required but eh idk
+        SymbolTable ResolvedSymbols; // symbol name : symbol information
+        SymbolTable UnresolvedSymbols; //hf linker
     };
 }

@@ -266,12 +266,4 @@ namespace BongoJam
 
         HALT //>O<
     };
-
-    struct SSAInstruction
-    {
-        BJ_OP OP = BJ_OP::NOP;
-        //string DEST;
-        //vector<string> SRC;
-    };
-
 }//namespace BongoJam
