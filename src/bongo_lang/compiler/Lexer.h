@@ -138,7 +138,7 @@ namespace BongoJam {
         Enum,
         Interface,
 
-        //////////////////// Conditional Logic ////////////////////
+        //////////////////// Conditional Flow ////////////////////
 
         If,
         Elif,
@@ -148,6 +148,7 @@ namespace BongoJam {
         Do,
         Match,
         Break,
+        BreakOut, //used for jmp'ing outside a nested loop and is fine inside a single loop maybe just a pedantic warning idk fuq goto
         Continue,
         Try,
         Catch,
@@ -316,7 +317,7 @@ namespace BongoJam {
         {"enum", TokenType::Enum},
         {"interface", TokenType::Interface},
 
-        //////////////////// Conditional Logic ////////////////////
+        //////////////////// Conditional Flow ////////////////////
 
         {"if", TokenType::If},
         {"elif", TokenType::Elif},
@@ -326,6 +327,7 @@ namespace BongoJam {
         {"do", TokenType::Do}, //do and else statments are compatible with while loops
         {"match", TokenType::Match}, //switch statement
         {"break", TokenType::Break},
+        {"breakout", TokenType::BreakOut},
         {"continue", TokenType::Continue},
         {"try", TokenType::Try},
         {"catch", TokenType::Catch},

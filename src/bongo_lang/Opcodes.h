@@ -247,6 +247,7 @@ namespace BongoJam
         ///Reflection
         TYPE_TAG,
         THREAD_ID,
+        VARIABLE_ID, //idk if u wanna check if(var_name("myVar")) ... can just reduce to an id and verify at compile time
 
         //////////////////// Error Handling ////////////////////
 

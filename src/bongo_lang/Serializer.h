@@ -23,6 +23,9 @@
 #include <type_traits>
 #include <utility>
 
+/// fmt
+#include <fmt/format.h>
+
 ///Peach-E
 #include "Logger.h"
 
@@ -56,6 +59,79 @@
         Base::PEACH_VISIT(v);                              \
         __VA_ARGS__;                               \
     }
+
+#define PEACH_STRINGIFY(fp_X) #fp_X
+#define PEACH_TOSTRING(fp_X) PEACH_STRINGIFY(fp_X)
+
+#define PEACH_TO_JSON(fp_DesiredObject, fp_DesiredFileName, fp_DesiredOutputDirectory, fp_Logger) \
+    ( \
+        []() consteval \
+         { \
+            static_assert \
+            ( \
+                ::BongoJam::Serializer::is_serializable_struct<remove_cvref_t<decltype(fp_DesiredObject)>>::value, \
+                "PEACH_TO_JSON at " __FILE__ " ln " PEACH_TOSTRING(__LINE__) ", T is missing PEACH_SERIALIZABLE(...), did you add the macro to your type uwu?" \
+            ); \
+                return 0; \
+        }(), \
+        ::BongoJam::Serializer::ToJSON(fp_DesiredObject, fp_DesiredFileName, fp_DesiredOutputDirectory, fp_Logger) \
+    )
+
+#define PEACH_FROM_JSON(fp_DesiredObject, fp_FilePath, fp_Logger) \
+    ( \
+        []() consteval \
+         { \
+            static_assert \
+            ( \
+                ::BongoJam::Serializer::is_serializable_struct<remove_cvref_t<decltype(fp_DesiredObject)>>::value, \
+                "PEACH_FROM_JSON at " __FILE__ " ln " PEACH_TOSTRING(__LINE__) ", T is missing PEACH_SERIALIZABLE(...), did you add the macro to your type uwu?" \
+            ); \
+                return 0; \
+        }(), \
+        ::BongoJam::Serializer::FromJSON(fp_DesiredObject, fp_FilePath, fp_Logger) \
+    )
+
+#define PEACH_PACK_BINARY(fp_DesiredObject, fp_BinaryVector) \
+    ( \
+        []() consteval \
+         { \
+            static_assert \
+            ( \
+                ::BongoJam::Serializer::is_serializable_struct<remove_cvref_t<decltype(fp_DesiredObject)>>::value, \
+                "PEACH_PACK_BINARY at " __FILE__ " ln " PEACH_TOSTRING(__LINE__) ", T is missing PEACH_SERIALIZABLE(...), did you add the macro to your type uwu?" \
+            ); \
+                return 0; \
+        }(), \
+        ::BongoJam::Serializer::PackIntoBinaryVector(fp_DesiredObject, fp_BinaryVector) \
+    )
+
+#define PEACH_UNPACK_BINARY(fp_EmptyObject, fp_BinaryVector, fp_Logger) \
+    ( \
+        []() consteval \
+         { \
+            static_assert \
+            ( \
+                ::BongoJam::Serializer::is_serializable_struct<remove_cvref_t<decltype(fp_EmptyObject)>>::value, \
+                "PEACH_UNPACK_BINARY at " __FILE__ " ln " PEACH_TOSTRING(__LINE__) ", T is missing PEACH_SERIALIZABLE(...), did you add the macro to your type uwu?" \
+            ); \
+                return 0; \
+        }(), \
+        ::BongoJam::Serializer::UnpackFromBinaryVector(fp_EmptyObject, fp_BinaryVector, fp_Logger) \
+    )
+
+#define PEACH_UNPACK_BINARY_OFFSET(fp_EmptyObject, fp_BinaryVector, fp_Logger, fp_StartReadOffset) \
+    ( \
+        []() consteval \
+         { \
+            static_assert \
+            ( \
+                ::BongoJam::Serializer::is_serializable_struct<remove_cvref_t<decltype(fp_EmptyObject)>>::value, \
+                "PEACH_UNPACK_BINARY_OFFSET at " __FILE__ " ln " PEACH_TOSTRING(__LINE__) ", T is missing PEACH_SERIALIZABLE(...), did you add the macro to your type uwu?" \
+            ); \
+                return 0; \
+        }(), \
+        ::BongoJam::Serializer::UnpackFromBinaryVector(fp_EmptyObject, fp_BinaryVector, fp_Logger, fp_StartReadOffset) \
+    )
 
 
 template<typename>
@@ -165,19 +241,19 @@ namespace BongoJam {
         }
 
         template <typename T>
-        inline void 
+        inline void
             EncodeInt
             (
-                vector<uint8_t>& fp_Bytecode, 
+                vector<uint8_t>& fp_Bytecode,
                 const T fp_Int
             )
         {
             static_assert
-            (
-                is_same_v<T, uint8_t> or is_same_v<T, uint16_t> or is_same_v<T, uint32_t> or is_same_v<T, uint64_t>
-                or is_same_v<T, int8_t> or is_same_v<T, int16_t> or is_same_v<T, int32_t> or is_same_v<T, int64_t>,
-                "EncodeInt only accepts 8/16/32/64-bit signed or unsigned integer types"
-            );
+                (
+                    is_same_v<T, uint8_t> or is_same_v<T, uint16_t> or is_same_v<T, uint32_t> or is_same_v<T, uint64_t>
+                    or is_same_v<T, int8_t> or is_same_v<T, int16_t> or is_same_v<T, int32_t> or is_same_v<T, int64_t>,
+                    "EncodeInt only accepts 8/16/32/64-bit signed or unsigned integer types"
+                    );
 
             if constexpr (sizeof(T) == 1)
             {
@@ -204,7 +280,7 @@ namespace BongoJam {
         inline void
             EncodeBool
             (
-                vector<uint8_t>& fp_ByteCode, 
+                vector<uint8_t>& fp_ByteCode,
                 bool fp_Bool
             )
         {
@@ -237,7 +313,7 @@ namespace BongoJam {
         }
 
         template<typename LengthT>
-        inline void 
+        inline void
             EncodeStringWithoutEscapeCharacters
             (
                 vector<uint8_t>& fp_ByteCode,
@@ -247,10 +323,10 @@ namespace BongoJam {
             ////////////////////////////////////////////// Validate Length Type //////////////////////////////////////////////
 
             static_assert
-            (
-                is_same_v<LengthT, uint8_t> or is_same_v<LengthT, uint16_t> or is_same_v<LengthT, uint32_t> or is_same_v<LengthT, uint64_t>,
-                "EncodeStringWithoutEscapeCharacters only accepts 8/16/32/64-bit unsigned integer types"
-            );
+                (
+                    is_same_v<LengthT, uint8_t> or is_same_v<LengthT, uint16_t> or is_same_v<LengthT, uint32_t> or is_same_v<LengthT, uint64_t>,
+                    "EncodeStringWithoutEscapeCharacters only accepts 8/16/32/64-bit unsigned integer types"
+                    );
 
             ////////////////////////////////////////////// Overflow Check on String Size With Passed Type //////////////////////////////////////////////
 
@@ -282,10 +358,10 @@ namespace BongoJam {
             ////////////////////////////////////////////// Validate Length Type //////////////////////////////////////////////
 
             static_assert
-            (
-                is_same_v<LengthT, uint8_t> or is_same_v<LengthT, uint16_t> or is_same_v<LengthT, uint32_t> or is_same_v<LengthT, uint64_t>,
-                "EncodeStringUTF8 only accepts 8/16/32/64-bit unsigned integer types"
-            );
+                (
+                    is_same_v<LengthT, uint8_t> or is_same_v<LengthT, uint16_t> or is_same_v<LengthT, uint32_t> or is_same_v<LengthT, uint64_t>,
+                    "EncodeStringUTF8 only accepts 8/16/32/64-bit unsigned integer types"
+                    );
 
             ////////////////////////////////////////////// Create Temporary Buffer //////////////////////////////////////////////
 
@@ -494,17 +570,17 @@ namespace BongoJam {
         [[nodiscard]] inline T
             DecodeInt
             (
-                const vector<uint8_t>& fp_Bytecode, 
+                const vector<uint8_t>& fp_Bytecode,
                 size_t& fp_Offset
             )
         {
             static_assert
-            (
-                is_same_v<T, uint8_t> or is_same_v<T, uint16_t> or is_same_v<T, uint32_t> or is_same_v<T, uint64_t>
-                or is_same_v<T, int8_t> or is_same_v<T, int16_t> or is_same_v<T, int32_t> or is_same_v<T, int64_t>,
-                "DecodeInt only accepts integer types, you tried to pass a non integer type"
-            );
-            
+                (
+                    is_same_v<T, uint8_t> or is_same_v<T, uint16_t> or is_same_v<T, uint32_t> or is_same_v<T, uint64_t>
+                    or is_same_v<T, int8_t> or is_same_v<T, int16_t> or is_same_v<T, int32_t> or is_same_v<T, int64_t>,
+                    "DecodeInt only accepts integer types, you tried to pass a non integer type"
+                    );
+
             if constexpr (sizeof(T) == 1)
             {
                 return static_cast<T>(DecodeUint8(fp_Bytecode, fp_Offset));
@@ -550,17 +626,17 @@ namespace BongoJam {
         [[nodiscard]] inline string
             DecodeStringWithoutEscapeCharacters
             (
-                const vector<uint8_t>& fp_Bytecode, 
+                const vector<uint8_t>& fp_Bytecode,
                 size_t& fp_Offset
             )
         {
             ////////////////////////////////////////////// Validate Length Type //////////////////////////////////////////////
 
             static_assert
-            (
-                is_same_v<LengthT, uint8_t> or is_same_v<LengthT, uint16_t> or is_same_v<LengthT, uint32_t> or is_same_v<LengthT, uint64_t>,
-                "DecodeStringWithoutEscapeCharacters only accepts 8/16/32/64-bit unsigned integer types"
-            );
+                (
+                    is_same_v<LengthT, uint8_t> or is_same_v<LengthT, uint16_t> or is_same_v<LengthT, uint32_t> or is_same_v<LengthT, uint64_t>,
+                    "DecodeStringWithoutEscapeCharacters only accepts 8/16/32/64-bit unsigned integer types"
+                    );
 
             ////////////////////////////////////////////// Get String Length //////////////////////////////////////////////
 
@@ -568,7 +644,7 @@ namespace BongoJam {
 
             ////////////////////////////////////////////// Safety Check Bounds //////////////////////////////////////////////
 
-            if(fp_Offset + f_StringLength > fp_Bytecode.size()) // not >= because lv_CurrentOffset -> f_StringLength - 1, so if fp_Offset + f_StringLength == size() it's fine
+            if (fp_Offset + f_StringLength > fp_Bytecode.size()) // not >= because lv_CurrentOffset -> f_StringLength - 1, so if fp_Offset + f_StringLength == size() it's fine
             {
                 throw runtime_error("DecodeStringWithoutEscapeCharacters: out of bounds");
             }
@@ -605,10 +681,10 @@ namespace BongoJam {
             ////////////////////////////////////////////// Validate Length Type //////////////////////////////////////////////
 
             static_assert
-            (
-                is_same_v<LengthT, uint8_t> or is_same_v<LengthT, uint16_t> or is_same_v<LengthT, uint32_t> or is_same_v<LengthT, uint64_t>,
-                "DecodeStringUTF8 only accepts 8/16/32/64-bit unsigned integer types"
-            );
+                (
+                    is_same_v<LengthT, uint8_t> or is_same_v<LengthT, uint16_t> or is_same_v<LengthT, uint32_t> or is_same_v<LengthT, uint64_t>,
+                    "DecodeStringUTF8 only accepts 8/16/32/64-bit unsigned integer types"
+                    );
 
             ////////////////////////////////////////////// Get String Length //////////////////////////////////////////////
 
@@ -675,7 +751,7 @@ namespace BongoJam {
         [[nodiscard]] inline float
             DecodeFloat
             (
-                const vector<uint8_t>& fp_ByteCode, 
+                const vector<uint8_t>& fp_ByteCode,
                 size_t& fp_Offset
             )
         {
@@ -689,7 +765,7 @@ namespace BongoJam {
         [[nodiscard]] inline double
             DecodeDouble
             (
-                const vector<uint8_t>& fp_ByteCode, 
+                const vector<uint8_t>& fp_ByteCode,
                 size_t& fp_Offset
             )
         {
@@ -713,14 +789,14 @@ namespace BongoJam {
                 const string& fp_DesiredOutputDirectory,
                 const string& fp_DesiredName,
                 const vector<uint8_t>& fp_Binary,
-                Logger*const logger
+                Logger* const logger
             )
         {
             ////////////////////////////////////////////// Logger nullptr Safety Check //////////////////////////////////////////////
 
             if (not logger)
             {
-                PrintError("Serialization Error: Tried to pass nullptr reference to logger during WriteToBinary()");
+                PRINT_ERROR("Serialization Error: Tried to pass nullptr reference to logger during WriteToBinary()");
                 return false;
             }
 
@@ -728,7 +804,7 @@ namespace BongoJam {
 
             if (not filesystem::exists(fp_DesiredOutputDirectory))
             {
-                logger->Error(format("Serialization Error: Tried to pass invalid write directory: '{}' to WriteToBinary", fp_DesiredOutputDirectory), "Serializer");
+                logger->Error(fmt::format("Serialization Error: Tried to pass invalid write directory: '{}' to WriteToBinary", fp_DesiredOutputDirectory), "Serializer");
                 return false;
             }
 
@@ -736,7 +812,7 @@ namespace BongoJam {
 
             if (fp_Binary.empty()) //check if the byte vector is empty uwu
             {
-                logger->Error(format("Serialization Error: Tried passing empty byte vector for writing to file name: '{}', nothing was done.", fp_DesiredName), "Serializer");
+                logger->Error(fmt::format("Serialization Error: Tried passing empty byte vector for writing to file name: '{}', nothing was done.", fp_DesiredName), "Serializer");
                 return false;
             }
 
@@ -755,7 +831,7 @@ namespace BongoJam {
 
             if (not file)
             {
-                logger->Error(format("Serialization Error: Failed to open file: '{}' for writing.", f_FileName), "Serializer");
+                logger->Error(fmt::format("Serialization Error: Failed to open file: '{}' for writing.", f_FileName), "Serializer");
                 return false;
             }
 
@@ -773,14 +849,14 @@ namespace BongoJam {
                 const string& fp_ScriptFilePath,
                 const vector<string>& fp_Extensions,
                 vector<uint8_t>& fp_Binary,
-                Logger*const logger
+                Logger* const logger
             )
         {
             ////////////////////////////////////////////// Logger nullptr Safety Check //////////////////////////////////////////////
 
             if (not logger) //check for nullptr ref passed to ReadBinaryIntoVector
             {
-                PrintError("Serialization Error: Tried to pass nullptr reference to logger during ReadBinaryIntoVector()");
+                PRINT_ERROR("Serialization Error: Tried to pass nullptr reference to logger during ReadBinaryIntoVector()");
                 return false;
             }
 
@@ -793,11 +869,11 @@ namespace BongoJam {
 
             if (not fp_Binary.empty()) //check if the byte vector is empty before reading data into it OwO
             {
-                logger->Error(format("Serialization Error: Tried passing non-empty byte vector for reading to file name: '{}', nothing was done.", fp_ScriptFilePath), "Serializer");
+                logger->Error(fmt::format("Serialization Error: Tried passing non-empty byte vector for reading to file name: '{}', nothing was done.", fp_ScriptFilePath), "Serializer");
                 return false;
             }
 
-            // Extract file extension assuming format "filename.ext"
+            // Extract file extension assuming fmt::format "filename.ext"
             size_t f_LastDotIndex = fp_ScriptFilePath.rfind('.');
 
             if (f_LastDotIndex == string::npos)
@@ -821,7 +897,7 @@ namespace BongoJam {
 
             if (not f_IsValidExtension)
             {
-                logger->Error(format("Serialization Error: Attempted to read from an unknown binary extension: '{}'", f_FileExtension), "Serializer");
+                logger->Error(fmt::format("Serialization Error: Attempted to read from an unknown binary extension: '{}'", f_FileExtension), "Serializer");
                 return false;
             }
 
@@ -829,7 +905,7 @@ namespace BongoJam {
 
             if (not f_BinaryStream) //check if the file opened properly
             {
-                logger->Error(format("Serialization Error: Failed to open binary for reading: '{}'", fp_ScriptFilePath), "Serializer");
+                logger->Error(fmt::format("Serialization Error: Failed to open binary for reading: '{}'", fp_ScriptFilePath), "Serializer");
                 return false;
             }
 
@@ -859,12 +935,12 @@ namespace BongoJam {
                 const string& fp_DesiredOutputDirectory,
                 const string& fp_DesiredName,
                 const string& fp_FileString,
-                Logger*const logger
+                Logger* const logger
             )
         {
             if (not logger)
             {
-                PrintError("Serialization Error: Tried to pass nullptr reference to logger during WriteToJSON()");
+                PRINT_ERROR("Serialization Error: Tried to pass nullptr reference to logger during WriteToJSON()");
                 return false;
             }
 
@@ -890,7 +966,7 @@ namespace BongoJam {
 
             if (not f_OpenedFile)
             {
-                logger->Error(format("Serialization Error: Failed to open file: '{}' for writing.", f_FileName), "Serializer");
+                logger->Error(fmt::format("Serialization Error: Failed to open file: '{}' for writing.", f_FileName), "Serializer");
                 return false;
             }
 
@@ -908,14 +984,14 @@ namespace BongoJam {
                 const string& fp_ScriptFilePath,
                 const vector<string>& fp_Extensions,
                 vector<char>& fp_CharBuffer,
-                Logger*const logger
+                Logger* const logger
             )
         {
             ////////////////////////////////////////////// Logger nullptr Safety Check //////////////////////////////////////////////
 
             if (not logger)
             {
-                PrintError("Serialization Error: Tried to pass nullptr reference to logger during ReadFileIntoCharBuffer()");
+                PRINT_ERROR("Serialization Error: Tried to pass nullptr reference to logger during ReadFileIntoCharBuffer()");
                 return false;
             }
 
@@ -927,7 +1003,7 @@ namespace BongoJam {
                 return false;
             }
 
-            ////////////////////////////////////////////// Extract file extension assuming format "filename.ext" //////////////////////////////////////////////
+            ////////////////////////////////////////////// Extract file extension assuming fmt::format "filename.ext" //////////////////////////////////////////////
 
             size_t lastDotIndex = fp_ScriptFilePath.rfind('.');
 
@@ -952,7 +1028,7 @@ namespace BongoJam {
 
             if (not f_IsValidExtension)
             {
-                logger->Error(format("Serialization Error: Attempted to read from an unknown text file extension: '{}'", f_FileExtension), "Serializer");
+                logger->Error(fmt::format("Serialization Error: Attempted to read from an unknown text file extension: '{}'", f_FileExtension), "Serializer");
                 return false;
             }
 
@@ -960,7 +1036,7 @@ namespace BongoJam {
 
             if (not f_FileStream)
             {
-                logger->Error(format("Serialization Error: Failed to open '{}' for reading.", fp_ScriptFilePath), "Serializer");
+                logger->Error(fmt::format("Serialization Error: Failed to open '{}' for reading.", fp_ScriptFilePath), "Serializer");
                 return false;
             }
 
@@ -995,12 +1071,19 @@ namespace BongoJam {
     struct Serializer
     {
     public:
-        Serializer() = default;
+        Serializer() = delete;
         ~Serializer() = default;
 
     public:
+
+        template<typename T, typename = void>
+        struct is_serializable_struct : false_type {};
+
         template<typename T>
-        [[nodiscard]] bool
+        struct is_serializable_struct<T, void_t<typename T::peach_serializable_tag>> : std::bool_constant<std::is_default_constructible_v<T>> {};
+
+        template<typename T>
+        [[nodiscard]] static bool
             FromJSON
             (
                 T& fp_DesiredObject,
@@ -1021,7 +1104,7 @@ namespace BongoJam {
 
             f_TokenizedJson.reserve(static_cast<size_t>(f_CharBuffer.size() / 4)); //heurisitic to avoid dynamic resizing overhead
 
-            if (not Tokenize(VectorStream<char>(std::move(f_CharBuffer)), f_TokenizedJson,  logger)) //convert JSON string into a vector of tokens
+            if (not Tokenize(VectorStream<char>(std::move(f_CharBuffer)), f_TokenizedJson, logger)) //convert JSON string into a vector of tokens
             {
                 logger->Error("Failed to Lex JSON", "FromJSON");
                 return false;
@@ -1033,7 +1116,7 @@ namespace BongoJam {
             }
             if (not FromJSON(f_TempJSON, fp_DesiredObject, logger)) //retrieve values and insert into fp_DesiredObject
             {
-                logger->Error(format("Failed to retrieve data values from desired JSON file: {}", fp_FilePath), "FromJSON");
+                logger->Error(fmt::format("Failed to retrieve data values from desired JSON file: {}", fp_FilePath), "FromJSON");
                 return false;
             }
 
@@ -1041,7 +1124,7 @@ namespace BongoJam {
         }
 
         template<typename T>
-        [[nodiscard]] bool
+        [[nodiscard]] static bool
             ToJSON
             (
                 const T& fp_DesiredObject,
@@ -1053,12 +1136,12 @@ namespace BongoJam {
             JSONValue f_TempJSON = ToJSON(fp_DesiredObject);
 
             string f_JsonString;
-                
+
             ToString(&f_JsonString, f_TempJSON);
 
             if (not FileIO::WriteStringToFile(fp_DesiredOutputDirectory, fp_DesiredFileName + ".json", f_JsonString, logger))
             {
-                logger->Error(format("Failed writing to JSON file: {}, nothing was done", fp_DesiredFileName), "ToJSON");
+                logger->Error(fmt::format("Failed writing to JSON file: {}, nothing was done", fp_DesiredFileName), "ToJSON");
                 return false;
             }
 
@@ -1066,7 +1149,7 @@ namespace BongoJam {
         }
 
         template<typename T>
-        bool
+        static bool
             PackIntoBinaryVector
             (
                 const T& fp_DesiredObject,
@@ -1077,7 +1160,7 @@ namespace BongoJam {
         }
 
         template<typename T>
-        bool
+        static bool
             UnpackFromBinaryVector
             (
                 T& fp_EmptyObject,
@@ -1090,7 +1173,7 @@ namespace BongoJam {
         }
 
         template<typename T>
-        bool
+        static bool
             UnpackFromBinaryVector
             (
                 T& fp_EmptyObject,
@@ -1110,13 +1193,13 @@ namespace BongoJam {
         template<typename T>
         struct VectorStream
         {
-            explicit 
+            explicit
                 VectorStream(vector<T>&& fp_Vector) : pm_Vector(move(fp_Vector)) {}
 
-            [[nodiscard]] bool 
-                IsEmpty() 
+            [[nodiscard]] bool
+                IsEmpty()
                 const noexcept
-            { 
+            {
                 return pm_Position >= pm_Vector.size();
             }
 
@@ -1128,7 +1211,7 @@ namespace BongoJam {
                     return false;
                 }
 
-                fp_Out =  pm_Vector[pm_Position++];
+                fp_Out = pm_Vector[pm_Position++];
 
                 return true;
             }
@@ -1219,23 +1302,23 @@ namespace BongoJam {
         {
             string m_Value;
             TokenType m_Type;
-            int m_SourceCodeLineNumber;
+            size_t m_SourceCodeLineNumber;
 
-            explicit 
+            explicit
                 Token(const string& fp_Value, const TokenType fp_Type, const int fp_SourceCodeLineNumber) : m_Value(fp_Value), m_Type(fp_Type), m_SourceCodeLineNumber(fp_SourceCodeLineNumber) {}
 
-            explicit 
+            explicit
                 Token(const char fp_Value, const TokenType fp_Type, const int fp_SourceCodeLineNumber) : m_Value(1, fp_Value), m_Type(fp_Type), m_SourceCodeLineNumber(fp_SourceCodeLineNumber) {}
 
-            explicit 
-                Token() : m_Value(""), m_Type(TokenType::NO_TOKEN_VALUE), m_SourceCodeLineNumber(-1) {}
+            explicit
+                Token() : m_Value(""), m_Type(TokenType::NO_TOKEN_VALUE), m_SourceCodeLineNumber(0) {}
         };
 
         //////////////////////////////////////////////
         // Tokenize Function
         //////////////////////////////////////////////
 
-        bool
+        static bool
             Tokenize
             (
                 VectorStream<char>&& fp_SourceCode,
@@ -1254,7 +1337,7 @@ namespace BongoJam {
                 {
                     break;
                 }
-                
+
                 //////////////////// Handle Spaces, New-Lines, and Comments ////////////////////
 
                 if (f_CurrentChar == '\n') //used to keep track of what line number we're at in the source code, we only have single line comments, so this is sufficient
@@ -1275,7 +1358,7 @@ namespace BongoJam {
 
                     if (not fp_SourceCode.Peek(f_CurrentChar)) //Peek to see if a number is after, if so, shiftforward will just give the same number
                     {
-                        logger->Error(format("Found END__OF__FILE after a random '-' brother! Did you forget to finish your number? Error occured at line number: {}", f_CurrentLineNumber), "Lexer");
+                        logger->Error(fmt::format("Found END__OF__FILE after a random '-' brother! Did you forget to finish your number? Error occured at line number: {}", f_CurrentLineNumber), "Lexer");
                         return false;
                     }
 
@@ -1287,7 +1370,7 @@ namespace BongoJam {
 
                         if (not fp_SourceCode.Peek(f_CurrentChar))
                         {
-                            logger->Error(format("Expected a number but found END__OF__FILE! Did you forget to finish your number? Error occured at line number: {}", f_CurrentLineNumber), "Lexer");
+                            logger->Error(fmt::format("Expected a number but found END__OF__FILE! Did you forget to finish your number? Error occured at line number: {}", f_CurrentLineNumber), "Lexer");
                             return false;
                         }
                     }
@@ -1305,13 +1388,13 @@ namespace BongoJam {
 
                         if (not fp_SourceCode.Peek(f_CurrentChar)) //object wasn't properly closed, unterminated UwU!
                         {
-                            logger->Error(format("Expected a number but found END__OF__FILE! Did you forget to finish your number? Error occured at line number: {}", f_CurrentLineNumber), "Lexer");
+                            logger->Error(fmt::format("Expected a number but found END__OF__FILE! Did you forget to finish your number? Error occured at line number: {}", f_CurrentLineNumber), "Lexer");
                             return false;
                         }
 
                         if (not isdigit(f_CurrentChar))
                         {
-                            logger->Error(format("Unexpected symbol following a '.' brother!, looks like you've input a non-numeric symbol: '{}' while defining a decimal number at line number: {}", f_CurrentChar, f_CurrentLineNumber), "Lexer");
+                            logger->Error(fmt::format("Unexpected symbol following a '.' brother!, looks like you've input a non-numeric symbol: '{}' while defining a decimal number at line number: {}", f_CurrentChar, f_CurrentLineNumber), "Lexer");
                             return false;
                         }
 
@@ -1323,7 +1406,7 @@ namespace BongoJam {
 
                             if (not fp_SourceCode.Peek(f_CurrentChar))
                             {
-                                logger->Error(format("Expected a number but found END__OF__FILE! Did you forget to finish your number? Error occured at line number: {}", f_CurrentLineNumber), "Lexer");
+                                logger->Error(fmt::format("Expected a number but found END__OF__FILE! Did you forget to finish your number? Error occured at line number: {}", f_CurrentLineNumber), "Lexer");
                                 return false;
                             }
                         }
@@ -1339,13 +1422,13 @@ namespace BongoJam {
 
                         if (not fp_SourceCode.Peek(f_CurrentChar))
                         {
-                            logger->Error(format("Expected a number but found END__OF__FILE! Did you forget to finish your scientific notation number? Error occured at line number: {}", f_CurrentLineNumber), "Lexer");
+                            logger->Error(fmt::format("Expected a number but found END__OF__FILE! Did you forget to finish your scientific notation number? Error occured at line number: {}", f_CurrentLineNumber), "Lexer");
                             return false;
                         }
 
                         if (f_CurrentChar != '+' and f_CurrentChar != '-')
                         {
-                            logger->Error(format("Expected '+' or '-' following scientific-notation but found: '{}' instead! Did you forget to finish your number? Error occured at line number: {}", f_CurrentChar, f_CurrentLineNumber), "Lexer");
+                            logger->Error(fmt::format("Expected '+' or '-' following scientific-notation but found: '{}' instead! Did you forget to finish your number? Error occured at line number: {}", f_CurrentChar, f_CurrentLineNumber), "Lexer");
                             return false;
                         }
 
@@ -1354,13 +1437,13 @@ namespace BongoJam {
 
                         if (not fp_SourceCode.Peek(f_CurrentChar))
                         {
-                            logger->Error(format("Expected a number but found END__OF__FILE! Did you forget to finish your scientific notation number? Error occured at line number: {}", f_CurrentLineNumber), "Lexer");
+                            logger->Error(fmt::format("Expected a number but found END__OF__FILE! Did you forget to finish your scientific notation number? Error occured at line number: {}", f_CurrentLineNumber), "Lexer");
                             return false;
                         }
 
                         if (not isdigit(f_CurrentChar))
                         {
-                            logger->Error(format("Unexpected symbol following a 'e' brother!, looks like you've input a non-numeric symbol: '{}' while defining a scientific notation number at line number: {}", f_CurrentChar, f_CurrentLineNumber), "Lexer");
+                            logger->Error(fmt::format("Unexpected symbol following a 'e' brother!, looks like you've input a non-numeric symbol: '{}' while defining a scientific notation number at line number: {}", f_CurrentChar, f_CurrentLineNumber), "Lexer");
                             return false;
                         }
 
@@ -1372,7 +1455,7 @@ namespace BongoJam {
 
                             if (not fp_SourceCode.Peek(f_CurrentChar))
                             {
-                                logger->Error(format("Expected a number but found END__OF__FILE! Did you forget to finish your number? Error occured at line number: {}", f_CurrentLineNumber), "Lexer");
+                                logger->Error(fmt::format("Expected a number but found END__OF__FILE! Did you forget to finish your number? Error occured at line number: {}", f_CurrentLineNumber), "Lexer");
                                 return false;
                             }
                         }
@@ -1383,7 +1466,7 @@ namespace BongoJam {
                         fp_Tokens.emplace_back(f_Number, TokenType::FloatLiteral, f_CurrentLineNumber); //No need for a continue here since the current character isnt a digit
                     }
                     else //push an int
-                    {	
+                    {
                         fp_Tokens.emplace_back(f_Number, TokenType::IntLiteral, f_CurrentLineNumber); //No need for a continue here since the current character isnt a digit
                     }
 
@@ -1395,7 +1478,7 @@ namespace BongoJam {
 
                     if (not fp_SourceCode.Peek(f_CurrentChar))
                     {
-                        logger->Error(format("Expected a alphabetic character but found END__OF__FILE! Did you misspell false, true or null? Error occured at line number: {}", f_CurrentLineNumber), "Lexer");
+                        logger->Error(fmt::format("Expected a alphabetic character but found END__OF__FILE! Did you misspell false, true or null? Error occured at line number: {}", f_CurrentLineNumber), "Lexer");
                         return false;
                     }
 
@@ -1407,7 +1490,7 @@ namespace BongoJam {
 
                         if (not fp_SourceCode.Peek(f_CurrentChar))
                         {
-                            logger->Error(format("Expected a alphabetic character but found END__OF__FILE! Did you misspell false, true or null? Error occured at line number: {}", f_CurrentLineNumber), "Lexer");
+                            logger->Error(fmt::format("Expected a alphabetic character but found END__OF__FILE! Did you misspell false, true or null? Error occured at line number: {}", f_CurrentLineNumber), "Lexer");
                             return false;
                         }
                     }
@@ -1422,7 +1505,7 @@ namespace BongoJam {
                     }
                     else
                     {
-                        logger->Error(format("Lexing Error: Invalid JSON identifier: '{}', found at line number: {}", f_Identifier, f_CurrentLineNumber), "Lexer");
+                        logger->Error(fmt::format("Lexing Error: Invalid JSON identifier: '{}', found at line number: {}", f_Identifier, f_CurrentLineNumber), "Lexer");
                         return false;
                     }
 
@@ -1469,23 +1552,23 @@ namespace BongoJam {
                         {
                             switch (f_CurrentChar)
                             {
-                                case 'n':
-                                    f_CurrentStringLiteral += '\n'; // Add a newline character
-                                    break;
-                                case 't':
-                                    f_CurrentStringLiteral += '\t'; // Add a tab character
-                                    break;
-                                case '\\':
-                                    f_CurrentStringLiteral += '\\'; // Add a literal backslash
-                                    break;
-                                case '"':
-                                    f_CurrentStringLiteral += '"'; // Add a literal double quote
-                                    break;
-                                default:
-                                    // Handle unknown escape sequences or add a fallback behavior
-                                    f_CurrentStringLiteral += '\\'; // Re-add the backslash as it was part of the input
-                                    f_CurrentStringLiteral += f_CurrentChar; // Add the unknown character as is
-                                    break;
+                            case 'n':
+                                f_CurrentStringLiteral += '\n'; // Add a newline character
+                                break;
+                            case 't':
+                                f_CurrentStringLiteral += '\t'; // Add a tab character
+                                break;
+                            case '\\':
+                                f_CurrentStringLiteral += '\\'; // Add a literal backslash
+                                break;
+                            case '"':
+                                f_CurrentStringLiteral += '"'; // Add a literal double quote
+                                break;
+                            default:
+                                // Handle unknown escape sequences or add a fallback behavior
+                                f_CurrentStringLiteral += '\\'; // Re-add the backslash as it was part of the input
+                                f_CurrentStringLiteral += f_CurrentChar; // Add the unknown character as is
+                                break;
                             }
                         }
                         else
@@ -1495,7 +1578,7 @@ namespace BongoJam {
 
                         if (not fp_SourceCode.ShiftForward(f_CurrentChar)) //invalid string, unterminated UwU!
                         {
-                            logger->Error(format("Unterminated string literal, brother! Error occured at line number: {}", f_CurrentLineNumber), "Lexer");
+                            logger->Error(fmt::format("Unterminated string literal, brother! Error occured at line number: {}", f_CurrentLineNumber), "Lexer");
                             return false;
                         }
                     }
@@ -1503,7 +1586,7 @@ namespace BongoJam {
                     // Check if we've ended on the closing quotation mark
                     if (f_CurrentChar != '"')
                     {
-                        logger->Error(format("Unterminated string literal, brother! Error occured at line number: {}", f_CurrentLineNumber), "Lexer"); // Handle error: Unterminated string literal, and exit program execution
+                        logger->Error(fmt::format("Unterminated string literal, brother! Error occured at line number: {}", f_CurrentLineNumber), "Lexer"); // Handle error: Unterminated string literal, and exit program execution
                         return false;
                     }
 
@@ -1512,7 +1595,7 @@ namespace BongoJam {
                 }
                 break;
                 default:
-                    logger->Error(format("Lexing Error: Unrecognized character found: [{}], found at line number: {}", f_CurrentChar, f_CurrentLineNumber), "Lexer");
+                    logger->Error(fmt::format("Lexing Error: Unrecognized character found: [{}], found at line number: {}", f_CurrentChar, f_CurrentLineNumber), "Lexer");
                     return false;
                 }
             }
@@ -1545,16 +1628,16 @@ namespace BongoJam {
             } JSONType;
 
             variant //idk im lazy and sick of using templates
-            <
-                JSONObject, 
-                JSONArray, 
-                string, 
+                <
+                JSONObject,
+                JSONArray,
+                string,
                 bool,
 
-                int64_t, 
+                int64_t,
                 uint64_t,
-                double 
-            > m_Value;
+                double
+                > m_Value;
 
             JSONValue() : JSONType(Type::Null), m_Value(false) {}
 
@@ -1577,17 +1660,16 @@ namespace BongoJam {
         // JSON Utility Functions
         //////////////////////////////////////////////
 
-        bool
+        static bool
             ToString
             (
-                string* fp_JSONString, 
+                string* fp_JSONString,
                 const JSONValue& fp_JSON
             ) //kicks off recursive creation of JSON string
-            const
         {
             if (not fp_JSONString)
             {
-                PrintError("Passed nullptr reference to string, ToString() is not possible exiting function call immediately");
+                PRINT_ERROR("Passed nullptr reference to string, ToString() is not possible exiting function call immediately");
                 return false;
             }
 
@@ -1595,7 +1677,7 @@ namespace BongoJam {
 
             if (not ToStringStream(fp_JSON, f_TempString))
             {
-                PrintError("Unable to stringify JSON");
+                PRINT_ERROR("Unable to stringify JSON");
                 return false;
             }
 
@@ -1603,13 +1685,12 @@ namespace BongoJam {
             return true;
         }
 
-        void
+        static void
             EscapeJSONString
             (
-                const string& fp_In, 
+                const string& fp_In,
                 stringstream& fp_Out
             )
-            const
         {
             fp_Out << '"';
 
@@ -1659,111 +1740,109 @@ namespace BongoJam {
             fp_Out << '"';
         }
 
-        bool
+        static bool
             ToStringStream
             (
                 const JSONValue& fp_JSONValue,
                 stringstream& fp_JSONString,
                 const uint32_t fp_Spacing = 0
             )
-            const
         {
             string f_IndentLevel(fp_Spacing, ' ');
 
             switch (fp_JSONValue.JSONType)
             {
-                case JSONValue::Type::String:
-                {
-                    const string& sv_String = get<string>(fp_JSONValue.m_Value);
-                    EscapeJSONString(sv_String, fp_JSONString);
-                }
+            case JSONValue::Type::String:
+            {
+                const string& sv_String = get<string>(fp_JSONValue.m_Value);
+                EscapeJSONString(sv_String, fp_JSONString);
+            }
+            break;
+            case JSONValue::Type::Null:
+                fp_JSONString << "null";
                 break;
-                case JSONValue::Type::Null:
-                    fp_JSONString << "null";
-                    break;
-                case JSONValue::Type::Boolean:
-                    fp_JSONString << (get<bool>(fp_JSONValue.m_Value) ? "true" : "false");
-                    break;
-                case JSONValue::Type::Integer:
-                    fp_JSONString << get<int64_t>(fp_JSONValue.m_Value);
-                    break;
-                case JSONValue::Type::Float:
-                    fp_JSONString << setprecision(numeric_limits<double>::max_digits10) << defaultfloat << get<double>(fp_JSONValue.m_Value); //have to do this to preserve precision using iostreams 
-                    break;
-                case JSONValue::Type::UnsignedInteger:
-                    fp_JSONString << get<uint64_t>(fp_JSONValue.m_Value);
-                    break;
-                case JSONValue::Type::Array:
+            case JSONValue::Type::Boolean:
+                fp_JSONString << (get<bool>(fp_JSONValue.m_Value) ? "true" : "false");
+                break;
+            case JSONValue::Type::Integer:
+                fp_JSONString << get<int64_t>(fp_JSONValue.m_Value);
+                break;
+            case JSONValue::Type::Float:
+                fp_JSONString << setprecision(numeric_limits<double>::max_digits10) << defaultfloat << get<double>(fp_JSONValue.m_Value); //have to do this to preserve precision using iostreams 
+                break;
+            case JSONValue::Type::UnsignedInteger:
+                fp_JSONString << get<uint64_t>(fp_JSONValue.m_Value);
+                break;
+            case JSONValue::Type::Array:
+            {
+                const auto& arr = get<JSONArray>(fp_JSONValue.m_Value);
+                string f_ScopeIndent = f_IndentLevel + string(4, ' '); //add a 4 space indent for the scope
+
+                fp_JSONString << "[" << "\n" << f_ScopeIndent; //start array, advance to next line, and indent for scope
+
+                size_t f_Indexer = 0; //used for tracking if the col width is rlly long because i want pretty jsons uwu
+
+                for (auto _it = arr.begin(); _it != arr.end(); ++_it)
                 {
-                    const auto& arr = get<JSONArray>(fp_JSONValue.m_Value);
-                    string f_ScopeIndent = f_IndentLevel + string(4, ' '); //add a 4 space indent for the scope
+                    ToStringStream(*_it, fp_JSONString, fp_Spacing + 4); //4 spaces for indent level
 
-                    fp_JSONString << "[" << "\n" << f_ScopeIndent; //start array, advance to next line, and indent for scope
-
-                    size_t f_Indexer = 0; //used for tracking if the col width is rlly long because i want pretty jsons uwu
-
-                    for (auto _it = arr.begin(); _it != arr.end(); ++_it)
+                    if (next(_it) == arr.end()) //do this before adding any new lines to avoid double new lines for prettyness >w<
                     {
-                        ToStringStream(*_it, fp_JSONString, fp_Spacing + 4); //4 spaces for indent level
-
-                        if (next(_it) == arr.end()) //do this before adding any new lines to avoid double new lines for prettyness >w<
-                        {
-                            break; //break so we dont add an extra comma after the end has been reached
-                        }
-
-                        fp_JSONString << ", "; //add comma until we hit the last element
-
-                        if (_it->JSONType == JSONValue::Type::Object or _it->JSONType == JSONValue::Type::Array) //XXX: we're assuming mono typed arrays so no mixing of objects/arrays and primitive types
-                        {
-                            fp_JSONString << "\n" << f_ScopeIndent; //new line for each JSONObject inside the array
-                        }
-                        else if (f_Indexer % MAX_ARRAY_LINE_WIDTH == MAX_ARRAY_LINE_WIDTH - 1) //this is an else if so that objects/arrays won't double line
-                        {
-                            fp_JSONString << "\n" << f_ScopeIndent; //newline every 20 elements for non objects
-                        }
-
-                        f_Indexer++;
+                        break; //break so we dont add an extra comma after the end has been reached
                     }
 
-                    fp_JSONString << "\n" << f_IndentLevel << "]";
-                }
-                break;
-                case JSONValue::Type::Object:
-                {
-                    fp_JSONString << "{" << "\n";
-                    const auto& obj = get<JSONObject>(fp_JSONValue.m_Value);
+                    fp_JSONString << ", "; //add comma until we hit the last element
 
-                    string f_ScopeIndent = f_IndentLevel + string(4, ' '); //add a 4 space indent for the scope
-
-                    for (auto it = obj.begin(); it != obj.end(); ++it)
+                    if (_it->JSONType == JSONValue::Type::Object or _it->JSONType == JSONValue::Type::Array) //XXX: we're assuming mono typed arrays so no mixing of objects/arrays and primitive types
                     {
-                        fp_JSONString << f_ScopeIndent << '"' << it->first << '"' << ": ";
-
-                        ToStringStream(it->second, fp_JSONString, fp_Spacing + 4); //add 4 for indent level
-
-                        if (next(it) != obj.end()) //check for the end of the container
-                        {
-                            fp_JSONString << ", "; // comma after each element except the last
-                        }
-
-                        fp_JSONString << "\n";
+                        fp_JSONString << "\n" << f_ScopeIndent; //new line for each JSONObject inside the array
+                    }
+                    else if (f_Indexer % MAX_ARRAY_LINE_WIDTH == MAX_ARRAY_LINE_WIDTH - 1) //this is an else if so that objects/arrays won't double line
+                    {
+                        fp_JSONString << "\n" << f_ScopeIndent; //newline every 20 elements for non objects
                     }
 
-                    fp_JSONString << f_IndentLevel << "}";
+                    f_Indexer++;
                 }
-                break;
+
+                fp_JSONString << "\n" << f_IndentLevel << "]";
+            }
+            break;
+            case JSONValue::Type::Object:
+            {
+                fp_JSONString << "{" << "\n";
+                const auto& obj = get<JSONObject>(fp_JSONValue.m_Value);
+
+                string f_ScopeIndent = f_IndentLevel + string(4, ' '); //add a 4 space indent for the scope
+
+                for (auto it = obj.begin(); it != obj.end(); ++it)
+                {
+                    fp_JSONString << f_ScopeIndent << '"' << it->first << '"' << ": ";
+
+                    ToStringStream(it->second, fp_JSONString, fp_Spacing + 4); //add 4 for indent level
+
+                    if (next(it) != obj.end()) //check for the end of the container
+                    {
+                        fp_JSONString << ", "; // comma after each element except the last
+                    }
+
+                    fp_JSONString << "\n";
+                }
+
+                fp_JSONString << f_IndentLevel << "}";
+            }
+            break;
             }
 
             return true;
         }
 
-        void
+        static void
             PrintToConsole(JSONValue& fp_JSON)
-            const
         {
             string f_StringJSON;
             ToString(&f_StringJSON, fp_JSON);
-            Print(f_StringJSON);
+            PRINT(f_StringJSON, BrightWhite);
         }
 
         //////////////////////////////////////////////
@@ -1778,7 +1857,7 @@ namespace BongoJam {
         */
 
         template<typename T, typename = void>
-        struct has_reserve : false_type{};
+        struct has_reserve : false_type {};
 
         template<typename T>
         struct has_reserve <T, void_t<decltype(declval<T&>().reserve(declval<typename T::size_type()>))>> : true_type {};
@@ -1790,12 +1869,13 @@ namespace BongoJam {
         struct is_queue : false_type {};
 
         template<typename T>
-        struct is_queue<T, 
+        struct is_queue<T,
             void_t<
-                typename T::value_type,
-                decltype(declval<T>().pop())
+            typename T::value_type,
+            decltype(declval<T>().pop())
             >
-        > : true_type {};
+        > : true_type {
+        };
 
         template<typename T, typename = void>
         struct is_map : false_type {};
@@ -1823,12 +1903,6 @@ namespace BongoJam {
             decltype(declval<T>().begin()),
             decltype(declval<T>().end())
             >> : bool_constant<not is_basic_string<T>::value> {};
-
-        template<typename T, typename = void>
-        struct is_serializable_struct : false_type {};
-
-        template<typename T>
-        struct is_serializable_struct<T, void_t<typename T::peach_serializable_tag>> : std::bool_constant<std::is_default_constructible_v<T>> {};
 
         template <class T>
         struct is_unique_ptr : std::false_type {}; //stds here make it easier to read uwu!
@@ -1864,68 +1938,68 @@ namespace BongoJam {
         */
 
         //==================================================================================================================================================================//
-        
+
         //////////////////////////////////////////////
         // JSON Serialization
         //////////////////////////////////////////////
 
         template<typename T>
-        enable_if_t<is_serializable_struct<T>::value, JSONValue>
+        static JSONValue
             ToJSON(const T& fp_ObjectToSerialize) //IT WORKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKSSS IM SO TIRED >w< ;w; i sleep like a champion tn
         {
             JSONObject f_Object; // ✅ this is what i was missin UwU
 
-            auto f_Visitor = [this, &f_Object](const char* fp_Name, auto&& fp_Value)
-            {
-                using FieldType = decay_t<decltype(fp_Value)>; //makes things look prettier
-
-                if constexpr (is_arithmetic_v<FieldType> or is_basic_string<FieldType>::value)
+            auto f_Visitor = [&f_Object](const char* fp_Name, auto&& fp_Value)
                 {
-                    //JSONValue constructor call will auto assign appropriate type since we utilize explicit constructors
-                    f_Object.emplace(fp_Name, fp_Value);
-                }
-                else if constexpr (is_serializable_struct<FieldType>::value)
-                {
-                    f_Object.emplace(fp_Name, ToJSON(fp_Value));
-                }
-                else if constexpr (is_map<FieldType>::value)
-                {
-                    JSONObject f_MapObj;
+                    using FieldType = decay_t<decltype(fp_Value)>; //makes things look prettier
 
-                    using MapValType = typename FieldType::mapped_type;
-
-                    for (const auto& [lv_MapKey, lv_MapVal] : fp_Value)
+                    if constexpr (is_arithmetic_v<FieldType> or is_basic_string<FieldType>::value)
                     {
-                        if constexpr (is_serializable_struct<MapValType>::value)
-                        {
-                            f_MapObj.emplace(lv_MapKey, ToJSON(lv_MapVal));
-                        }
-                        //XXX: this is used for vector keys
-                        else if constexpr (is_vector<MapValType>::value) //is constexpr here kosher idk, future me: yeah it is
-                        {
-                            JSONArray f_TempArray;
-                            ToJSONArray(f_TempArray, lv_MapVal);
-                            f_MapObj.emplace(lv_MapKey, f_TempArray);
-                        }
-                        else
-                        {
-                            f_MapObj.emplace(lv_MapKey, lv_MapVal);
-                        }
+                        //JSONValue constructor call will auto assign appropriate type since we utilize explicit constructors
+                        f_Object.emplace(fp_Name, fp_Value);
                     }
+                    else if constexpr (is_serializable_struct<FieldType>::value)
+                    {
+                        f_Object.emplace(fp_Name, Serializer::ToJSON(fp_Value));
+                    }
+                    else if constexpr (is_map<FieldType>::value)
+                    {
+                        JSONObject f_MapObj;
 
-                    f_Object.emplace(fp_Name, f_MapObj);
-                }
-                else if constexpr (is_vector<FieldType>::value)
-                {
-                    JSONArray arr;
-                    ToJSONArray(arr, fp_Value);
-                    f_Object.emplace(fp_Name, arr);
-                }
-                else
-                {
-                    static_assert(always_false_v<decltype(fp_Value)>, "Unsupported field type in ToJSON");
-                }
-            };
+                        using MapValType = typename FieldType::mapped_type;
+
+                        for (const auto& [lv_MapKey, lv_MapVal] : fp_Value)
+                        {
+                            if constexpr (is_serializable_struct<MapValType>::value)
+                            {
+                                f_MapObj.emplace(lv_MapKey, Serializer::ToJSON(lv_MapVal));
+                            }
+                            //XXX: this is used for vector keys
+                            else if constexpr (is_vector<MapValType>::value) //is constexpr here kosher idk, future me: yeah it is
+                            {
+                                JSONArray f_TempArray;
+                                Serializer::ToJSONArray(f_TempArray, lv_MapVal);
+                                f_MapObj.emplace(lv_MapKey, f_TempArray);
+                            }
+                            else
+                            {
+                                f_MapObj.emplace(lv_MapKey, lv_MapVal);
+                            }
+                        }
+
+                        f_Object.emplace(fp_Name, f_MapObj);
+                    }
+                    else if constexpr (is_vector<FieldType>::value)
+                    {
+                        JSONArray arr;
+                        Serializer::ToJSONArray(arr, fp_Value);
+                        f_Object.emplace(fp_Name, arr);
+                    }
+                    else
+                    {
+                        static_assert(always_false_v<FieldType>, "Unsupported field type in ToJSON, did you forget a macro definition?");
+                    }
+                };
 
             fp_ObjectToSerialize.PEACH_VISIT(f_Visitor);
 
@@ -1936,12 +2010,12 @@ namespace BongoJam {
         used for parsing vectors -> JSONArrays and deals with nested vectors since ToJSON requires SERIALIZABLE_FIELDS structs by default
         */
         template<typename T_VectorObject>
-        void
+        static void
             ToJSONArray
             (
-                JSONArray& fp_ArrayObject, 
+                JSONArray& fp_ArrayObject,
                 const T_VectorObject& fp_SerializableObjectField
-            ) 
+            )
         {
             using VectorElem = typename decay_t<decltype(fp_SerializableObjectField)>::value_type;
 
@@ -1971,11 +2045,11 @@ namespace BongoJam {
         //==================================================================================================================================================================//
 
         template<typename T>
-        [[nodiscard]] enable_if_t<is_serializable_struct<T>::value, bool> //leverages SERIALIZE_FIELD function defs to assign values to a default constructed data struct
+        [[nodiscard]] static bool //leverages SERIALIZE_FIELD function defs to assign values to a default constructed data struct
             FromJSON
             (
-                const JSONValue& fp_JSON, 
-                T& fp_OutObject, 
+                const JSONValue& fp_JSON,
+                T& fp_OutObject,
                 Logger* logger
             )
         {
@@ -1988,98 +2062,98 @@ namespace BongoJam {
             const JSONObject& f_JSONObject = get<JSONObject>(fp_JSON.m_Value);
             bool f_IsSuccessful = true; //XXX: used to track state of lambda execution
 
-            auto f_Visitor = [this, &f_JSONObject, &f_IsSuccessful, logger](const char* fp_Name, auto& fp_Value)
-            {
-                if (not f_IsSuccessful) //immediately return since something failed along the way >///< >w<!
+            auto f_Visitor = [&f_JSONObject, &f_IsSuccessful, logger](const char* fp_Name, auto& fp_Value)
                 {
-                    return;
-                }
-
-                auto f_It = f_JSONObject.find(fp_Name);
-
-                if (f_It == f_JSONObject.end()) //SOMETHING BAD HAPPENED WTF, someone hand editied a json or i fucked the dog on this one
-                {
-                    logger->Error(format("Missing JSON field '{}', WHAT DID YOU DO, WHAT DID I DO WTF???", fp_Name), "FromJSON");
-                    f_IsSuccessful = false;
-                    return;
-                }
-
-                using FieldType = decay_t<decltype(fp_Value)>;
-
-                try
-                {
-                    const JSONValue& f_JsonValue = f_It->second;
-
-                    if constexpr (is_basic_string<FieldType>::value or is_arithmetic_v<FieldType>)
+                    if (not f_IsSuccessful) //immediately return since something failed along the way >///< >w<!
                     {
-                        fp_Value = Extract<FieldType>(f_JsonValue);
+                        return;
                     }
-                    else if constexpr (is_serializable_struct<FieldType>::value)
+
+                    auto f_It = f_JSONObject.find(fp_Name);
+
+                    if (f_It == f_JSONObject.end()) //SOMETHING BAD HAPPENED WTF, someone hand editied a json or i fucked the dog on this one
                     {
-                        if (not FromJSON(f_JsonValue, fp_Value, logger))
+                        logger->Error(fmt::format("Missing JSON field '{}', WHAT DID YOU DO, WHAT DID I DO WTF???", fp_Name), "FromJSON");
+                        f_IsSuccessful = false;
+                        return;
+                    }
+
+                    using FieldType = decay_t<decltype(fp_Value)>;
+
+                    try
+                    {
+                        const JSONValue& f_JsonValue = f_It->second;
+
+                        if constexpr (is_basic_string<FieldType>::value or is_arithmetic_v<FieldType>)
                         {
-                            logger->Error("failed to deserialize non primitive struct inside JSON Object", "FromJSON");
-                            f_IsSuccessful = false;
-                            return; //exit early UwU!
+                            fp_Value = Serializer::Extract<FieldType>(f_JsonValue);
                         }
-                    }
-                    else if constexpr (is_map<FieldType>::value)
-                    {
-                        const JSONObject& f_MapObject = get<JSONObject>(f_JsonValue.m_Value);
-                        fp_Value.clear(); //clear the map in case the user passes a map filled with values
-
-                        using ValType = typename FieldType::mapped_type; //can do this since FieldType is guaranteed a map uwu, holy shit nostradamus is AHHHHH record of ragnarock mang
-
-                        for (const auto& [lv_MapKey, lv_Val] : f_MapObject)
+                        else if constexpr (is_serializable_struct<FieldType>::value)
                         {
-                            ValType f_Item{};
-
-                            if constexpr (is_serializable_struct<ValType>::value)
+                            if (not Serializer::FromJSON(f_JsonValue, fp_Value, logger))
                             {
-                                if (not FromJSON(lv_Val, f_Item, logger))
+                                logger->Error("failed to deserialize non primitive struct inside JSON Object", "FromJSON");
+                                f_IsSuccessful = false;
+                                return; //exit early UwU!
+                            }
+                        }
+                        else if constexpr (is_map<FieldType>::value)
+                        {
+                            const JSONObject& f_MapObject = get<JSONObject>(f_JsonValue.m_Value);
+                            fp_Value.clear(); //clear the map in case the user passes a map filled with values
+
+                            using ValType = typename FieldType::mapped_type; //can do this since FieldType is guaranteed a map uwu, holy shit nostradamus is AHHHHH record of ragnarock mang
+
+                            for (const auto& [lv_MapKey, lv_Val] : f_MapObject)
+                            {
+                                ValType f_Item{};
+
+                                if constexpr (is_serializable_struct<ValType>::value)
                                 {
-                                    logger->Error("failed to deserialize non primitive struct inside JSON Object", "FromJSON");
-                                    f_IsSuccessful = false;
-                                    return; //exit early uwu
+                                    if (not Serializer::FromJSON(lv_Val, f_Item, logger))
+                                    {
+                                        logger->Error("failed to deserialize non primitive struct inside JSON Object", "FromJSON");
+                                        f_IsSuccessful = false;
+                                        return; //exit early uwu
+                                    }
                                 }
-                            }
-                            //XXX: this is used for nested vectors
-                            else if constexpr (is_vector<ValType>::value) //is constexpr here kosher idk, future me: yeah it is
-                            {
-                                const JSONArray& arr = get<JSONArray>(lv_Val.m_Value);
-
-                                if (not FromJSONArray(arr, f_Item, logger)) //OwO!
+                                //XXX: this is used for nested vectors
+                                else if constexpr (is_vector<ValType>::value) //is constexpr here kosher idk, future me: yeah it is
                                 {
-                                    f_IsSuccessful = false;
-                                    return;
+                                    const JSONArray& arr = get<JSONArray>(lv_Val.m_Value);
+
+                                    if (not Serializer::FromJSONArray(arr, f_Item, logger)) //OwO!
+                                    {
+                                        f_IsSuccessful = false;
+                                        return;
+                                    }
                                 }
-                            }
-                            else
-                            {
-                                f_Item = Extract<ValType>(lv_Val);
-                            }
+                                else
+                                {
+                                    f_Item = Serializer::Extract<ValType>(lv_Val);
+                                }
 
-                            fp_Value.emplace(lv_MapKey, move(f_Item));
+                                fp_Value.emplace(lv_MapKey, move(f_Item));
+                            }
                         }
-                    }
-                    else if constexpr (is_vector<FieldType>::value) //XXX: don't need to check for string types here since we already do so at the first branch
-                    {
-                        const JSONArray& arr = get<JSONArray>(f_JsonValue.m_Value);
-
-                        if (not FromJSONArray(arr, fp_Value, logger))
+                        else if constexpr (is_vector<FieldType>::value) //XXX: don't need to check for string types here since we already do so at the first branch
                         {
-                            logger->Error(format("Failed to deserialize vector for field '{}'", fp_Name), "FromJSON");
-                            f_IsSuccessful = false;
-                            return;
+                            const JSONArray& arr = get<JSONArray>(f_JsonValue.m_Value);
+
+                            if (not Serializer::FromJSONArray(arr, fp_Value, logger))
+                            {
+                                logger->Error(fmt::format("Failed to deserialize vector for field '{}'", fp_Name), "FromJSON");
+                                f_IsSuccessful = false;
+                                return;
+                            }
                         }
                     }
-                }
-                catch (const exception& fp_Exception)
-                {
-                    logger->Error(format("Deserialization failed for field '{}' (type: {}): {}", fp_Name, typeid(decltype(fp_Value)).name(), fp_Exception.what()), "FromJSON");
-                    f_IsSuccessful = false;
-                }
-            };
+                    catch (const exception& fp_Exception)
+                    {
+                        logger->Error(fmt::format("Deserialization failed for field '{}' (type: {}): {}", fp_Name, typeid(decltype(fp_Value)).name(), fp_Exception.what()), "FromJSON");
+                        f_IsSuccessful = false;
+                    }
+                };
 
             fp_OutObject.PEACH_VISIT(f_Visitor);
 
@@ -2087,12 +2161,12 @@ namespace BongoJam {
         }
 
         template<typename T>
-        T 
+        static T
             Extract(const JSONValue& fp_JSON) //we extract and recast anything like doubles and 64 bit ints -> whatever the user defined eg vector<int>
         {
             using FieldType = decay_t<T>;
 
-            if constexpr (is_basic_string<FieldType>::value) 
+            if constexpr (is_basic_string<FieldType>::value)
             {
                 return get<string>(fp_JSON.m_Value);
             }
@@ -2120,23 +2194,23 @@ namespace BongoJam {
                     throw runtime_error("Extract<T>: JSON type is not numeric but is aritmetic UwU!");
                 }
             }
-            else 
+            else
             {
                 // Static error w/ full type sig
-                #if defined(_MSC_VER)
-                    static_assert(always_false_v<T>, "Unsupported type in Extract. Check __FUNCSIG__ for details: " __FUNCSIG__);
-                #else
-                    static_assert(always_false_v<T>, "Unsupported type in Extract. Check __func__ for details: " +  __func__);
-                    //static_assert(always_false_v<T>, "Unsupported type in Extract. Check __PRETTY_FUNCTION__ for details: " __PRETTY_FUNCTION__);
-                #endif
+#if defined(_MSC_VER)
+                static_assert(always_false_v<T>, "Unsupported type in Extract. Check __FUNCSIG__ for details: " __FUNCSIG__);
+#else
+                static_assert(always_false_v<T>, "Unsupported type in Extract. Check __func__ for details: ");
+                //static_assert(always_false_v<T>, "Unsupported type in Extract. Check __PRETTY_FUNCTION__ for details: " __PRETTY_FUNCTION__);
+#endif
             }
         }
 
         template<typename T_VectorObject>
-        bool
+        static bool
             FromJSONArray
             (
-                const JSONArray& fp_ArrayObject, 
+                const JSONArray& fp_ArrayObject,
                 T_VectorObject& fp_SerializableObjectField,
                 Logger* logger
             )
@@ -2163,9 +2237,9 @@ namespace BongoJam {
                     {
                         const JSONArray& f_NestedArray = get<JSONArray>(lv_VectorVal.m_Value); //peel back vector one layer at a time
                         //call again assuming Elem reduces to a vector type and at the lowest level it will fill item with primitives or serializable structs
-                        if(not FromJSONArray(f_NestedArray, item, logger))
+                        if (not FromJSONArray(f_NestedArray, item, logger))
                         {
-                            logger->Error("Failed to deserialize nested vector element" , "FromJSONArray");
+                            logger->Error("Failed to deserialize nested vector element", "FromJSONArray");
                             return false;
                         }
                     }
@@ -2176,7 +2250,7 @@ namespace BongoJam {
                 }
                 catch (const exception& e)
                 {
-                    logger->Error(format("Deserialization failed in FromJSONArray (type: '{}'): {}", typeid(Elem).name(), e.what()), "FromJSONArray");
+                    logger->Error(fmt::format("Deserialization failed in FromJSONArray (type: '{}'): {}", typeid(Elem).name(), e.what()), "FromJSONArray");
                     return false;
                 }
 
@@ -2195,34 +2269,34 @@ namespace BongoJam {
         //In general, the To functions don't need explicit error handling because it's all done at compile time, however reading can throw because ppl are dumb or files can corrupt
 
         template<typename T>
-        [[nodiscard]] enable_if_t<is_serializable_struct<T>::value, bool>
+        [[nodiscard]] static bool
             ToBinary
             (
                 const T& fp_ObjectToSerialize,
                 vector<uint8_t>& fp_BinaryWriteVector
-            ) 
+            )
         {
-            auto f_Visitor = [this, &fp_BinaryWriteVector](const char* fp_Name, auto&& fp_Value)
-            {
-                using FieldType = decay_t<decltype(fp_Value)>; //makes things look prettier
+            auto f_Visitor = [&fp_BinaryWriteVector](const char* fp_Name, auto&& fp_Value)
+                {
+                    using FieldType = decay_t<decltype(fp_Value)>; //makes things look prettier
 
-                if constexpr (is_serializable_struct<FieldType>::value)
-                {
-                    ToBinary(fp_Value, fp_BinaryWriteVector);
-                }
-                else if constexpr (is_map<FieldType>::value) //WARNING: oof never use unordered_map here UNLESS u know what ur doing owo
-                {
-                    MapToBinary(fp_Value, fp_BinaryWriteVector);
-                }
-                else if constexpr (is_vector<FieldType>::value)
-                {
-                    VectorToBinary(fp_Value, fp_BinaryWriteVector);
-                }
-                else
-                {
-                    ValueToBinary(fp_Value, fp_BinaryWriteVector);
-                }
-            };
+                    if constexpr (is_serializable_struct<FieldType>::value)
+                    {
+                        Serializer::ToBinary(fp_Value, fp_BinaryWriteVector);
+                    }
+                    else if constexpr (is_map<FieldType>::value) //WARNING: oof never use unordered_map here UNLESS u know what ur doing owo
+                    {
+                        Serializer::MapToBinary(fp_Value, fp_BinaryWriteVector);
+                    }
+                    else if constexpr (is_vector<FieldType>::value)
+                    {
+                        Serializer::VectorToBinary(fp_Value, fp_BinaryWriteVector);
+                    }
+                    else
+                    {
+                        Serializer::ValueToBinary(fp_Value, fp_BinaryWriteVector);
+                    }
+                };
 
             fp_ObjectToSerialize.PEACH_VISIT(f_Visitor);
 
@@ -2230,7 +2304,7 @@ namespace BongoJam {
         }
 
         template<typename T_VectorObject>
-        void
+        static void
             VectorToBinary
             (
                 const T_VectorObject& fp_SerializableObjectField,
@@ -2239,7 +2313,7 @@ namespace BongoJam {
         {
             static_assert(is_vector<T_VectorObject>::value, "[INTERNAL ERROR]: attempted to pass non vector object into VectorToBinary()");
 
-            BinaryCodec::EncodeInt<size_t>(fp_BinaryWriteVector, fp_SerializableObjectField.size()); //since it's a vector we push the size first uwu
+            BinaryCodec::EncodeInt<uint64_t>(fp_BinaryWriteVector, static_cast<uint64_t>(fp_SerializableObjectField.size())); //since it's a vector we push the size first uwu
 
             using VectorElem = typename decay_t<decltype(fp_SerializableObjectField)>::value_type;
 
@@ -2265,7 +2339,7 @@ namespace BongoJam {
         }
 
         template<typename T_MapObject>
-        void
+        static void
             MapToBinary
             (
                 const T_MapObject& fp_SerializableObjectField,
@@ -2274,7 +2348,7 @@ namespace BongoJam {
         {
             static_assert(is_map<T_MapObject>::value, "[INTERNAL ERROR]: attempted to pass non map object into MapToBinary()");
 
-            BinaryCodec::EncodeInt<size_t>(fp_BinaryWriteVector, fp_SerializableObjectField.size()); //since it's a map we push the size first uwu
+            BinaryCodec::EncodeInt<uint64_t>(fp_BinaryWriteVector, static_cast<uint64_t>(fp_SerializableObjectField.size())); //since it's a map we push the size first uwu
 
             using MapValType = typename T_MapObject::mapped_type;
             using MapKeyType = typename T_MapObject::key_type;
@@ -2324,7 +2398,7 @@ namespace BongoJam {
         }
 
         template<typename T>
-        void
+        static void
             ValueToBinary
             (
                 const T& fp_Value,
@@ -2391,7 +2465,7 @@ namespace BongoJam {
         }
 
         template<typename T>
-        [[nodiscard]] enable_if_t<is_serializable_struct<T>::value, bool> //leverages SERIALIZE_FIELD function defs to assign values to a default constructed data struct
+        [[nodiscard]] static bool //leverages SERIALIZE_FIELD function defs to assign values to a default constructed data struct
             FromBinary
             (
                 T& fp_OutObject,
@@ -2408,62 +2482,62 @@ namespace BongoJam {
 
             bool f_IsSuccessful = true; //XXX: used to track state of lambda execution
 
-            auto f_Visitor = [this, &fp_BinaryReadVector, &fp_CurrentOffset, &f_IsSuccessful, logger](const char* fp_Name, auto& fp_Value)
-            {
-                if (not f_IsSuccessful) //immediately return since something failed along the way >///< >w<!
+            auto f_Visitor = [&fp_BinaryReadVector, &fp_CurrentOffset, &f_IsSuccessful, logger](const char* fp_Name, auto& fp_Value)
                 {
-                    return;
-                }
+                    if (not f_IsSuccessful) //immediately return since something failed along the way >///< >w<!
+                    {
+                        return;
+                    }
 
-                using FieldType = decay_t<decltype(fp_Value)>;
+                    using FieldType = decay_t<decltype(fp_Value)>;
 
-                try
-                {
-                    if constexpr (is_serializable_struct<FieldType>::value)
+                    try
                     {
-                        if (not FromBinary(fp_Value, fp_BinaryReadVector, fp_CurrentOffset, logger))
+                        if constexpr (is_serializable_struct<FieldType>::value)
                         {
-                            logger->Error(format("Failed to deserialize non primitive struct from binary for field named: '{}'", fp_Name), "FromBinary");
-                            f_IsSuccessful = false;
-                            return; //exit early UwU!
+                            if (not Serializer::FromBinary(fp_Value, fp_BinaryReadVector, fp_CurrentOffset, logger))
+                            {
+                                logger->Error(fmt::format("Failed to deserialize non primitive struct from binary for field named: '{}'", fp_Name), "FromBinary");
+                                f_IsSuccessful = false;
+                                return; //exit early UwU!
+                            }
                         }
+                        else if constexpr (is_map<FieldType>::value)
+                        {
+                            if (not Serializer::MapFromBinary(fp_Value, fp_BinaryReadVector, fp_CurrentOffset, logger))
+                            {
+                                logger->Error(fmt::format("Failed to deserialize map for field named: '{}'", fp_Name), "FromBinary");
+                                f_IsSuccessful = false;
+                                return;
+                            }
+                        }
+                        else if constexpr (is_vector<FieldType>::value) //XXX: don't need to check for string types here since we already do so at the first branch
+                        {
+                            if (not Serializer::VectorFromBinary(fp_Value, fp_BinaryReadVector, fp_CurrentOffset, logger))
+                            {
+                                logger->Error(fmt::format("Failed to deserialize vector for field named: '{}'", fp_Name), "FromBinary");
+                                f_IsSuccessful = false;
+                                return;
+                            }
+                        }
+                        else
+                        {
+                            if (not Serializer::ValueFromBinary(fp_Value, fp_BinaryReadVector, fp_CurrentOffset, logger))
+                            {
+                                logger->Error(fmt::format("Failed to deserialize value for field named: '{}'", fp_Name), "FromBinary");
+                                f_IsSuccessful = false; //tell outer function thatis false uwu
+                                return; //return from lambda
+                            }
+                        }
+
                     }
-                    else if constexpr (is_map<FieldType>::value)
+                    catch (const exception& fp_Exception)
                     {
-                        if (not MapFromBinary(fp_Value, fp_BinaryReadVector, fp_CurrentOffset, logger))
-                        {
-                            logger->Error(format("Failed to deserialize map for field named: '{}'", fp_Name), "FromBinary");
-                            f_IsSuccessful = false;
-                            return;
-                        }
+                        logger->Error(fmt::format("Deserialization failed for field '{}' (type: {}): {}", fp_Name, typeid(decltype(fp_Value)).name(), fp_Exception.what()), "FromBinary");
+                        f_IsSuccessful = false;
+                        return;
                     }
-                    else if constexpr (is_vector<FieldType>::value) //XXX: don't need to check for string types here since we already do so at the first branch
-                    {
-                        if (not VectorFromBinary(fp_Value, fp_BinaryReadVector, fp_CurrentOffset, logger))
-                        {
-                            logger->Error(format("Failed to deserialize vector for field named: '{}'", fp_Name), "FromBinary");
-                            f_IsSuccessful = false;
-                            return;
-                        }
-                    }
-                    else
-                    {
-                        if (not ValueFromBinary(fp_Value, fp_BinaryReadVector, fp_CurrentOffset, logger))
-                        {
-                            logger->Error(format("Failed to deserialize value for field named: '{}'", fp_Name), "FromBinary");
-                            f_IsSuccessful = false; //tell outer function thatis false uwu
-                            return; //return from lambda
-                        }
-                    }
-                    
-                }
-                catch (const exception& fp_Exception)
-                {
-                    logger->Error(format("Deserialization failed for field '{}' (type: {}): {}", fp_Name, typeid(decltype(fp_Value)).name(), fp_Exception.what()), "FromBinary");
-                    f_IsSuccessful = false;
-                    return;
-                }
-            };
+                };
 
             fp_OutObject.PEACH_VISIT(f_Visitor);
 
@@ -2471,14 +2545,14 @@ namespace BongoJam {
         }
 
         template<typename T>
-        bool
+        static bool
             ValueFromBinary
             (
                 T& fp_OutValue,
                 const vector<uint8_t>& fp_BinaryReadVector,
                 size_t& fp_CurrentOffset,
                 Logger* logger
-            ) 
+            )
         {
             using ValType = remove_cvref_t<T>;
 
@@ -2540,7 +2614,7 @@ namespace BongoJam {
 #if defined(_MSC_VER)
                 static_assert(always_false_v<T>, "Unsupported type in Extract. Check __FUNCSIG__ for details: " __FUNCSIG__);
 #else
-                static_assert(always_false_v<T>, format("Unsupported type in Extract. Check __func__ for details: {}", __func__));
+                static_assert(always_false_v<T>, fmt::format("Unsupported type in Extract. Check __func__ for details: {}", __func__));
                 //static_assert(always_false_v<T>, "Unsupported type in Extract. Check __PRETTY_FUNCTION__ for details: " __PRETTY_FUNCTION__);
 #endif
             }
@@ -2549,7 +2623,7 @@ namespace BongoJam {
         }
 
         template<typename T_VectorObject>
-        bool
+        static bool
             VectorFromBinary
             (
                 T_VectorObject& fp_OutVector,
@@ -2560,7 +2634,7 @@ namespace BongoJam {
         {
             static_assert(is_vector<T_VectorObject>::value, "[INTERNAL ERROR]: attempted to pass non vector object into VectorFromBinary()");
 
-            size_t f_AmountOfVectorElements = BinaryCodec::DecodeInt<size_t>(fp_BinaryReadVector, fp_CurrentOffset);
+            size_t f_AmountOfVectorElements = static_cast<size_t>(BinaryCodec::DecodeInt<uint64_t>(fp_BinaryReadVector, fp_CurrentOffset));
 
             fp_OutVector.clear(); //clear the vector in case the user passes a vector filled with values
 
@@ -2600,7 +2674,7 @@ namespace BongoJam {
                             return false;
                         }
                     }
-                    else if(not ValueFromBinary(fv_CurrentItem, fp_BinaryReadVector, fp_CurrentOffset, logger))
+                    else if (not ValueFromBinary(fv_CurrentItem, fp_BinaryReadVector, fp_CurrentOffset, logger))
                     {
                         logger->Error("Failed to deserialize value element", "VectorFromBinary");
                         return false;
@@ -2608,7 +2682,7 @@ namespace BongoJam {
                 }
                 catch (const exception& fp_Exception)
                 {
-                    logger->Error(format("Deserialization failed in VectorFromBinary() (type: '{}'): {}", typeid(Elem).name(), fp_Exception.what()), "VectorFromBinary");
+                    logger->Error(fmt::format("Deserialization failed in VectorFromBinary() (type: '{}'): {}", typeid(Elem).name(), fp_Exception.what()), "VectorFromBinary");
                     return false;
                 }
             }
@@ -2617,7 +2691,7 @@ namespace BongoJam {
         }
 
         template<typename T_MapObject>
-        bool
+        static bool
             MapFromBinary
             (
                 T_MapObject& fp_OutMap,
@@ -2631,7 +2705,7 @@ namespace BongoJam {
             using MapValType = typename T_MapObject::mapped_type; //can do this since T_MapObject is guaranteed a map uwu, holy shit nostradamus is AHHHHH record of ragnarock mang
             using MapKeyType = typename T_MapObject::key_type;
 
-            size_t f_AmountOfMapElements = BinaryCodec::DecodeInt<size_t>(fp_BinaryReadVector, fp_CurrentOffset);
+            size_t f_AmountOfMapElements = static_cast<size_t>(BinaryCodec::DecodeInt<uint64_t>(fp_BinaryReadVector, fp_CurrentOffset));
 
             fp_OutMap.clear(); //clear the map in case the user passes a map filled with values
 
@@ -2671,7 +2745,7 @@ namespace BongoJam {
                         return false;
                     }
                 }
-                else 
+                else
                 {
                     if (not ValueFromBinary(fv_CurrentMapKeyItem, fp_BinaryReadVector, fp_CurrentOffset, logger))
                     {
@@ -2717,7 +2791,7 @@ namespace BongoJam {
                 }
                 else
                 {
-                    if((not ValueFromBinary(fv_KeyIt->second, fp_BinaryReadVector, fp_CurrentOffset, logger)))
+                    if ((not ValueFromBinary(fv_KeyIt->second, fp_BinaryReadVector, fp_CurrentOffset, logger)))
                     {
                         logger->Error("Failed to deserialize map value element!", "MapFromBinary");
                         return false;
@@ -2733,7 +2807,7 @@ namespace BongoJam {
         // Parsing Functions
         //////////////////////////////////////////////
 
-        bool
+        static bool
             ParseObject //assuming that this is only called when '{' is found uwu
             (
                 VectorStream<Token>& fp_Tokens,
@@ -2750,7 +2824,7 @@ namespace BongoJam {
             {
                 if (f_CurrentToken.m_Type != TokenType::StringLiteral)
                 {
-                    logger->Error(format("Parsing Error: found '{}', when string literal was expected as JSON key inside object at line number: {}", f_CurrentToken.m_Value, f_CurrentToken.m_SourceCodeLineNumber), "ParseObject");
+                    logger->Error(fmt::format("Parsing Error: found '{}', when string literal was expected as JSON key inside object at line number: {}", f_CurrentToken.m_Value, f_CurrentToken.m_SourceCodeLineNumber), "ParseObject");
                     return false;
                 }
 
@@ -2759,7 +2833,7 @@ namespace BongoJam {
 
                 if (f_CurrentToken.m_Type != TokenType::DoubleDot)
                 {
-                    logger->Error(format("Parsing Error: found '{}', when ':' was expected after JSON key inside object at line number: {}", f_CurrentToken.m_Value, f_CurrentToken.m_SourceCodeLineNumber), "ParseObject");
+                    logger->Error(fmt::format("Parsing Error: found '{}', when ':' was expected after JSON key inside object at line number: {}", f_CurrentToken.m_Value, f_CurrentToken.m_SourceCodeLineNumber), "ParseObject");
                     return false;
                 }
 
@@ -2767,7 +2841,7 @@ namespace BongoJam {
 
                 if (not ParseValue(fp_Tokens, f_CurrentToken, fp_JSONObject, f_CurrentKey, logger))
                 {
-                    logger->Error(format("Parsing Error: Invalid JSON object: '{}', at line number: {}", f_CurrentToken.m_Value, f_CurrentToken.m_SourceCodeLineNumber), "ParseObject");
+                    logger->Error(fmt::format("Parsing Error: Invalid JSON object: '{}', at line number: {}", f_CurrentToken.m_Value, f_CurrentToken.m_SourceCodeLineNumber), "ParseObject");
                     return false;
                 }
 
@@ -2780,7 +2854,7 @@ namespace BongoJam {
 
                 if (f_CurrentToken.m_Type != TokenType::Comma)
                 {
-                    logger->Error(format("Parsing Error: found '{}', when ',' was expected after JSON value inside object at line number: {}", f_CurrentToken.m_Value, f_CurrentToken.m_SourceCodeLineNumber), "ParseObject");
+                    logger->Error(fmt::format("Parsing Error: found '{}', when ',' was expected after JSON value inside object at line number: {}", f_CurrentToken.m_Value, f_CurrentToken.m_SourceCodeLineNumber), "ParseObject");
                     return false;
                 }
 
@@ -2789,14 +2863,14 @@ namespace BongoJam {
 
             if (f_CurrentToken.m_Type != TokenType::CloseBracket)
             {
-                logger->Error(format("Parsing Error: Unexpected token: [{}], found inside array definition at line number: {}", f_CurrentToken.m_Value, f_CurrentToken.m_SourceCodeLineNumber), "ParseObject");
+                logger->Error(fmt::format("Parsing Error: Unexpected token: [{}], found inside array definition at line number: {}", f_CurrentToken.m_Value, f_CurrentToken.m_SourceCodeLineNumber), "ParseObject");
                 return false;
             }
 
             return true;
         }
 
-        bool
+        static bool
             ParseArray //assuming the most recent token was '[' called from ParseJSON
             (
                 VectorStream<Token>& fp_Tokens,
@@ -2825,7 +2899,7 @@ namespace BongoJam {
 
                 if (f_CurrentToken.m_Type != TokenType::Comma) //throw error if a separating comma is not found between array elements
                 {
-                    logger->Error(format("Parsing Error: expected ',' after value inside JSON array but found '{}' instead at line number: {}", f_CurrentToken.m_Value, f_CurrentToken.m_SourceCodeLineNumber), "ParseArray");
+                    logger->Error(fmt::format("Parsing Error: expected ',' after value inside JSON array but found '{}' instead at line number: {}", f_CurrentToken.m_Value, f_CurrentToken.m_SourceCodeLineNumber), "ParseArray");
                     return false;
                 }
 
@@ -2834,14 +2908,14 @@ namespace BongoJam {
 
             if (f_CurrentToken.m_Type != TokenType::CloseSquareBracket)
             {
-                logger->Error(format("Parsing Error: Expected ']' but found '{}' instead, found inside array definition at line number: {}", f_CurrentToken.m_Value, f_CurrentToken.m_SourceCodeLineNumber), "ParseArray");
+                logger->Error(fmt::format("Parsing Error: Expected ']' but found '{}' instead, found inside array definition at line number: {}", f_CurrentToken.m_Value, f_CurrentToken.m_SourceCodeLineNumber), "ParseArray");
                 return false;
             }
 
             return true;
         }
 
-        bool
+        static bool
             ParseValue //used for parsing values inside an array
             (
                 VectorStream<Token>& fp_Tokens,
@@ -2852,52 +2926,52 @@ namespace BongoJam {
         {
             switch (fp_CurrentToken.m_Type)
             {
-                case TokenType::StringLiteral:
-                    fp_Array.emplace_back(fp_CurrentToken.m_Value);
-                    break;
-                case TokenType::IntLiteral:
-                    if (fp_CurrentToken.m_Value[0] == '-') //store any positive number as a uint64 because y not we'll recast it at deserialization
-                    {
-                        fp_Array.emplace_back(static_cast<int64_t>(stoll(fp_CurrentToken.m_Value))); // signed
-                    }
-                    else
-                    {
-                        fp_Array.emplace_back(static_cast<uint64_t>(stoull(fp_CurrentToken.m_Value))); // unsigned
-                    }
-                    break;
-                case TokenType::FloatLiteral:
-                    fp_Array.emplace_back(stod(fp_CurrentToken.m_Value));
-                    break;
-                case TokenType::BoolLiteral:
-                    fp_Array.emplace_back(fp_CurrentToken.m_Value == "true");
-                    break;
-                case TokenType::NullLiteral:
-                    fp_Array.emplace_back(); //lmfao this looks so dumb but works
-                    break;
+            case TokenType::StringLiteral:
+                fp_Array.emplace_back(fp_CurrentToken.m_Value);
+                break;
+            case TokenType::IntLiteral:
+                if (fp_CurrentToken.m_Value[0] == '-') //store any positive number as a uint64 because y not we'll recast it at deserialization
+                {
+                    fp_Array.emplace_back(static_cast<int64_t>(stoll(fp_CurrentToken.m_Value))); // signed
+                }
+                else
+                {
+                    fp_Array.emplace_back(static_cast<uint64_t>(stoull(fp_CurrentToken.m_Value))); // unsigned
+                }
+                break;
+            case TokenType::FloatLiteral:
+                fp_Array.emplace_back(stod(fp_CurrentToken.m_Value));
+                break;
+            case TokenType::BoolLiteral:
+                fp_Array.emplace_back(fp_CurrentToken.m_Value == "true");
+                break;
+            case TokenType::NullLiteral:
+                fp_Array.emplace_back(); //lmfao this looks so dumb but works
+                break;
 
-                case TokenType::OpenBracket: //check for nested objects
-                {
-                    JSONObject f_TempObject;
-                    ParseObject(fp_Tokens, f_TempObject, logger);
-                    fp_Array.emplace_back(f_TempObject);
-                }
-                break;
-                case TokenType::OpenSquareBracket: //check for nested arrays
-                {
-                    JSONArray f_TempArray;
-                    ParseArray(fp_Tokens, f_TempArray, logger);
-                    fp_Array.emplace_back(f_TempArray);
-                }
-                break;
-                default:
-                    logger->Error(format("Parsing Error: found '{}' inside array, when integral type was expected at line number: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber), "ParseValue");
-                    return false;
+            case TokenType::OpenBracket: //check for nested objects
+            {
+                JSONObject f_TempObject;
+                ParseObject(fp_Tokens, f_TempObject, logger);
+                fp_Array.emplace_back(f_TempObject);
+            }
+            break;
+            case TokenType::OpenSquareBracket: //check for nested arrays
+            {
+                JSONArray f_TempArray;
+                ParseArray(fp_Tokens, f_TempArray, logger);
+                fp_Array.emplace_back(f_TempArray);
+            }
+            break;
+            default:
+                logger->Error(fmt::format("Parsing Error: found '{}' inside array, when integral type was expected at line number: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber), "ParseValue");
+                return false;
             }
 
             return true;
         }
 
-        bool
+        static bool
             ParseValue //used for parsing values inside a regular JSON object
             (
                 VectorStream<Token>& fp_Tokens,
@@ -2909,52 +2983,52 @@ namespace BongoJam {
         {
             switch (fp_CurrentToken.m_Type)
             {
-                case TokenType::StringLiteral:
-                    fp_JSONObject.emplace(fp_ValueKey, fp_CurrentToken.m_Value);
-                    break;
-                case TokenType::IntLiteral:
-                    if (fp_CurrentToken.m_Value[0] == '-') //XXX: this is used to handle container sizing issues coming from values serialized as a large uint64 vs a regular int64
-                    {
-                        fp_JSONObject.emplace(fp_ValueKey, static_cast<int64_t>(stoll(fp_CurrentToken.m_Value))); // signed
-                    }
-                    else
-                    {
-                        fp_JSONObject.emplace(fp_ValueKey, static_cast<uint64_t>(stoull(fp_CurrentToken.m_Value))); // unsigned
-                    }
-                    break;
-                case TokenType::FloatLiteral:
-                    fp_JSONObject.emplace(fp_ValueKey, stod(fp_CurrentToken.m_Value));
-                    break;
-                case TokenType::BoolLiteral:
-                    fp_JSONObject.emplace(fp_ValueKey, fp_CurrentToken.m_Value == "true");
-                    break;
-                case TokenType::NullLiteral:
-                    fp_JSONObject.emplace(fp_ValueKey, JSONValue());
-                    break;
+            case TokenType::StringLiteral:
+                fp_JSONObject.emplace(fp_ValueKey, fp_CurrentToken.m_Value);
+                break;
+            case TokenType::IntLiteral:
+                if (fp_CurrentToken.m_Value[0] == '-') //XXX: this is used to handle container sizing issues coming from values serialized as a large uint64 vs a regular int64
+                {
+                    fp_JSONObject.emplace(fp_ValueKey, static_cast<int64_t>(stoll(fp_CurrentToken.m_Value))); // signed
+                }
+                else
+                {
+                    fp_JSONObject.emplace(fp_ValueKey, static_cast<uint64_t>(stoull(fp_CurrentToken.m_Value))); // unsigned
+                }
+                break;
+            case TokenType::FloatLiteral:
+                fp_JSONObject.emplace(fp_ValueKey, stod(fp_CurrentToken.m_Value));
+                break;
+            case TokenType::BoolLiteral:
+                fp_JSONObject.emplace(fp_ValueKey, fp_CurrentToken.m_Value == "true");
+                break;
+            case TokenType::NullLiteral:
+                fp_JSONObject.emplace(fp_ValueKey, JSONValue());
+                break;
 
-                case TokenType::OpenBracket:
-                {
-                    JSONObject f_TempObject;
-                    ParseObject(fp_Tokens, f_TempObject, logger);
-                    fp_JSONObject.emplace(fp_ValueKey, f_TempObject);
-                }
-                break;
-                case TokenType::OpenSquareBracket:
-                {
-                    JSONArray f_TempArray;
-                    ParseArray(fp_Tokens, f_TempArray, logger);
-                    fp_JSONObject.emplace(fp_ValueKey, f_TempArray);
-                }
-                break;
-                default:
-                    logger->Error(format("Parsing Error: found '{}' inside object, when integral type was expected at line number: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber), "ParseValue");
-                    return false;
+            case TokenType::OpenBracket:
+            {
+                JSONObject f_TempObject;
+                ParseObject(fp_Tokens, f_TempObject, logger);
+                fp_JSONObject.emplace(fp_ValueKey, f_TempObject);
+            }
+            break;
+            case TokenType::OpenSquareBracket:
+            {
+                JSONArray f_TempArray;
+                ParseArray(fp_Tokens, f_TempArray, logger);
+                fp_JSONObject.emplace(fp_ValueKey, f_TempArray);
+            }
+            break;
+            default:
+                logger->Error(fmt::format("Parsing Error: found '{}' inside object, when integral type was expected at line number: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber), "ParseValue");
+                return false;
             }
 
             return true;
         }
 
-        bool //XXX: this function assumes that the JSON is structured such that it has one top level object denoted by a "{ . . . . }"
+        static bool //XXX: this function assumes that the JSON is structured such that it has one top level object denoted by a "{ . . . . }"
             ParseJSON //function call that kicks off the recursive parse chain
             (
                 VectorStream<Token>&& fp_Tokens,
@@ -2972,23 +3046,23 @@ namespace BongoJam {
 
             switch (f_CurrentToken.m_Type) //should only need to do this once for a valid JSON
             {
-                case TokenType::OpenBracket:
-                {
-                    JSONObject f_Object;
-                    ParseObject(fp_Tokens, f_Object, logger);
-                    fp_JSON = std::move(JSONValue(f_Object));
-                }
-                break;
-                case TokenType::OpenSquareBracket:
-                {
-                    JSONArray f_Array;
-                    ParseArray(fp_Tokens, f_Array, logger);
-                    fp_JSON = std::move(JSONValue(f_Array));
-                }
-                break;
-                default:
-                    logger->Error("Parsing Error: ill-formed JSON found, parsing failed", "ParseJSON");
-                    return false;
+            case TokenType::OpenBracket:
+            {
+                JSONObject f_Object;
+                ParseObject(fp_Tokens, f_Object, logger);
+                fp_JSON = std::move(JSONValue(f_Object));
+            }
+            break;
+            case TokenType::OpenSquareBracket:
+            {
+                JSONArray f_Array;
+                ParseArray(fp_Tokens, f_Array, logger);
+                fp_JSON = std::move(JSONValue(f_Array));
+            }
+            break;
+            default:
+                logger->Error("Parsing Error: ill-formed JSON found, parsing failed", "ParseJSON");
+                return false;
             }
 
             return true;

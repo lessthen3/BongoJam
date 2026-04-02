@@ -11,6 +11,8 @@
 **************************************************************************/
 #include "Linker.h"
 
+#include "../ErrorCodes.h"
+
 namespace BongoJam{
 
     bool

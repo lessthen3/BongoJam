@@ -11,6 +11,8 @@
 **************************************************************************/
 #include "Parser.h"
 
+#include <fmt/format.h>
+
 namespace BongoJam {
 
     //////////////////////////////////////////////
@@ -72,7 +74,7 @@ namespace BongoJam {
         }
         else
         {
-            PrintError("Tried to pass nullptr reference to Parser Instance >:^(");
+            PRINT_ERROR("Tried to pass nullptr reference to Parser Instance >:^(");
         }
     }
 
@@ -113,7 +115,7 @@ namespace BongoJam {
 
         if (not fp_ProgramTokens.ShiftForward(fp_CurrentToken)) //Shift forwards to look for a semi dot or more ops
         {
-            parser_logger->Error(format("Found END__OF__FILE while parsing a number! Why is there a number at the end of the file >O<? Error occured at line number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Lexer");
+            parser_logger->Error(fmt::format("Found END__OF__FILE while parsing a number! Why is there a number at the end of the file >O<? Error occured at line number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Lexer");
             return nullptr;
         }
 
@@ -140,7 +142,7 @@ namespace BongoJam {
 
             if (not f_RegExpr)
             {
-                parser_logger->Error(format("error parsing numerical expression at line: '{}', expected a value but found something very different! COME ON BROTHER!", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                parser_logger->Error(fmt::format("error parsing numerical expression at line: '{}', expected a value but found something very different! COME ON BROTHER!", f_EntryToken.m_SourceCodeLineNumber), "Parser");
                 return nullptr;
             }
 
@@ -154,7 +156,7 @@ namespace BongoJam {
         }
         break;
         default:
-            parser_logger->Error(format("found : '{}', when mathematical binary operation was expected", fp_CurrentToken.m_Value), "Parser");
+            parser_logger->Error(fmt::format("found : '{}', when mathematical binary operation was expected", fp_CurrentToken.m_Value), "Parser");
             return nullptr;
         }
     }
@@ -199,7 +201,7 @@ namespace BongoJam {
 
             if (not f_RegExpr)
             {
-                parser_logger->Error(format("error parsing numerical expression at line: '{}', expected a value but found something very different! COME ON BROTHER!", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                parser_logger->Error(fmt::format("error parsing numerical expression at line: '{}', expected a value but found something very different! COME ON BROTHER!", f_EntryToken.m_SourceCodeLineNumber), "Parser");
                 return nullptr;
             }
 
@@ -217,12 +219,12 @@ namespace BongoJam {
         case TokenType::NegativeOperator:
         case TokenType::MultiplicationOperator:
         {
-            parser_logger->Error(format("Math operation used improperly, tried to use operator: '{}' on a string at line: {}", fp_CurrentToken.m_Value, f_EntryToken.m_SourceCodeLineNumber), "Parser");
+            parser_logger->Error(fmt::format("Math operation used improperly, tried to use operator: '{}' on a string at line: {}", fp_CurrentToken.m_Value, f_EntryToken.m_SourceCodeLineNumber), "Parser");
             return nullptr;
         }
         break;
         default:
-            parser_logger->Error(format("found : '{}', when processing : '{}' mathematical binary operation was expected", fp_CurrentToken.m_Value, f_EntryToken.m_Value), "Parser");
+            parser_logger->Error(fmt::format("found : '{}', when processing : '{}' mathematical binary operation was expected", fp_CurrentToken.m_Value, f_EntryToken.m_Value), "Parser");
             return nullptr;
         }
     }
@@ -269,7 +271,7 @@ namespace BongoJam {
 
             if (not sv_RegExpr) //this will just instant return if it hits a end bracket and the expr will be a singlevalueexpr with type openbracket
             {
-                parser_logger->Error(format("Error at Line Number: {}, Found : '{}', when regular expression was expected inside list or dictionary item access expression", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
+                parser_logger->Error(fmt::format("Error at Line Number: {}, Found : '{}', when regular expression was expected inside list or dictionary item access expression", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
                 return nullptr;
             }
 
@@ -277,7 +279,7 @@ namespace BongoJam {
 
             if (fp_CurrentToken.m_Type != TokenType::CloseSquareBracket) //reg expr ends on last part of expr so should be able to shift here
             {
-                parser_logger->Error(format("Error at Line Number: {}, Found : '{}', when ']' was expected to close list or dictionary item access expression", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
+                parser_logger->Error(fmt::format("Error at Line Number: {}, Found : '{}', when ']' was expected to close list or dictionary item access expression", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
                 return nullptr;
             }
 
@@ -326,10 +328,8 @@ namespace BongoJam {
             }
             break;
             default:
-#ifdef BONGO_DEBUG
-                PrintError(to_string(static_cast<int>(sv_PossibleExprExtension->m_Domain)) + " SYNTAX NODE TYPE");
-#endif
-                parser_logger->Error(format("Error at Line Number: {}, Found : '{}', when regular expression was expected while parsing a contained index access expression", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser::ParseUserIdentifier()");
+                PRINT_ERROR(fmt::format("OFFENDING SYNTAX NODE TYPE: {}", static_cast<int>(sv_PossibleExprExtension->m_Domain)));
+                parser_logger->Error(fmt::format("Error at Line Number: {}, Found : '{}', when regular expression was expected while parsing a contained index access expression", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser::ParseUserIdentifier()");
                 return nullptr;
             }
         }
@@ -341,7 +341,7 @@ namespace BongoJam {
             //if we arent accessing a method or field after the ".", then idc wtf u typed, that shit is getting thrown out dawg
             if (fp_CurrentToken.m_Type != TokenType::UserIdentifier) //THROW ERROR
             {
-                parser_logger->Error(format("Error at Line Number: {}, Found : '{}', when class method or variable name was expected ", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
+                parser_logger->Error(fmt::format("Error at Line Number: {}, Found : '{}', when class method or variable name was expected ", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
                 parser_logger->Warning("Something bad happened while calling a class object! Make sure you're calling the proper method or variable name", "Parser");
                 return nullptr;
             }
@@ -354,7 +354,7 @@ namespace BongoJam {
 
             if (not sv_ChainedExpr)
             {
-                parser_logger->Error(format("Error at Line Number: {}, Found : '{}', when (variable/func/struct/class) name was expected ", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
+                parser_logger->Error(fmt::format("Error at Line Number: {}, Found : '{}', when (variable/func/struct/class) name was expected ", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
                 return nullptr;
             }
 
@@ -381,7 +381,7 @@ namespace BongoJam {
 
             if (not sv_VarChange)
             {
-                parser_logger->Error(format("Error at Line Number: {}, failed to parse variable reassignment for {}", fp_CurrentToken.m_SourceCodeLineNumber, f_NameToken.m_Value), "Parser");
+                parser_logger->Error(fmt::format("Error at Line Number: {}, failed to parse variable reassignment for {}", fp_CurrentToken.m_SourceCodeLineNumber, f_NameToken.m_Value), "Parser");
                 return nullptr;
             }
 
@@ -394,7 +394,7 @@ namespace BongoJam {
 
             if (not sv_FuncCallExpr)
             {
-                parser_logger->Error(format("Error at Line: {} invalid call to {}() function", f_NameToken.m_SourceCodeLineNumber, f_NameToken.m_Value), "Parser");
+                parser_logger->Error(fmt::format("Error at Line: {} invalid call to {}() function", f_NameToken.m_SourceCodeLineNumber, f_NameToken.m_Value), "Parser");
                 return nullptr;
             }
 
@@ -434,8 +434,8 @@ namespace BongoJam {
             }
             break;
             default:
-                PrintError(to_string(static_cast<int>(sv_PossibleExprExtension->m_Domain)) + " SYNTAX NODE TYPE");
-                parser_logger->Error(format("Error at Line Number: {}, Found : '{}', when regular expression was expected while parsing a function call expression", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser::ParseUserIdentifier()");
+                PRINT_ERROR(fmt::format("OFFENDING SYNTAX NODE TYPE: {}", static_cast<int>(sv_PossibleExprExtension->m_Domain)));
+                parser_logger->Error(fmt::format("Error at Line Number: {}, Found : '{}', when regular expression was expected while parsing a function call expression", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser::ParseUserIdentifier()");
                 return nullptr;
             }
 
@@ -464,7 +464,7 @@ namespace BongoJam {
 
             if (not f_RegExpr)
             {
-                parser_logger->Error(format("Error at Line Number: {}, failed to parse regular expression, expected a value but found something very different! COME ON BROTHER!", f_NameToken.m_SourceCodeLineNumber), "Parser");
+                parser_logger->Error(fmt::format("Error at Line Number: {}, failed to parse regular expression, expected a value but found something very different! COME ON BROTHER!", f_NameToken.m_SourceCodeLineNumber), "Parser");
                 return nullptr;
             }
 
@@ -488,7 +488,7 @@ namespace BongoJam {
         }
         break;
         default:
-            parser_logger->Error(format("Error at Line Number: {}, failed to parse regular expression, expected a value but found something very different! COME ON BROTHER!", f_NameToken.m_SourceCodeLineNumber), "Parser");
+            parser_logger->Error(fmt::format("Error at Line Number: {}, failed to parse regular expression, expected a value but found something very different! COME ON BROTHER!", f_NameToken.m_SourceCodeLineNumber), "Parser");
             return nullptr;
         }
     }
@@ -520,7 +520,7 @@ namespace BongoJam {
 
                 if (not sv_RegExpr)
                 {
-                    parser_logger->Error(format("Error at Line Number: {}, expected regular expression but found invalid token: '{}'", f_EntryToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
+                    parser_logger->Error(fmt::format("Error at Line Number: {}, expected regular expression but found invalid token: '{}'", f_EntryToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
                     return nullptr;
                 }
 
@@ -528,7 +528,7 @@ namespace BongoJam {
 
                 if (fp_CurrentToken.m_Type != TokenType::CloseBracket)
                 {
-                    parser_logger->Error(format("Error at Line Number: {}, expected: '}}' but found: {} instead, formatted string insert variable doesn't terminate properly!", f_EntryToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
+                    parser_logger->Error(fmt::format("Error at Line Number: {}, expected: '}}' but found: {} instead, formatted string insert variable doesn't terminate properly!", f_EntryToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
                     parser_logger->Error("Tip: when using '{}' for inserting variables, expressions must evaluate to a value and cannot be a statement that ends with ';'", "Parser");
                     return nullptr;
                 }
@@ -543,14 +543,14 @@ namespace BongoJam {
             }
             else
             {
-                parser_logger->Error(format("Error at Line Number: {}, poorly formed formatted string found, parsing failed at token: '{}'", f_EntryToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
+                parser_logger->Error(fmt::format("Error at Line Number: {}, poorly formed formatted string found, parsing failed at token: '{}'", f_EntryToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
                 return nullptr;
             }
         }
 
         if (fp_CurrentToken.m_Type != TokenType::FormattedStringLiteralEnd) //THROW ERROR:
         {
-            parser_logger->Error(format("Error at Line Number: {}, unterminated formatted string! found: '{}' instead ", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
+            parser_logger->Error(fmt::format("Error at Line Number: {}, unterminated formatted string! found: '{}' instead ", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
             return nullptr;
         }
 
@@ -574,7 +574,7 @@ namespace BongoJam {
 
         if (not f_ParenExpr->Inside)
         {
-            parser_logger->Error(format("found : '{}', when regular expression was expected at line number: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
+            parser_logger->Error(fmt::format("found : '{}', when regular expression was expected at line number: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
             return nullptr;
         }
 
@@ -582,7 +582,7 @@ namespace BongoJam {
 
         if (fp_CurrentToken.m_Type != TokenType::CloseParen)
         {
-            parser_logger->Error(format("Error at Line Number: {}, Unterminated parenthesis, expected ')' but found : '{}'", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
+            parser_logger->Error(fmt::format("Error at Line Number: {}, Unterminated parenthesis, expected ')' but found : '{}'", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
             return nullptr;
         }
 
@@ -612,7 +612,7 @@ namespace BongoJam {
 
             if (not sv_FmtString)
             {
-                parser_logger->Error(format("found : '{}', when formatted string was expected at line number: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
+                parser_logger->Error(fmt::format("found : '{}', when formatted string was expected at line number: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
                 return nullptr;
             }
 
@@ -628,7 +628,7 @@ namespace BongoJam {
 
             if (not sv_ParsedNumber)
             {
-                parser_logger->Error(format("found : '{}', when regular expression was expected at line number: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
+                parser_logger->Error(fmt::format("found : '{}', when regular expression was expected at line number: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
                 return nullptr;
             }
 
@@ -643,7 +643,7 @@ namespace BongoJam {
 
             if (not sv_UnaryExpr)
             {
-                parser_logger->Error(format("Error at line: {}, was unable to parse unary expression ;w;", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
+                parser_logger->Error(fmt::format("Error at line: {}, was unable to parse unary expression ;w;", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
                 return nullptr;
             }
 
@@ -657,7 +657,7 @@ namespace BongoJam {
 
             if (not sv_ParsedString)
             {
-                parser_logger->Error(format("found : '{}', when regular expression was expected at line number: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
+                parser_logger->Error(fmt::format("found : '{}', when regular expression was expected at line number: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
                 return nullptr;
             }
 
@@ -670,7 +670,7 @@ namespace BongoJam {
 
             if (not sv_ParsedUserIdentifier)
             {
-                parser_logger->Error(format("found : '{}', while parsing a class/struct/variable/func name when regular expression was expected at line number: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
+                parser_logger->Error(fmt::format("found : '{}', while parsing a class/struct/variable/func name when regular expression was expected at line number: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
                 return nullptr;
             }
 
@@ -683,7 +683,7 @@ namespace BongoJam {
 
             if (not sv_ParsedOpenParen)
             {
-                parser_logger->Error(format("found : '{}', when regular expression was expected at line number: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
+                parser_logger->Error(fmt::format("found : '{}', when regular expression was expected at line number: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
                 return nullptr;
             }
 
@@ -702,7 +702,7 @@ namespace BongoJam {
 
             if (not sv_StructConstruc)
             {
-                parser_logger->Error(format("Parsing Error at line: {}, invalid struct construction declaration found inside function", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                parser_logger->Error(fmt::format("Parsing Error at line: {}, invalid struct construction declaration found inside function", f_EntryToken.m_SourceCodeLineNumber), "Parser");
                 return nullptr;
             }
 
@@ -738,13 +738,13 @@ namespace BongoJam {
             }
             break;
             default:
-                parser_logger->Error(format("found : '{}', when user identifier or string literal was expected after colourize expression at line number: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
+                parser_logger->Error(fmt::format("found : '{}', when user identifier or string literal was expected after colourize expression at line number: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
                 return nullptr;
             }
         }
         break;
         default:
-            parser_logger->Error(format("found : '{}', when regular expression was expected at line number: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
+            parser_logger->Error(fmt::format("found : '{}', when regular expression was expected at line number: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
             return nullptr;
         }
         //XXX: probaly should keep parsing after finding an error for intellisense and to list ALL errors not just one at a time so multiple compile attempts arent required
@@ -768,7 +768,7 @@ namespace BongoJam {
 
         if (fp_CurrentToken.m_Type != TokenType::OpenBracket) //THROW ERROR
         {
-            parser_logger->Error(format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
+            parser_logger->Error(fmt::format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
             parser_logger->Warning("Unrecognized symbol found when parsing statement block! Try taking a look at your '{ }' code-body wrappers", "Parser");
             return nullptr;
         }
@@ -791,7 +791,7 @@ namespace BongoJam {
 
                 if (not sv_ReturnStatement)
                 {
-                    parser_logger->Error(format("Error at Line Number: {}, invalid return statement found when parsing", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                    parser_logger->Error(fmt::format("Error at Line Number: {}, invalid return statement found when parsing", f_EntryToken.m_SourceCodeLineNumber), "Parser");
                     return nullptr;
                 }
 
@@ -802,7 +802,7 @@ namespace BongoJam {
             {
                 if (not fp_IsInLoop) //THROW ERROR
                 {
-                    parser_logger->Error(format("Error at Line Number: {}, illegal use of break outside of a loop", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
+                    parser_logger->Error(fmt::format("Error at Line Number: {}, illegal use of break outside of a loop", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
                     parser_logger->Warning("Tip: You are not allowed to use a break statement outside of a loop brother!", "Parser");
                     return nullptr;
                 }
@@ -814,7 +814,7 @@ namespace BongoJam {
             {
                 if (not fp_IsInLoop) //THROW ERROR
                 {
-                    parser_logger->Error(format("Error at Line Number: {}, illegal use of continue outside of a loop", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
+                    parser_logger->Error(fmt::format("Error at Line Number: {}, illegal use of continue outside of a loop", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
                     parser_logger->Warning("You are not allowed to use a continue statement outside of a loop brother!", "Parser");
                     return nullptr;
                 }
@@ -828,7 +828,7 @@ namespace BongoJam {
 
                 if (not sv_NestedIfStatement)
                 {
-                    parser_logger->Error(format("Error at Line Number: {}", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                    parser_logger->Error(fmt::format("Error at Line Number: {}", f_EntryToken.m_SourceCodeLineNumber), "Parser");
                     return nullptr;
                 }
 
@@ -845,7 +845,7 @@ namespace BongoJam {
 
                 if (not sv_UserDefinedAction)
                 {
-                    parser_logger->Error(format("Parsing Error at line: {}, bad grammer found involving a user identifier", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                    parser_logger->Error(fmt::format("Parsing Error at line: {}, bad grammer found involving a user identifier", f_EntryToken.m_SourceCodeLineNumber), "Parser");
                     return nullptr;
                 }
 
@@ -859,7 +859,7 @@ namespace BongoJam {
 
                 if (not sv_VariableDefinition)
                 {
-                    parser_logger->Error(format("Parsing Error at line: {}, invalid variable definition found inside code block", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                    parser_logger->Error(fmt::format("Parsing Error at line: {}, invalid variable definition found inside code block", f_EntryToken.m_SourceCodeLineNumber), "Parser");
                     return nullptr;
                 }
 
@@ -873,7 +873,7 @@ namespace BongoJam {
 
                 if (not sv_WhileDec)
                 {
-                    parser_logger->Error(format("Parsing Error at line: {}, invalid variable definition found inside code block", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                    parser_logger->Error(fmt::format("Parsing Error at line: {}, invalid variable definition found inside code block", f_EntryToken.m_SourceCodeLineNumber), "Parser");
                     return nullptr;
                 }
 
@@ -886,7 +886,7 @@ namespace BongoJam {
 
                 if (not sv_ForDec)
                 {
-                    parser_logger->Error(format("Parsing Error at line: {}, invalid variable definition found inside code block", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                    parser_logger->Error(fmt::format("Parsing Error at line: {}, invalid variable definition found inside code block", f_EntryToken.m_SourceCodeLineNumber), "Parser");
                     return nullptr;
                 }
 
@@ -899,7 +899,7 @@ namespace BongoJam {
 
                 if (not sv_TryCatch)
                 {
-                    parser_logger->Error(format("Parsing Error at line: {}, invalid try-catch definition found inside code block", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                    parser_logger->Error(fmt::format("Parsing Error at line: {}, invalid try-catch definition found inside code block", f_EntryToken.m_SourceCodeLineNumber), "Parser");
                     return nullptr;
                 }
 
@@ -913,7 +913,7 @@ namespace BongoJam {
 
                 if (not sv_OpenParen)
                 {
-                    parser_logger->Error(format("Parsing Error at line: {}, invalid expression found inside code block", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                    parser_logger->Error(fmt::format("Parsing Error at line: {}, invalid expression found inside code block", f_EntryToken.m_SourceCodeLineNumber), "Parser");
                     return nullptr;
                 }
 
@@ -928,7 +928,7 @@ namespace BongoJam {
 
                 if (not sv_ConstStatement)
                 {
-                    parser_logger->Error(format("Parsing Error at line: {}, invalid const definition found inside code block", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                    parser_logger->Error(fmt::format("Parsing Error at line: {}, invalid const definition found inside code block", f_EntryToken.m_SourceCodeLineNumber), "Parser");
                     return nullptr;
                 }
 
@@ -943,7 +943,7 @@ namespace BongoJam {
 
                 if (not sv_StaticStatement)
                 {
-                    parser_logger->Error(format("Parsing Error at line:'{}', couldn't parse static whatever ", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                    parser_logger->Error(fmt::format("Parsing Error at line:'{}', couldn't parse static whatever ", f_EntryToken.m_SourceCodeLineNumber), "Parser");
                     return nullptr;
                 }
 
@@ -951,14 +951,14 @@ namespace BongoJam {
             }
             break; //should shiftforward at top of loop at work fine uwu
             default:
-                parser_logger->Error(format("Error at Line Number: {}, found : '{}', when statement was expected inside a code block", to_string(fp_CurrentToken.m_SourceCodeLineNumber), fp_CurrentToken.m_Value), "Parser");
+                parser_logger->Error(fmt::format("Error at Line Number: {}, found : '{}', when statement was expected inside a code block", to_string(fp_CurrentToken.m_SourceCodeLineNumber), fp_CurrentToken.m_Value), "Parser");
                 return nullptr;
             }
         }
 
         if (fp_CurrentToken.m_Type != TokenType::CloseBracket) //THROW ERROR
         {
-            parser_logger->Error(format("Error at Line Number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
+            parser_logger->Error(fmt::format("Error at Line Number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
             parser_logger->Warning("Unrecognized expression found while declaring your function brother! Try taking a look at your function parameter(s) definition", "Parser");
             return nullptr;
         }
@@ -985,7 +985,7 @@ namespace BongoJam {
 
             if (not sv_TryCodeBlock)
             {
-                parser_logger->Error(format("Error at Line Number: {}, unable to parse try code block >O<", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                parser_logger->Error(fmt::format("Error at Line Number: {}, unable to parse try code block >O<", f_EntryToken.m_SourceCodeLineNumber), "Parser");
                 return nullptr;
             }
 
@@ -996,7 +996,7 @@ namespace BongoJam {
 
             if (not sv_CatchCondition)
             {
-                parser_logger->Error(format("Error at Line Number: {}, unable to parse catch() condition, go read a book", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                parser_logger->Error(fmt::format("Error at Line Number: {}, unable to parse catch() condition, go read a book", f_EntryToken.m_SourceCodeLineNumber), "Parser");
                 return nullptr;
             }
 
@@ -1008,7 +1008,7 @@ namespace BongoJam {
 
             if (not sv_CatchBlock)
             {
-                parser_logger->Error(format("Error at Line Number: {}, unable to parse catch code block ^_^", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                parser_logger->Error(fmt::format("Error at Line Number: {}, unable to parse catch code block ^_^", f_EntryToken.m_SourceCodeLineNumber), "Parser");
                 return nullptr;
             }
 
@@ -1039,7 +1039,7 @@ namespace BongoJam {
 
         if (fp_CurrentToken.m_Type != TokenType::OpenParen) //THROW ERROR
         {
-            parser_logger->Error(format("Error at Line Number: {}, expected '(' when parsing if-statement, try checking your if-statement condition", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
+            parser_logger->Error(fmt::format("Error at Line Number: {}, expected '(' when parsing if-statement, try checking your if-statement condition", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
             parser_logger->Warning("Something bad happened while declaring your if statement brother! Try looking at your brackets on the if-statement", "Parser");
             return nullptr;
         }
@@ -1050,12 +1050,12 @@ namespace BongoJam {
 
         if (not f_ConditionExpr)
         {
-            parser_logger->Error(format("Error at Line Number: {}, couldn't parse the condition for your if statement~~ nyah", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+            parser_logger->Error(fmt::format("Error at Line Number: {}, couldn't parse the condition for your if statement~~ nyah", f_EntryToken.m_SourceCodeLineNumber), "Parser");
             return nullptr;
         }
         //else if (f_ConditionExpr->EvaluatesTo != TokenType::Bool) //make sure condition evaluates to a proper condition uwu
         //{
-        //    parser_logger->Error(format("Error occured at line: {}, if-statement condition doesn't evaluate to a bool, wtf man?", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+        //    parser_logger->Error(fmt::format("Error occured at line: {}, if-statement condition doesn't evaluate to a bool, wtf man?", f_EntryToken.m_SourceCodeLineNumber), "Parser");
         //    return nullptr;
         //}
 
@@ -1067,7 +1067,7 @@ namespace BongoJam {
 
         if (fp_CurrentToken.m_Type != TokenType::CloseParen)
         {
-            parser_logger->Error(format("Error at Line Number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
+            parser_logger->Error(fmt::format("Error at Line Number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
             return nullptr;
         }
 
@@ -1078,7 +1078,7 @@ namespace BongoJam {
 
         if (not f_CodeBlock)
         {
-            parser_logger->Error(format("Error at Line Number: {}, unable to parse if statement code block >w<", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
+            parser_logger->Error(fmt::format("Error at Line Number: {}, unable to parse if statement code block >w<", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
             return nullptr;
         }
 
@@ -1101,7 +1101,7 @@ namespace BongoJam {
 
                 if (not sv_FallThroughCondition)
                 {
-                    parser_logger->Error(format("Error at Line Number: {}, unable to parse else-if statement >w<", f_ElseIfEntryToken.m_SourceCodeLineNumber), "Parser");
+                    parser_logger->Error(fmt::format("Error at Line Number: {}, unable to parse else-if statement >w<", f_ElseIfEntryToken.m_SourceCodeLineNumber), "Parser");
                     return nullptr;
                 }
 
@@ -1118,7 +1118,7 @@ namespace BongoJam {
 
                 if (not f_ElseStatement)
                 {
-                    parser_logger->Error(format("Error while defining an else statement at Line Number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
+                    parser_logger->Error(fmt::format("Error while defining an else statement at Line Number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
                     return nullptr;
                 }
 
@@ -1145,7 +1145,7 @@ namespace BongoJam {
 
         if (not f_StatementBlock)
         {
-            parser_logger->Error(format("Error occured at line: '{}' while trying to parse your else statement >:^(", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+            parser_logger->Error(fmt::format("Error occured at line: '{}' while trying to parse your else statement >:^(", f_EntryToken.m_SourceCodeLineNumber), "Parser");
             return nullptr;
         }
 
@@ -1170,12 +1170,12 @@ namespace BongoJam {
         auto f_ParsedCondition = ParseRegularExpr(fp_CurrentToken, fp_ProgramTokens);
         if (not f_ParsedCondition)
         {
-            parser_logger->Error(format("Error occured at line: {} while trying to parse your while statement Owo", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+            parser_logger->Error(fmt::format("Error occured at line: {} while trying to parse your while statement Owo", f_EntryToken.m_SourceCodeLineNumber), "Parser");
             return nullptr;
         }
         else if (f_ParsedCondition->EvaluatesTo != TokenType::Bool) //make sure condition evaluates to a proper condition uwu
         {
-            parser_logger->Error(format("Error occured at line: {}, while-loop condition doesn't evaluate ->bool, wtf man?", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+            parser_logger->Error(fmt::format("Error occured at line: {}, while-loop condition doesn't evaluate ->bool, wtf man?", f_EntryToken.m_SourceCodeLineNumber), "Parser");
             return nullptr;
         }
         f_WhileDec->m_Condition = std::move(f_ParsedCondition);
@@ -1183,7 +1183,7 @@ namespace BongoJam {
         auto f_ParsedStatementBlock = ParseStatementBlock(fp_CurrentToken, fp_ProgramTokens, true);
         if (not f_ParsedStatementBlock)
         {
-            parser_logger->Error(format("Error occured at line: {}, while-loop code block is bad and doesn't work try again but better this time", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+            parser_logger->Error(fmt::format("Error occured at line: {}, while-loop code block is bad and doesn't work try again but better this time", f_EntryToken.m_SourceCodeLineNumber), "Parser");
             return nullptr;
         }
 
@@ -1209,7 +1209,7 @@ namespace BongoJam {
 
         if (fp_CurrentToken.m_Type != TokenType::OpenParen)
         {
-            parser_logger->Error(format("Error occured at line: {}, expected '(' at for-loop condition, found: '{}' instead", f_EntryToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
+            parser_logger->Error(fmt::format("Error occured at line: {}, expected '(' at for-loop condition, found: '{}' instead", f_EntryToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
             return nullptr;
         }
 
@@ -1221,14 +1221,14 @@ namespace BongoJam {
 
         if (fp_CurrentToken.m_Type != TokenType::CloseParen)
         {
-            parser_logger->Error(format("Error occured at line: {}, expected ')' at for-loop condition, found: '{}' instead", f_EntryToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
+            parser_logger->Error(fmt::format("Error occured at line: {}, expected ')' at for-loop condition, found: '{}' instead", f_EntryToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
             return nullptr;
         }
 
         auto f_ParsedStatementBlock = ParseStatementBlock(fp_CurrentToken, fp_ProgramTokens, true);
         if (not f_ParsedStatementBlock)
         {
-            parser_logger->Error(format("Error occured at line: {}, couldn't parse for-loop code block, u srs?", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+            parser_logger->Error(fmt::format("Error occured at line: {}, couldn't parse for-loop code block, u srs?", f_EntryToken.m_SourceCodeLineNumber), "Parser");
             return nullptr;
         }
 
@@ -1254,7 +1254,7 @@ namespace BongoJam {
 
         if (not f_Expr)
         {
-            parser_logger->Error(format("Error at Line Number: {}, unable to parse return expression", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+            parser_logger->Error(fmt::format("Error at Line Number: {}, unable to parse return expression", f_EntryToken.m_SourceCodeLineNumber), "Parser");
             return nullptr;
         }
 
@@ -1262,7 +1262,7 @@ namespace BongoJam {
 
         if (fp_CurrentToken.m_Type != TokenType::SemiDot)
         {
-            parser_logger->Error(format("Error at Line Number: {}, imporperly terminated return statement, did you forget a ';' at the end of your return statement?", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+            parser_logger->Error(fmt::format("Error at Line Number: {}, imporperly terminated return statement, did you forget a ';' at the end of your return statement?", f_EntryToken.m_SourceCodeLineNumber), "Parser");
             return nullptr;
         }
 
@@ -1284,13 +1284,13 @@ namespace BongoJam {
 
         if (fp_CurrentToken.m_Type != TokenType::UserIdentifier) //THROW ERROR
         {
-            parser_logger->Error(format("Error at Line Number: {}, expected function name but found: '{}' instead >:^(", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
+            parser_logger->Error(fmt::format("Error at Line Number: {}, expected function name but found: '{}' instead >:^(", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
             parser_logger->Warning("Something bad happened while declaring your function brother! Try taking a look at your function name definition", "Parser");
             return nullptr;
         }
         else if (STANDARD_FUNCTIONS.find(fp_CurrentToken.m_Value) != STANDARD_FUNCTIONS.end())
         {
-            parser_logger->Error(format("Error at Line Number: {}, illegal function name: '{}()', PLEASE you are not allowed to declare a function that has the same name as a standard library function", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
+            parser_logger->Error(fmt::format("Error at Line Number: {}, illegal function name: '{}()', PLEASE you are not allowed to declare a function that has the same name as a standard library function", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
             return nullptr;
         }
 
@@ -1299,7 +1299,7 @@ namespace BongoJam {
 
         if (fp_CurrentToken.m_Type != TokenType::OpenParen) //THROW ERROR
         {
-            parser_logger->Error(format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
+            parser_logger->Error(fmt::format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
             parser_logger->Warning("Something bad happened while declaring your function brother! Try taking a look at how you've placed your parenthesis", "Parser");
             return nullptr;
         }
@@ -1319,7 +1319,7 @@ namespace BongoJam {
             //handles variables, function, and class instance names being passed as a single argument, could use this for some semi-dynamic typing xdxd
             if (fp_CurrentToken.m_Type != TokenType::UserIdentifier) //THROW ERROR 
             {
-                parser_logger->Error(format("Error at Line Number: {}, expected function name found: '{}' instead", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
+                parser_logger->Error(fmt::format("Error at Line Number: {}, expected function name found: '{}' instead", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
                 parser_logger->Warning("Unrecognized symbol following an open parenthesis while declaring: " + f_FuncDec->m_FuncName.m_Value + "'s arguments brother! Try taking a look at your function argument(s) defintion", "Parser");
                 return nullptr;
             }
@@ -1329,8 +1329,8 @@ namespace BongoJam {
 
             if (fp_CurrentToken.m_Type != TokenType::TypeArrow) //THROW ERROR
             {
-                parser_logger->Error(format("Error at Line Number: {}, expected '->' but found: '{}' instead while defining function arguments for: '{}' ", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value, f_FuncDec->m_FuncName.m_Value), "Parser");
-                parser_logger->Warning(format("Unrecognized symbol following a name definition while declaring function: {} arguments brother! Try taking a look at your type-arrows", f_FuncDec->m_FuncName.m_Value), "Parser");
+                parser_logger->Error(fmt::format("Error at Line Number: {}, expected '->' but found: '{}' instead while defining function arguments for: '{}' ", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value, f_FuncDec->m_FuncName.m_Value), "Parser");
+                parser_logger->Warning(fmt::format("Unrecognized symbol following a name definition while declaring function: {} arguments brother! Try taking a look at your type-arrows", f_FuncDec->m_FuncName.m_Value), "Parser");
                 return nullptr;
             }
 
@@ -1340,12 +1340,12 @@ namespace BongoJam {
             {
                 parser_logger->Error
                 (
-                    format("Error at Line Number: {}, expected typename but found: '{}' instead while defining function arguments for: '{}' ", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value, f_FuncDec->m_FuncName.m_Value),
+                    fmt::format("Error at Line Number: {}, expected typename but found: '{}' instead while defining function arguments for: '{}' ", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value, f_FuncDec->m_FuncName.m_Value),
                     "Parser"
                 );
                 parser_logger->Warning
                 (
-                    format("Unrecognized var type found while declaring function: {} brother! Are you sure you've entered a valid type in {}'s argument definition?", f_FuncDec->m_FuncName.m_Value, f_FuncDec->m_FuncName.m_Value),
+                    fmt::format("Unrecognized var type found while declaring function: {} brother! Are you sure you've entered a valid type in {}'s argument definition?", f_FuncDec->m_FuncName.m_Value, f_FuncDec->m_FuncName.m_Value),
                     "Parser"
                 );
                 return nullptr;
@@ -1361,8 +1361,8 @@ namespace BongoJam {
 
                 if (not IsValue(fp_CurrentToken)) //THROW ERROR
                 {
-                    parser_logger->Error(format("Error at Line Number: {}, expected literal value inside function argument definition for {} but found: '{}' instead", fp_CurrentToken.m_SourceCodeLineNumber, f_FuncDec->m_FuncName.m_Value, fp_CurrentToken.m_Value), "Parser");
-                    parser_logger->Warning(format("Tip: Most kinds of variables aren't allowed for function argument default values, only const static var's are allowed to be used"), "Parser");
+                    parser_logger->Error(fmt::format("Error at Line Number: {}, expected literal value inside function argument definition for {} but found: '{}' instead", fp_CurrentToken.m_SourceCodeLineNumber, f_FuncDec->m_FuncName.m_Value, fp_CurrentToken.m_Value), "Parser");
+                    parser_logger->Warning(fmt::format("Tip: Most kinds of variables aren't allowed for function argument default values, only const static var's are allowed to be used"), "Parser");
                     //could add some debug functions here to query the found token, and make a guess at what was intended uwu, tahts for bongo or wait compilerdebugtools uwu
                     return nullptr;
                 }
@@ -1385,9 +1385,9 @@ namespace BongoJam {
             }
             else //THROW ERROR : general syntax error, unexpected symbol here means a symbol the compiler doesn't look for when parsing function arguments
             {
-                Print("Token before error thrown is: " + fp_CurrentToken.m_Value + "at line: " + to_string(fp_CurrentToken.m_SourceCodeLineNumber));
-                parser_logger->Error(format("Error at Line Number: {}, found a symbol that was not expected during function argument definition for {} and found: '{}' instead", fp_CurrentToken.m_SourceCodeLineNumber, f_FuncDec->m_FuncName.m_Value, fp_CurrentToken.m_Value), "Parser");
-                parser_logger->Warning(format("Tip: Try taking a look at your comma separation between function parameters", f_FuncDec->m_FuncName.m_Value), "Parser");
+                PRINT(fmt::format("Token before error thrown is: {} at line: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber), Magenta);
+                parser_logger->Error(fmt::format("Error at Line Number: {}, found a symbol that was not expected during function argument definition for {} and found: '{}' instead", fp_CurrentToken.m_SourceCodeLineNumber, f_FuncDec->m_FuncName.m_Value, fp_CurrentToken.m_Value), "Parser");
+                parser_logger->Warning(fmt::format("Tip: Try taking a look at your comma separation between function parameters", f_FuncDec->m_FuncName.m_Value), "Parser");
                 return nullptr;
             }
         } //end of function arg parsing
@@ -1398,7 +1398,7 @@ namespace BongoJam {
 
         if (fp_CurrentToken.m_Type != TokenType::TypeArrow) //THROW ERROR
         {
-            parser_logger->Error(format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
+            parser_logger->Error(fmt::format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
             parser_logger->Warning("Unexpected symbol found in: " + f_FuncDec->m_FuncName.m_Value + "'s return type defintion! \n Try taking a look at your type-arrow definition", "Parser");
             return nullptr;
         }
@@ -1407,7 +1407,7 @@ namespace BongoJam {
 
         if (not IsTypename(fp_CurrentToken)) //THROW ERROR
         {
-            parser_logger->Error(format("Error at Line Number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
+            parser_logger->Error(fmt::format("Error at Line Number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
             parser_logger->Warning("Invalid type found in: " + f_FuncDec->m_FuncName.m_Value + "'s return type defintion! \n Try taking a look at your type-arrow definition", "Parser");
             return nullptr;
         }
@@ -1420,7 +1420,7 @@ namespace BongoJam {
 
         if (not f_FuncBody)
         {
-            parser_logger->Error(format("Error at Line Number: {}, unable to parse function : '{}' code body", f_EntryToken.m_SourceCodeLineNumber, f_FuncDec->m_FuncName.m_Value), "Parser");
+            parser_logger->Error(fmt::format("Error at Line Number: {}, unable to parse function : '{}' code body", f_EntryToken.m_SourceCodeLineNumber, f_FuncDec->m_FuncName.m_Value), "Parser");
             return nullptr;
         }
 
@@ -1470,7 +1470,7 @@ namespace BongoJam {
 
             if (not f_FuncArg)
             {
-                parser_logger->Error(format("Error at Line Number: {}, unable to parse {} function, parsing failed at token: '{}'", f_EntryToken.m_SourceCodeLineNumber, f_FuncCallExpr->FuncName.m_Value, fp_CurrentToken.m_Value), "Parser");
+                parser_logger->Error(fmt::format("Error at Line Number: {}, unable to parse {} function, parsing failed at token: '{}'", f_EntryToken.m_SourceCodeLineNumber, f_FuncCallExpr->FuncName.m_Value, fp_CurrentToken.m_Value), "Parser");
                 return nullptr;
             }
 
@@ -1491,14 +1491,14 @@ namespace BongoJam {
 
             if (fp_CurrentToken.m_Type == TokenType::ENDF)
             {
-                parser_logger->Error(format("Error at Line Number: {}, found END__OF__FILE when function argument was expected uwu", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
+                parser_logger->Error(fmt::format("Error at Line Number: {}, found END__OF__FILE when function argument was expected uwu", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
                 return nullptr;
             }
         }
 
         if (fp_CurrentToken.m_Type != TokenType::CloseParen)
         {
-            parser_logger->Error(format("Error at Line Number: {}, expected ')' after function call expression but found: '{}' instead", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
+            parser_logger->Error(fmt::format("Error at Line Number: {}, expected ')' after function call expression but found: '{}' instead", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
             return nullptr;
         }
 
@@ -1523,7 +1523,7 @@ namespace BongoJam {
 
         if (fp_CurrentToken.m_Type != TokenType::UserIdentifier)//if it"s a proper name defintion then we can now proceed forwards //THROW ERROR
         {
-            parser_logger->Error(format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
+            parser_logger->Error(fmt::format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
             parser_logger->Warning("Something bad happened while declaring your class brother! Did you forget an open bracket?", "Parser");
             return nullptr;
         }
@@ -1533,7 +1533,7 @@ namespace BongoJam {
 
         if (fp_CurrentToken.m_Type != TokenType::OpenBracket) //THROW ERROR
         {
-            parser_logger->Error(format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
+            parser_logger->Error(fmt::format("Error at Line Number: {}", to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
             parser_logger->Warning("Something bad happened while declaring your class brother! Did you remember an open bracket?", "Parser");
             return nullptr;
         }
@@ -1556,7 +1556,7 @@ namespace BongoJam {
 
                 if (not sv_FieldDec)
                 {
-                    parser_logger->Error(format("Error at Line Number: {}, unable to parse field declaration inside class : '{}'", fp_CurrentToken.m_SourceCodeLineNumber, f_ClassDec->ClassName.m_Value), "Parser");
+                    parser_logger->Error(fmt::format("Error at Line Number: {}, unable to parse field declaration inside class : '{}'", fp_CurrentToken.m_SourceCodeLineNumber, f_ClassDec->ClassName.m_Value), "Parser");
                     return nullptr;
                 }
 
@@ -1573,7 +1573,7 @@ namespace BongoJam {
 
                 if (not sv_FuncDeclaration)
                 {
-                    parser_logger->Error(format("Error at Line Number: {}, unable to parse func declaration inside class : '{}'", f_EntryToken.m_SourceCodeLineNumber, f_ClassDec->ClassName.m_Value), "Parser");
+                    parser_logger->Error(fmt::format("Error at Line Number: {}, unable to parse func declaration inside class : '{}'", f_EntryToken.m_SourceCodeLineNumber, f_ClassDec->ClassName.m_Value), "Parser");
                     return nullptr;
                 }
 
@@ -1596,7 +1596,7 @@ namespace BongoJam {
 
                 if (not sv_StaticDeclaration)
                 {
-                    parser_logger->Error(format("Parsing Error at line: {}, couldn't parse static whatever ", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                    parser_logger->Error(fmt::format("Parsing Error at line: {}, couldn't parse static whatever ", f_EntryToken.m_SourceCodeLineNumber), "Parser");
                     return nullptr;
                 }
 
@@ -1615,7 +1615,7 @@ namespace BongoJam {
                 }
                 break;
                 default:
-                    parser_logger->Error(format("Error at Line: {}, found invalid declaration inside class named: '{}'", f_EntryToken.m_SourceCodeLineNumber, f_ClassDec->ClassName.m_Value), "Parser");
+                    parser_logger->Error(fmt::format("Error at Line: {}, found invalid declaration inside class named: '{}'", f_EntryToken.m_SourceCodeLineNumber, f_ClassDec->ClassName.m_Value), "Parser");
                     return nullptr;
                 }
             }
@@ -1626,15 +1626,15 @@ namespace BongoJam {
 
                 if (not sv_NestedStruct)
                 {
-                    parser_logger->Error(format("Error at line: {}, invalid nested class definition found inside {}", f_EntryToken.m_SourceCodeLineNumber, f_ClassDec->ClassName.m_Value), "Parser");
+                    parser_logger->Error(fmt::format("Error at line: {}, invalid nested class definition found inside {}", f_EntryToken.m_SourceCodeLineNumber, f_ClassDec->ClassName.m_Value), "Parser");
                     return nullptr;
                 }
             }
             break;
             case TokenType::Single:
             {
-                parser_logger->Error(format("Error at line: {}, invalid 'single' statement inside class {} declaration", f_EntryToken.m_SourceCodeLineNumber, f_ClassDec->ClassName.m_Value), "Parser");
-                parser_logger->Info(format("Tip: single cannot be used for nested class types, if a class needs to be single define it at global scope"), "Parser");
+                parser_logger->Error(fmt::format("Error at line: {}, invalid 'single' statement inside class {} declaration", f_EntryToken.m_SourceCodeLineNumber, f_ClassDec->ClassName.m_Value), "Parser");
+                parser_logger->Info(fmt::format("Tip: single cannot be used for nested class types, if a class needs to be single define it at global scope"), "Parser");
                 return nullptr;
             }
             break;
@@ -1644,7 +1644,7 @@ namespace BongoJam {
 
                 if (not sv_NestedClassDec)
                 {
-                    parser_logger->Error(format("Error at line: {}, invalid nested class definition found inside {}", f_EntryToken.m_SourceCodeLineNumber, f_ClassDec->ClassName.m_Value), "Parser");
+                    parser_logger->Error(fmt::format("Error at line: {}, invalid nested class definition found inside {}", f_EntryToken.m_SourceCodeLineNumber, f_ClassDec->ClassName.m_Value), "Parser");
                     return nullptr;
                 }
 
@@ -1661,7 +1661,7 @@ namespace BongoJam {
 
                 if (not sv_ConstStatement)
                 {
-                    parser_logger->Error(format("Parsing Error at line: {}, invalid const definition found inside code block", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                    parser_logger->Error(fmt::format("Parsing Error at line: {}, invalid const definition found inside code block", f_EntryToken.m_SourceCodeLineNumber), "Parser");
                     return nullptr;
                 }
                 else if (sv_ConstStatement->m_Domain == SyntaxNodeType::VarDeclaration)
@@ -1681,7 +1681,7 @@ namespace BongoJam {
 
                 if (fp_CurrentToken.m_Type != TokenType::DoubleDot)
                 {
-                    parser_logger->Error(format("Error at Line Number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
+                    parser_logger->Error(fmt::format("Error at Line Number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
                     return nullptr;
                 }
 
@@ -1695,7 +1695,7 @@ namespace BongoJam {
 
                 if (fp_CurrentToken.m_Type != TokenType::DoubleDot)
                 {
-                    parser_logger->Error(format("Error at Line Number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
+                    parser_logger->Error(fmt::format("Error at Line Number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
                     return nullptr;
                 }
 
@@ -1709,7 +1709,7 @@ namespace BongoJam {
 
                 if (fp_CurrentToken.m_Type != TokenType::DoubleDot)
                 {
-                    parser_logger->Error(format("Error at Line Number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
+                    parser_logger->Error(fmt::format("Error at Line Number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
                     return nullptr;
                 }
 
@@ -1739,14 +1739,14 @@ namespace BongoJam {
         {
             fp_ProgramTokens.Peek(fp_CurrentToken);
 
-            if (fp_CurrentToken.m_Type == TokenType::Dot) //INFO: used for the struct construction syntax in C/C++ where you can name the vars in a .var format
+            if (fp_CurrentToken.m_Type == TokenType::Dot) //INFO: used for the struct construction syntax in C/C++ where you can name the vars in a .var fmt::format
             {
                 fp_ProgramTokens.ShiftForward(fp_CurrentToken); //shift onto '.'
                 fp_ProgramTokens.ShiftForward(fp_CurrentToken);//now just looking for appropriate grammar
 
                 if (fp_CurrentToken.m_Type != TokenType::UserIdentifier)
                 {
-                    parser_logger->Error(format("Error at Line Number: {}, expected variable name but found: '{}' instead while parsing a named struct construction", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
+                    parser_logger->Error(fmt::format("Error at Line Number: {}, expected variable name but found: '{}' instead while parsing a named struct construction", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
                     return nullptr;
                 }
 
@@ -1755,7 +1755,7 @@ namespace BongoJam {
 
                 if (fp_CurrentToken.m_Type != TokenType::Equals)
                 {
-                    parser_logger->Error(format("Error at Line Number: {}, expected '=' but found: '{}' instead while parsing a named struct construction", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
+                    parser_logger->Error(fmt::format("Error at Line Number: {}, expected '=' but found: '{}' instead while parsing a named struct construction", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
                     return nullptr;
                 }
 
@@ -1763,7 +1763,7 @@ namespace BongoJam {
 
                 if (not sv_RegExpr)
                 {
-                    parser_logger->Error(format("Error at Line Number: {}, unable to parse named in-place struct contructor call argument ;o;", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
+                    parser_logger->Error(fmt::format("Error at Line Number: {}, unable to parse named in-place struct contructor call argument ;o;", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
                     return nullptr;
                 }
 
@@ -1786,7 +1786,7 @@ namespace BongoJam {
 
                 if (not sv_RegExpr)
                 {
-                    parser_logger->Error(format("Error at Line Number: {}, unable to parse struct contructor call argument ;o;", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
+                    parser_logger->Error(fmt::format("Error at Line Number: {}, unable to parse struct contructor call argument ;o;", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
                     return nullptr;
                 }
 
@@ -1813,7 +1813,7 @@ namespace BongoJam {
 
         if (fp_CurrentToken.m_Type != TokenType::UserIdentifier)//if it"s a proper name defintion then we can now proceed forwards, //THROW ERROR
         {
-            parser_logger->Error(format("Error at Line Number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
+            parser_logger->Error(fmt::format("Error at Line Number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
             parser_logger->Warning("Something bad happened while declaring your struct brother, did you forget or type your name wrong?", "Parser");
             return nullptr;
         }
@@ -1823,7 +1823,7 @@ namespace BongoJam {
 
         if (fp_CurrentToken.m_Type != TokenType::OpenBracket) //THROW ERROR
         {
-            parser_logger->Error(format("Error at Line Number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
+            parser_logger->Error(fmt::format("Error at Line Number: {}", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
             parser_logger->Warning("Something bad happened while declaring your class brother! Did you remember an open bracket?", "Parser");
             return nullptr;
         }
@@ -1842,7 +1842,7 @@ namespace BongoJam {
 
                 if (not sv_VariableDeclaration)
                 {
-                    parser_logger->Error(format("Failed to parse variable declaration inside struct : '{}' at line number: {} ", f_StructDec->StructName.m_Value, to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
+                    parser_logger->Error(fmt::format("Failed to parse variable declaration inside struct : '{}' at line number: {} ", f_StructDec->StructName.m_Value, to_string(fp_CurrentToken.m_SourceCodeLineNumber)), "Parser");
                     return nullptr;
                 }
 
@@ -1853,7 +1853,7 @@ namespace BongoJam {
                 f_IsParsing = false;
                 break;
             default:
-                parser_logger->Error(format("Error at Line Number: {}, found : '{}', when declaring variables inside a struct", to_string(fp_CurrentToken.m_SourceCodeLineNumber), fp_CurrentToken.m_Value), "Parser");
+                parser_logger->Error(fmt::format("Error at Line Number: {}, found : '{}', when declaring variables inside a struct", to_string(fp_CurrentToken.m_SourceCodeLineNumber), fp_CurrentToken.m_Value), "Parser");
                 return nullptr;
             }
         }
@@ -1902,7 +1902,7 @@ namespace BongoJam {
 
         if (fp_CurrentToken.m_Type != TokenType::UserIdentifier) //THROW ERROR
         {
-            parser_logger->Error(format("Error at Line Number: {}, expected a variable name but found: '{}' instead", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
+            parser_logger->Error(fmt::format("Error at Line Number: {}, expected a variable name but found: '{}' instead", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
             parser_logger->Warning("Something bad happened while declaring a variable brother! Try taking a look at the variable name definition", "Parser");
             return nullptr;
         }
@@ -1912,7 +1912,7 @@ namespace BongoJam {
 
         if (fp_CurrentToken.m_Type != TokenType::TypeArrow)  //THROW ERROR
         {
-            parser_logger->Error(format("Error at Line Number: {}, expected type arrow '->' but found: '{}' instead", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
+            parser_logger->Error(fmt::format("Error at Line Number: {}, expected type arrow '->' but found: '{}' instead", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
             parser_logger->Warning("Invalid symbol found after name-definition while declaring a variable brother! Try taking a look at the variable type-arrow definition", "Parser");
             return nullptr;
         }
@@ -1921,7 +1921,7 @@ namespace BongoJam {
 
         if (not IsTypename(fp_CurrentToken)) //THROW ERROR
         {
-            parser_logger->Error(format("Error at Line Number: {}, expected typename but found: '{}' instead", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
+            parser_logger->Error(fmt::format("Error at Line Number: {}, expected typename but found: '{}' instead", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
             parser_logger->Warning("Something bad happened while declaring a variable brother! Try taking a look at the variable type definition", "Parser");
             return nullptr;
         }
@@ -1936,8 +1936,8 @@ namespace BongoJam {
 
         if (fp_CurrentToken.m_Type != TokenType::Equals)
         {
-            parser_logger->Error(format("Error at Line Number: {}, expected '=' during var declaration but found: '{}' instead", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
-            parser_logger->Warning(format("Found : '{}', when '=' was expected during definition of your variable named: '{}'", fp_CurrentToken.m_Value, f_VarDec->Name.m_Value), "Parser");
+            parser_logger->Error(fmt::format("Error at Line Number: {}, expected '=' during var declaration but found: '{}' instead", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
+            parser_logger->Warning(fmt::format("Found : '{}', when '=' was expected during definition of your variable named: '{}'", fp_CurrentToken.m_Value, f_VarDec->Name.m_Value), "Parser");
             return nullptr;
         }
 
@@ -1945,7 +1945,7 @@ namespace BongoJam {
 
         if (not f_ParsedRegExpr) //THROW ERROR
         {
-            parser_logger->Error(format("Error at Line Number: {}, failed to parse variable value declaration", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
+            parser_logger->Error(fmt::format("Error at Line Number: {}, failed to parse variable value declaration", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
             parser_logger->Warning("Invalid value found while declaring a variable brother! Try taking a look at the variable value definition", "Parser");
             return nullptr;
         }
@@ -1957,7 +1957,7 @@ namespace BongoJam {
 
         if (fp_CurrentToken.m_Type != TokenType::SemiDot)
         {
-            parser_logger->Error(format("Error at Line Number: {}, YOU FORGOT A SEMICOLON AT THE END OF YOUR VARIABLE DECLARATION CLOD", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
+            parser_logger->Error(fmt::format("Error at Line Number: {}, YOU FORGOT A SEMICOLON AT THE END OF YOUR VARIABLE DECLARATION CLOD", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
             return nullptr;
         }
 
@@ -1984,7 +1984,7 @@ namespace BongoJam {
             {
                 parser_logger->Error
                 (
-                    format("Parsing Error: failed to parse variable declaration, found: '{}' instead in source code at line: {}", fp_CurrentToken.m_Value, to_string(fp_CurrentToken.m_SourceCodeLineNumber)),
+                    fmt::format("Parsing Error: failed to parse variable declaration, found: '{}' instead in source code at line: {}", fp_CurrentToken.m_Value, to_string(fp_CurrentToken.m_SourceCodeLineNumber)),
                     "Parser"
                 );
 
@@ -2004,7 +2004,7 @@ namespace BongoJam {
             {
                 parser_logger->Error
                 (
-                    format("Parsing Error: failed to parse variable declaration, found: '{}' instead in source code at line: {}", fp_CurrentToken.m_Value, to_string(fp_CurrentToken.m_SourceCodeLineNumber)),
+                    fmt::format("Parsing Error: failed to parse variable declaration, found: '{}' instead in source code at line: {}", fp_CurrentToken.m_Value, to_string(fp_CurrentToken.m_SourceCodeLineNumber)),
                     "Parser"
                 );
 
@@ -2028,7 +2028,7 @@ namespace BongoJam {
                 {
                     parser_logger->Error
                     (
-                        format("Parsing Error: failed to parse variable declaration, found: '{}' instead in source code at line: {}", fp_CurrentToken.m_Value, to_string(fp_CurrentToken.m_SourceCodeLineNumber)),
+                        fmt::format("Parsing Error: failed to parse variable declaration, found: '{}' instead in source code at line: {}", fp_CurrentToken.m_Value, to_string(fp_CurrentToken.m_SourceCodeLineNumber)),
                         "Parser"
                     );
 
@@ -2047,7 +2047,7 @@ namespace BongoJam {
                 {
                     parser_logger->Error
                     (
-                        format("Parsing Error: failed to parse variable declaration, found: '{}' instead in source code at line: {}", fp_CurrentToken.m_Value, to_string(fp_CurrentToken.m_SourceCodeLineNumber)),
+                        fmt::format("Parsing Error: failed to parse variable declaration, found: '{}' instead in source code at line: {}", fp_CurrentToken.m_Value, to_string(fp_CurrentToken.m_SourceCodeLineNumber)),
                         "Parser"
                     );
 
@@ -2060,7 +2060,7 @@ namespace BongoJam {
             }
             else //TODO: add a way to convert from token type -> string for error messages
             {
-                parser_logger->Error(format("Error at Line: {}, expected function or var definition but found: '{}' instead", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
+                parser_logger->Error(fmt::format("Error at Line: {}, expected function or var definition but found: '{}' instead", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
                 return nullptr;
             }
         }
@@ -2068,7 +2068,7 @@ namespace BongoJam {
         default:
             parser_logger->Error
             (
-                format("Parsing Error: expected var when using static, eg . 'static var ~~', but found: '{}' instead in source code at line: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber),
+                fmt::format("Parsing Error: expected var when using static, eg . 'static var ~~', but found: '{}' instead in source code at line: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber),
                 "Parser"
             );
         }
@@ -2096,7 +2096,7 @@ namespace BongoJam {
             {
                 parser_logger->Error
                 (
-                    format("Parsing Error: failed to parse variable declaration, found: '{}' instead in source code at line: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber),
+                    fmt::format("Parsing Error: failed to parse variable declaration, found: '{}' instead in source code at line: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber),
                     "Parser"
                 );
 
@@ -2116,7 +2116,7 @@ namespace BongoJam {
             {
                 parser_logger->Error
                 (
-                    format("Parsing Error: failed to parse variable declaration, found: '{}' instead in source code at line: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber),
+                    fmt::format("Parsing Error: failed to parse variable declaration, found: '{}' instead in source code at line: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber),
                     "Parser"
                 );
 
@@ -2140,7 +2140,7 @@ namespace BongoJam {
                 {
                     parser_logger->Error
                     (
-                        format("Parsing Error: failed to parse variable declaration, found: '{}' instead in source code at line: {}", fp_CurrentToken.m_Value, to_string(fp_CurrentToken.m_SourceCodeLineNumber)),
+                        fmt::format("Parsing Error: failed to parse variable declaration, found: '{}' instead in source code at line: {}", fp_CurrentToken.m_Value, to_string(fp_CurrentToken.m_SourceCodeLineNumber)),
                         "Parser"
                     );
 
@@ -2159,7 +2159,7 @@ namespace BongoJam {
                 {
                     parser_logger->Error
                     (
-                        format("Parsing Error: failed to parse variable declaration, found: '{}' instead in source code at line: {}", fp_CurrentToken.m_Value, to_string(fp_CurrentToken.m_SourceCodeLineNumber)),
+                        fmt::format("Parsing Error: failed to parse variable declaration, found: '{}' instead in source code at line: {}", fp_CurrentToken.m_Value, to_string(fp_CurrentToken.m_SourceCodeLineNumber)),
                         "Parser"
                     );
 
@@ -2172,7 +2172,7 @@ namespace BongoJam {
             }
             else //TODO: add a way to convert from token type -> string for error messages
             {
-                parser_logger->Error(format("Error at Line: {}, expected function or var definition but found: '{}' instead", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
+                parser_logger->Error(fmt::format("Error at Line: {}, expected function or var definition but found: '{}' instead", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
                 return nullptr;
             }
         }
@@ -2180,7 +2180,7 @@ namespace BongoJam {
         default:
             parser_logger->Error
             (
-                format("Parsing Error: expected var when using const, eg . 'const var ~~', but found: '{}' instead in source code at line: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber),
+                fmt::format("Parsing Error: expected var when using const, eg . 'const var ~~', but found: '{}' instead in source code at line: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber),
                 "Parser"
             );
         }
@@ -2238,7 +2238,7 @@ namespace BongoJam {
 
                 if (not sv_FunctionDefintion)
                 {
-                    parser_logger->Error(format("Parsing Error at line:'{}', function named : '{}' declaration is invalid", f_EntryToken.m_SourceCodeLineNumber, sv_FuncName), "Parser");
+                    parser_logger->Error(fmt::format("Parsing Error at line:'{}', function named : '{}' declaration is invalid", f_EntryToken.m_SourceCodeLineNumber, sv_FuncName), "Parser");
                     return nullptr;
                 }
 
@@ -2259,7 +2259,7 @@ namespace BongoJam {
 
                 if (not sv_ClassBlock)
                 {
-                    parser_logger->Error(format("Parsing Error at line:'{}', couldn't parse class ;w;", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                    parser_logger->Error(fmt::format("Parsing Error at line:'{}', couldn't parse class ;w;", f_EntryToken.m_SourceCodeLineNumber), "Parser");
                     return nullptr;
                 }
 
@@ -2273,7 +2273,7 @@ namespace BongoJam {
 
                 if (not sv_StructBlock)
                 {
-                    parser_logger->Error(format("Parsing Error at line:'{}', couldn't parse struct ;w;", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                    parser_logger->Error(fmt::format("Parsing Error at line:'{}', couldn't parse struct ;w;", f_EntryToken.m_SourceCodeLineNumber), "Parser");
                     return nullptr;
                 }
 
@@ -2288,7 +2288,7 @@ namespace BongoJam {
 
                 if (f_CurrentToken.m_Type != TokenType::UserIdentifier)
                 {
-                    parser_logger->Error(format("Parsing Error at line:'{}', expected name identifier when declaring a namespace but found: '{}' instead owo", f_EntryToken.m_SourceCodeLineNumber, f_CurrentToken.m_Value), "Parser");
+                    parser_logger->Error(fmt::format("Parsing Error at line:'{}', expected name identifier when declaring a namespace but found: '{}' instead owo", f_EntryToken.m_SourceCodeLineNumber, f_CurrentToken.m_Value), "Parser");
                     return nullptr;
                 }
 
@@ -2307,7 +2307,7 @@ namespace BongoJam {
                 {
                     parser_logger->Error
                     (
-                        format("Parsing Error: expected string for include but found: '{}' instead in source code at line: {}", f_CurrentToken.m_Value, f_CurrentToken.m_SourceCodeLineNumber),
+                        fmt::format("Parsing Error: expected string for include but found: '{}' instead in source code at line: {}", f_CurrentToken.m_Value, f_CurrentToken.m_SourceCodeLineNumber),
                         "Parser"
                     );
 
@@ -2328,7 +2328,7 @@ namespace BongoJam {
                 {
                     parser_logger->Error
                     (
-                        format("Parsing Error: Improper grammar used when defining global variable, found: '{}' instead in source code at line: {}", f_CurrentToken.m_Value, f_CurrentToken.m_SourceCodeLineNumber),
+                        fmt::format("Parsing Error: Improper grammar used when defining global variable, found: '{}' instead in source code at line: {}", f_CurrentToken.m_Value, f_CurrentToken.m_SourceCodeLineNumber),
                         "Parser"
                     );
                 }
@@ -2342,7 +2342,7 @@ namespace BongoJam {
 
                 if (not sv_StaticStatement)
                 {
-                    parser_logger->Error(format("Parsing Error at line: {}, couldn't parse static whatever ", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                    parser_logger->Error(fmt::format("Parsing Error at line: {}, couldn't parse static whatever ", f_EntryToken.m_SourceCodeLineNumber), "Parser");
                     return nullptr;
                 }
 
@@ -2355,7 +2355,7 @@ namespace BongoJam {
 
                 if (not sv_ConstantStatement)
                 {
-                    parser_logger->Error(format("Error at Line Number: {}, invalid const definition", f_EntryToken.m_SourceCodeLineNumber), "Parser");
+                    parser_logger->Error(fmt::format("Error at Line Number: {}, invalid const definition", f_EntryToken.m_SourceCodeLineNumber), "Parser");
                     return nullptr;
                 }
 
@@ -2363,7 +2363,7 @@ namespace BongoJam {
                 {
                     auto sv_RecastedFuncDec = unique_dynamic_cast<FuncDeclaration>(std::move(sv_ConstantStatement));
 
-                    parser_logger->Error(format("Syntax Error at Line Number: {}, function named : '{}' cannot be declared 'const' since it isn't a member of a class", f_EntryToken.m_SourceCodeLineNumber, sv_RecastedFuncDec->m_FuncName.m_Value), "Parser");
+                    parser_logger->Error(fmt::format("Syntax Error at Line Number: {}, function named : '{}' cannot be declared 'const' since it isn't a member of a class", f_EntryToken.m_SourceCodeLineNumber, sv_RecastedFuncDec->m_FuncName.m_Value), "Parser");
                     return nullptr;
                 }
 
@@ -2376,7 +2376,7 @@ namespace BongoJam {
             {
                 parser_logger->Error
                 (
-                    format("Parsing Error: Improper grammar used in global scope! found: '{}' in source code at line: {} ", f_CurrentToken.m_Value, f_CurrentToken.m_SourceCodeLineNumber),
+                    fmt::format("Parsing Error: Improper grammar used in global scope! found: '{}' in source code at line: {} ", f_CurrentToken.m_Value, f_CurrentToken.m_SourceCodeLineNumber),
                     "Parser"
                 );
 

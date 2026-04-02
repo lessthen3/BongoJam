@@ -10,8 +10,6 @@
  *        primarily intended for embedding within game engines.
 **************************************************************************/
 #include <string>
-#define BONGO_USING_OS_CONSOLE
-#define BONGO_DEBUG
 
 #include "BongoManager.h"
 
@@ -22,7 +20,7 @@ constexpr const int FATAL_SEGMENTATION_FAULT = -6969;
 static void
     SegFaultHandler(int fp_Signal) //primitive segfault handler
 {
-    BongoJam::PrintError(std::format("[!]FATAL SEGMENTATION FAULT: Crash signal received {}", fp_Signal));
+    PRINT_ERROR(std::format("[!]FATAL SEGMENTATION FAULT: Crash signal received {}", fp_Signal));
     // possibly notify watchdog or dump stack trace
     exit(FATAL_SEGMENTATION_FAULT); //clean exit so everything calls their destructors
 }
@@ -55,7 +53,7 @@ static std::string
 
     if (f_TopLevelDir.empty())
     {
-        BongoJam::PrintError("Failed to find the top-level directory 'Peach-E'!", BongoJam::Colours::Magenta);
+        PRINT("Failed to find the top-level directory 'Peach-E'!", Magenta);
         return "";
     }
 
@@ -73,9 +71,9 @@ int
     signal(SIGSEGV, SegFaultHandler); //XXX: used for trying to close and flush logs on seg fault
 
     //Enable ANSI colour codes for windows console grumble grumble
-    #if (defined(_WIN32) || defined(_WIN64)) && defined(BONGO_USING_OS_CONSOLE)
-        BongoJam::EnableWindowsConsoleColours();
-    #endif
+#if defined(PEACH_PLATFORM_WINDOWS) && defined(PEACH_USING_OS_TERMINAL)
+    BongoJam::EnableWindowsConsoleColours();
+#endif
 
     std::string f_ProjectRootDirectory = GetProjectRootDirectory(fp_ArgVector[0]);
 
@@ -87,14 +85,14 @@ int
 
         int result = bongo_manager->RunTest(f_ProjectRootDirectory + "/tests/Variables/main.bj");
 
-        if (result != BongoJam::BONGO_OK)
+        if (result != BONGO_OK)
         {
             return result;
         }
     }
     catch (const std::exception& Exception) ///Try to ensure all destructors are called especially close() on LogManager
     {
-        BongoJam::PrintError(std::format("Unhandled exception: {}", Exception.what()));
+        PRINT_ERROR(std::format("Unhandled exception: {}", Exception.what()));
 
         return -69; //hehe Xd
     }

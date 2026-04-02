@@ -10,6 +10,9 @@
 /ideas.txt
 /CMakeUserPresets.json
 
+build_errors.md
+build_warnings.md
+
 #ignore BongoCompiler artifacts
 
 **.bongo

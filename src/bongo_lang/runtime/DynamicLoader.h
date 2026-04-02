@@ -1,47 +1,49 @@
-﻿/**************************************************************************
- *                         BongoJam Script v0.0.1
- *                  Created by Ranyodh Mandur - 🗻2024
+﻿/*******************************************************************
+ *                        Peach-E v0.0.1
+ *              Created by Ranyodh Mandur - 🍑 2024
  *
- *                 Licensed under the MIT License (MIT).
- *            For more details, see the LICENSE file or visit:
- *                 https://opensource.org/licenses/MIT
+ *              Licensed under the MIT License (MIT).
+ *         For more details, see the LICENSE file or visit:         
+ *               https://opensource.org/licenses/MIT
  *
- * BongoJam is an open-source scripting language compiler and interpreter
- *        primarily intended for embedding within game engines.
-**************************************************************************/
+ *           Peach-E is a free open source game engine
+********************************************************************/
 #pragma once
 
-///BongoJam
+///PeachCore
 #include "../Logger.h"
 
 ///STL
 #include <memory>
 
+///fmt
+#include <fmt/format.h>
+
 namespace BongoJam {
     //Imagine if windows was posix compliant, what a world that'd be >O<
-    #if defined(_WIN32) || defined(_WIN64)
+    #ifdef PEACH_PLATFORM_WINDOWS
         //XXX: we do this to avoid weird stuff w unicode and ansi strings, LoadLibrary is just a macro and since its a preprocessor thing it can cause runtime trouble
         // UTF8 -> wide string helper for LoadLibraryW
-        static inline HINSTANCE
+        inline HINSTANCE
             LoadLibraryUTF8(const char* fp_Path)
         {
             int f_SizeNeeded = MultiByteToWideChar(CP_UTF8, 0, fp_Path, -1, NULL, 0);
             wstring f_WidePath(f_SizeNeeded, 0);
             MultiByteToWideChar(CP_UTF8, 0, fp_Path, -1, &f_WidePath[0], f_SizeNeeded);
-            return LoadLibraryW(f_WidePath.c_str()); // or LoadLibrary(f_WidePath.c_str()) — same since it's just a macro
+            return LoadLibraryW(f_WidePath.c_str()); 
         }
     #endif
-}//namespace BongoJam
+}//namespace PeachCore
 
-#if defined(_WIN32) || defined(_WIN64)
+#ifdef PEACH_PLATFORM_WINDOWS
     #define DYNLIB_HANDLE HINSTANCE //XXX: pretty much just a typedef -> void* but windows is a special boy >:(
-    #define DYNLIB_LOAD(__path) BongoJam::LoadLibraryUTF8(__path)
+    #define DYNLIB_LOAD(fp_Path) ::BongoJam::LoadLibraryUTF8(fp_Path)
     #define DYNLIB_GETSYM GetProcAddress
     #define DYNLIB_UNLOAD FreeLibrary
 #else
     #include <dlfcn.h>
     #define DYNLIB_HANDLE void*
-    #define DYNLIB_LOAD(path) dlopen(path, RTLD_LAZY)
+    #define DYNLIB_LOAD(fp_Path) dlopen(fp_Path, RTLD_LAZY)
     #define DYNLIB_GETSYM dlsym
     #define DYNLIB_UNLOAD dlclose
 #endif
@@ -54,10 +56,10 @@ namespace BongoJam {
     struct DynamicLoader
     {
     public:
-        DynamicLoader() = default;
+        DynamicLoader() = delete;
         ~DynamicLoader() = default;
 
-        DYNLIB_HANDLE
+        static DYNLIB_HANDLE
             LoadDynamicLibrary
             (
                 const string& fp_DylibPath,
@@ -66,7 +68,7 @@ namespace BongoJam {
         {
             if (not filesystem::exists(fp_DylibPath))
             {
-                logger->Error(format("Library path does not exist: '{}'", fp_DylibPath), "DynamicLoader");
+                logger->Error(fmt::format("Library path does not exist: '{}'", fp_DylibPath), "DynamicLoader");
                 return nullptr;
             }
 
@@ -74,16 +76,16 @@ namespace BongoJam {
 
             if (not f_LibraryHandle)
             {
-                logger->Error(format("Failed to load library: '{}',  Error: '{}'", fp_DylibPath, GetLastErrorAsString()), "DynamicLoader");
+                logger->Error(fmt::format("Failed to load library: '{}',  Error: '{}'", fp_DylibPath, GetLastErrorAsString()), "DynamicLoader");
                 return nullptr;
             }
 
-            logger->Info(("Library loaded successfully: '{}'", fp_DylibPath), "DynamicLoader");
+            logger->Info(fmt::format("Library loaded successfully: '{}'", fp_DylibPath), "DynamicLoader");
 
             return f_LibraryHandle;
         }
 
-        bool
+        static bool
             UnloadLibrary
             (
                 DYNLIB_HANDLE fp_LibraryHandle,
@@ -98,7 +100,7 @@ namespace BongoJam {
 
             if (not DYNLIB_UNLOAD(fp_LibraryHandle))
             {
-                logger->Error(format("Failed to unload library. Error: '{}'", GetLastErrorAsString()), "DynamicLoader");
+                logger->Error(fmt::format("Failed to unload library. Error: '{}'", GetLastErrorAsString()), "DynamicLoader");
                 return false;
             }
             
@@ -108,7 +110,7 @@ namespace BongoJam {
         }
 
         // Function to retrieve symbols (functions/variables) from the library
-        void* 
+        static void* 
             GetSymbol
             (
                 const string& fp_SymbolName, 
@@ -128,21 +130,21 @@ namespace BongoJam {
 
             if (not symbol)
             {
-                logger->Error(format("Failed to locate symbol: '{}', Error: '{}'", fp_SymbolName, GetLastErrorAsString()), "DynamicLoader");
+                logger->Error(fmt::format("Failed to locate symbol: '{}', Error: '{}'", fp_SymbolName, GetLastErrorAsString()), "DynamicLoader");
                 return nullptr; //its already nullptr but its nice to be explicit here
             }
             
-            logger->Debug(format("Symbol located: '{}'", fp_SymbolName), "DynamicLoader");
+            logger->Debug(fmt::format("Symbol located: '{}'", fp_SymbolName), "DynamicLoader");
 
             return symbol;
         }
 
     private:
         // Helper function to get the error message string
-        string 
+        static string 
             GetLastErrorAsString()
         {
-            #if defined(_WIN32) || defined(_WIN64) //wtf windows are u okay
+            #if defined(_WIN32) or defined(_WIN64) //wtf windows are u okay
                 // Windows error message
                 DWORD errorMessageID = ::GetLastError();
 

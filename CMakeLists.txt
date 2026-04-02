@@ -4,18 +4,24 @@ cmake_minimum_required(VERSION 4.2.0)
 
 ####################################### Compilation Options
 
-option(USE_STATIC_MSVCRT "default use static crt" OFF) 
 option(BONGO_BUILD_SHARED "build as static lib by default" OFF) 
+option(USE_STATIC_MSVCRT "default use static crt" OFF) 
+
 option(WINDOWS_SHARED_EXPORT_ALL_SYMBOLS "by default symbols arent exported on shared builds" OFF)
 
 ####################################### Project definition
 
-project(BongoJam_Script VERSION 1.0 DESCRIPTION "BongoJam Script" LANGUAGES CXX)
+project(BongoJam_Script VERSION 1.0 DESCRIPTION "BongoJam Script" LANGUAGES CXX C)
 
 ####################################### Enforcing C++20 standard
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+####################################### Enforce C17 Standard
+
+set(CMAKE_C_STANDARD 17) #needed for box2d owo
+set(CMAKE_C_STANDARD_REQUIRED ON)
 
 ####################################### Setting Variables
 
@@ -39,7 +45,7 @@ if(NOT ${CMAKE_SIZEOF_VOID_P} EQUAL 8)
     message(FATAL_ERROR "Peach-E only supports 64-bit platforms.")
 endif()
 
-####################################### Compiler Project
+####################################### Bongo Lang Project
 
 # Automatically find all the source files in the source directory
 file(
@@ -56,6 +62,35 @@ add_library(bongo_core ${BONGO_BUILD_TYPE}
 )
 
 set_target_properties(bongo_core PROPERTIES POSITION_INDEPENDENT_CODE ON) #make PIC friendly UwU
+
+####################################### Source includes for BongoJam Lang
+
+file(GLOB FMT_SOURCES
+    third_party/fmt/format.cc
+    third_party/fmt/os.cc
+)
+
+file(GLOB LZ4_SOURCES
+    third_party/lz4/*.c
+)
+
+file(GLOB_RECURSE ASMJIT_SOURCES
+    third_party/asmjit/*.cpp
+)
+
+target_sources(bongo_core PRIVATE
+    ${LZ4_SOURCES}
+    ${FMT_SOURCES}
+    ${ASMJIT_SOURCES}
+)
+
+target_include_directories(bongo_core PUBLIC
+    third_party/ #supported across the board owo ily guys ~~nyah
+)
+
+source_group("third_party/lz4" FILES ${LZ4_SOURCES})
+source_group("third_party/fmt" FILES ${FMT_SOURCES})
+source_group("third_party/asmjit" FILES ${ASMJIT_SOURCES})
 
 ####################################### Executable Target for CLI Tool
 
@@ -83,19 +118,9 @@ target_include_directories(bongo PRIVATE
 
 ####################################### Compiler Options and Definitions
 
-target_compile_definitions(bongo_core PRIVATE 
+target_compile_definitions(bongo_core PUBLIC 
     $<$<CONFIG:Debug>:BONGO_DEBUG>
 )
-
-target_compile_definitions(bongo PRIVATE 
-    $<$<CONFIG:Debug>:BONGO_DEBUG>
-)
-
-if(BONGO_BUILD_SHARED)
-    target_compile_definitions(bongo_server PRIVATE 
-        BONGO_SHARED
-    )   
-endif()
 
 if(MSVC)
     if(USE_STATIC_MSVCRT)
@@ -108,14 +133,118 @@ if(MSVC)
         message(STATUS "Using Dynamic msvcrt")
     endif()
 
+        target_compile_options(bongo_core PUBLIC #for fmt
+            /utf-8
+        )
         target_compile_options(bongo_core PRIVATE
-            $<$<CONFIG:Debug>:${MSVCRT_DEBUG_TYPE}>
             $<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>,$<CONFIG:MinSizeRel>>:${MSVCRT_RELEASE_TYPE}>
         ) 
         target_compile_options(bongo PRIVATE
-            $<$<CONFIG:Debug>:${MSVCRT_DEBUG_TYPE}>
             $<$<OR:$<CONFIG:Release>,$<CONFIG:RelWithDebInfo>,$<CONFIG:MinSizeRel>>:${MSVCRT_RELEASE_TYPE}>
         ) 
+endif()
+
+####################################### Master snuggle list for platform detection UwU (my chatgpt is bricked af)
+# daddy guarantees exactly ONE of these is always defined per build so no ambiguity 🍑
+# daddy guaranteed so ig it works OwO
+
+if(PEACH_WINDOWS)
+    target_compile_definitions(bongo_core PUBLIC
+        PEACH_PLATFORM_WINDOWS
+        PEACH_PLATFORM_DESKTOP
+        PEACH_ARCH_X64
+    )
+
+    if(BONGO_BUILD_SHARED)
+        target_compile_definitions(bongo PRIVATE 
+            BONGO_SHARED
+        )   
+    else()
+        target_compile_definitions(bongo PRIVATE 
+            BONGO_STATIC
+        )   
+    endif()
+
+elseif(PEACH_WINDOWS_ARM64)
+    target_compile_definitions(bongo_core PUBLIC
+        PEACH_PLATFORM_WINDOWS
+        PEACH_PLATFORM_DESKTOP
+        PEACH_ARCH_ARM64
+    )
+
+elseif(PEACH_MACOS)
+    target_compile_definitions(bongo_core PUBLIC
+        PEACH_PLATFORM_MACOS
+        PEACH_PLATFORM_APPLE
+        PEACH_PLATFORM_DESKTOP
+        PEACH_ARCH_ARM64 # universal binary covers both but arm64 is primary
+    )
+
+elseif(PEACH_IOS)
+    target_compile_definitions(bongo_core PUBLIC
+        PEACH_PLATFORM_IOS
+        PEACH_PLATFORM_APPLE
+        PEACH_PLATFORM_MOBILE
+        PEACH_ARCH_ARM64
+    )
+
+elseif(PEACH_TVOS)
+    target_compile_definitions(bongo_core PUBLIC
+        PEACH_PLATFORM_TVOS
+        PEACH_PLATFORM_APPLE
+        PEACH_ARCH_ARM64
+    )
+
+elseif(PEACH_LINUX)
+    target_compile_definitions(bongo_core PUBLIC
+        PEACH_PLATFORM_LINUX
+        PEACH_PLATFORM_DESKTOP
+        PEACH_ARCH_X64
+    )
+
+elseif(PEACH_BSD)
+    target_compile_definitions(bongo_core PUBLIC
+        PEACH_PLATFORM_BSD
+        PEACH_PLATFORM_FREEBSD
+        PEACH_PLATFORM_DESKTOP
+        PEACH_ARCH_X64
+    )
+
+elseif(PEACH_HAIKU)
+    target_compile_definitions(bongo_core PUBLIC
+        PEACH_PLATFORM_HAIKU
+        PEACH_PLATFORM_DESKTOP
+        PEACH_ARCH_X64
+    )
+
+elseif(PEACH_ANDROID)
+    target_compile_definitions(bongo_core PUBLIC
+        PEACH_PLATFORM_ANDROID
+        PEACH_PLATFORM_MOBILE
+        PEACH_ARCH_ARM64
+    )
+
+elseif(PEACH_WASM)
+    target_compile_definitions(bongo_core PUBLIC
+        PEACH_PLATFORM_WASM
+        PEACH_PLATFORM_WEB
+        PEACH_ARCH_WASM32
+    )
+
+elseif(PEACH_VITA)
+    target_compile_definitions(bongo_core PUBLIC
+        PEACH_PLATFORM_VITA
+        PEACH_PLATFORM_HANDHELD
+        PEACH_ARCH_ARMV7
+    )
+
+elseif(PEACH_SWITCH)
+    target_compile_definitions(bongo_core PUBLIC
+        PEACH_PLATFORM_SWITCH
+        PEACH_PLATFORM_HANDHELD
+        PEACH_ARCH_ARM64
+    )
+
 endif()
 
 ####################################### Set Startup Project (Visual Studio & Xcode)

@@ -28,19 +28,19 @@ BONGO_API BONGO_ERROR_CODE
 {
     int64_t result = 0;
 
-    return BJ::BONGO_OK;
+    return BONGO_OK;
 }
 
 BONGO_API BONGO_ERROR_CODE
     BONGO_RegisterFunction()
 {
 
-    return BJ::BONGO_OK;
+    return BONGO_OK;
 }
 
 BONGO_API BONGO_ERROR_CODE
     BONGO_CompileProject()
 {
 
-    return BJ::BONGO_OK;
+    return BONGO_OK;
 }

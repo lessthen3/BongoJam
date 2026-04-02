@@ -17,7 +17,7 @@ namespace BongoJam {
     // Utility Functions
     //////////////////////////////////////////////
 
-    [[nodiscard]] bool
+    bool
         LexNumber
         (
             VectorStream<char>& fp_Src,
@@ -90,7 +90,7 @@ namespace BongoJam {
         return true;
     }
 
-    [[nodiscard]] bool //assumed being called within if(current char is alpha) { LexWord(...)}, only returns false if found EOF instead of a word uwu
+    bool //assumed being called within if(current char is alpha) { LexWord(...)}, only returns false if found EOF instead of a word uwu
         LexWord
         (
             string& fp_StringContainer, //mutable used to fill in return string uwu
@@ -123,7 +123,7 @@ namespace BongoJam {
         return true;
     } 
 
-    [[nodiscard]] int8_t
+    int8_t
         LexOperator
         (
             VectorStream<char>& fp_Src,

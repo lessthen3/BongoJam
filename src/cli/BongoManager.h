@@ -17,17 +17,6 @@
 #include "Serializer.h"
 #include "compiler/CompilerThreadPool.h"
 
-//"Assertion: %s @ %s:%d (pid:%d)", #x, __FILE__, __LINE__, Platform::GetProcessID()
-
-#define BONGO_ASSERT(x) \
-do {                                                     \
-   if (!(x)) \
-   {                                           \
-       BongoJam::PrintError("Assertion Failed!"); \
-       exit(0); \
-   } \
-} while (false)
-
 namespace BongoJam
 {
     struct BongoConfigs
@@ -36,7 +25,7 @@ namespace BongoJam
         ~BongoConfigs() = default;
 
         string pm_LogOutputDirectory = "./logs";
-        uint32_t pm_LogFlags = DEFAULT_LOG_FLAGS;
+        uint32_t pm_LogFlags = PEACH_LOGGER_DEFAULT_FLAGS;
         uint64_t m_MaximumAllowedThreads = 1;
 
         void
@@ -149,7 +138,7 @@ namespace BongoJam {
     public:
         BongoManager()
         {
-            bongo_logger = Logger::CreateUnique("BongoManager", DEFAULT_LOG_FLAGS, DEFAULT_LOG_OUTPUT_DIRECTORY);
+            bongo_logger = Logger::CreateUnique("BongoManager", PEACH_LOGGER_DEFAULT_FLAGS, PEACH_LOGGER_DEFAULT_OUTPUT_DIR);
 
             if (not bongo_logger)
             {
@@ -181,8 +170,6 @@ namespace BongoJam {
         vector<BongoScriptUnit> pm_CurrentProjectSources;
         vector<BongoScriptUnit> pm_FoundMains;
 
-        Serializer pm_Serializer;
-
         CurrentBongoProject pm_CurrentProject;
 
         CompilerThreadPool<pm_MaximumAllowedThreads> pm_CompilerThreadPool;
@@ -192,7 +179,7 @@ namespace BongoJam {
         int
             LoadProject(const string& fp_ProjectDirectory, CompilerConfigs& fp_CompilerConfigs)
         {
-            if (not pm_Serializer.FromJSON(pm_CurrentProject.Project, fp_ProjectDirectory, bongo_logger.get()))
+            if (not PEACH_FROM_JSON(pm_CurrentProject.Project, fp_ProjectDirectory, bongo_logger.get()))
             {
 
                 return BONGO_FAILED_TO_LOAD_PROJECT;
@@ -272,7 +259,7 @@ namespace BongoJam {
         {
             if (fp_ArgCount < 2)
             {
-                PrintError("No arguments provided. Use -h or --help for usage information.", Colours::Magenta);
+                PRINT("No arguments provided. Use -h or --help for usage information.", Magenta);
                 return NO_ARGUMENT_PROVIDED;
             }
 
@@ -502,7 +489,7 @@ namespace BongoJam {
                 }
                 else
                 {
-                    PrintError("Unknown or incomplete argument provided: " + f_CompilerArg, Colours::Magenta);
+                    PRINT("Unknown or incomplete argument provided: " + f_CompilerArg, Magenta);
                     return UNKNOWN_OR_INCOMPLETE_ARGUMENT;
                 }
             }
@@ -591,7 +578,7 @@ namespace BongoJam {
                 {
                     if(f_FileName == "main.bj")
                     {
-                        bongo_logger->Debug(format("main.bj found at : '{}'", entry.path().string()), "BongoManager");
+                        bongo_logger->Debug(fmt::format("main.bj found at : '{}'", entry.path().string()), "BongoManager");
                         pm_FoundMains.emplace_back(entry.path());
                     }
                     else if (f_FileName.substr(f_Dot) == ".bj")
@@ -617,7 +604,7 @@ namespace BongoJam {
 
                 for (const auto& lv_ScriptUnit : pm_FoundMains)
                 {
-                    bongo_logger->Error(format(" ---  {}", lv_ScriptUnit.FilePath.string()), "BongoManager");
+                    bongo_logger->Error(fmt::format(" ---  {}", lv_ScriptUnit.FilePath.string()), "BongoManager");
                 }
 
                 return BONGO_MULTIPLE_MAINS_FOUND;

@@ -11,6 +11,8 @@
 **************************************************************************/
 #include "Compiler.h"
 
+#include "../ErrorCodes.h"
+
 namespace BongoJam{
 
     BongoCompiler::BongoCompiler(const string& fp_CompilerName)
@@ -23,14 +25,14 @@ namespace BongoJam{
 
         pm_CompilerName = fp_CompilerName;
 
-        compiler_logger = Logger::CreateShared(pm_CompilerName, DEFAULT_LOG_FLAGS, DEFAULT_LOG_OUTPUT_DIRECTORY);
+        compiler_logger = Logger::CreateShared(pm_CompilerName, PEACH_LOGGER_DEFAULT_FLAGS, PEACH_LOGGER_DEFAULT_OUTPUT_DIR);
 
         if (not compiler_logger)
         {
             throw runtime_error("Failed to initialize logger for " + pm_CompilerName);
         }
 
-        compiler_logger->Debug(format("Successfully initialized for Compiler with ID : {}", pm_CompiledThreadID), "Compiler");
+        compiler_logger->Debug(fmt::format("Successfully initialized for Compiler with ID : {}", pm_CompiledThreadID), "Compiler");
 
         pm_BongoParser = make_unique<Parser>(compiler_logger);
     }
@@ -87,7 +89,7 @@ bool
     {
         if (not CompileInputFunction(fp_FunctionCallExpr, fp_CompilationUnit))
         {
-            compiler_logger->Error(format("Error at Line: {}, Unable to compile input() function oof", fp_FunctionCallExpr->FuncName.m_SourceCodeLineNumber), "BongoCompiler");
+            compiler_logger->Error(fmt::format("Error at Line: {}, Unable to compile input() function oof", fp_FunctionCallExpr->FuncName.m_SourceCodeLineNumber), "BongoCompiler");
             return false;
         }
     }
@@ -96,7 +98,7 @@ bool
     {
         if (not CompilePrintFunction(fp_FunctionCallExpr, fp_CompilationUnit))
         {
-            compiler_logger->Error(format("Error at Line: {}, Unable to compile print() function oof", fp_FunctionCallExpr->FuncName.m_SourceCodeLineNumber), "BongoCompiler");
+            compiler_logger->Error(fmt::format("Error at Line: {}, Unable to compile print() function oof", fp_FunctionCallExpr->FuncName.m_SourceCodeLineNumber), "BongoCompiler");
             return false;
         }
     }
@@ -126,7 +128,7 @@ bool
         CompilationUnit* fp_CompilationUnit
     )
 {
-    //Print(format("Current Expr type: {}", static_cast<int>(fp_Expression->m_Domain)), Colours::Magenta);
+    //Print(fmt::format("Current Expr type: {}", static_cast<int>(fp_Expression->m_Domain)), Colours::Magenta);
 
     switch (fp_Expression->m_Domain)
     {
@@ -161,7 +163,7 @@ bool
             }
             break;
             default: //THROW ERROR:
-                compiler_logger->Error(format("Error at Line: {}, Invalid value found while compiling a single value expression OwO", sv_SingleValueExpr->m_Value.m_SourceCodeLineNumber), "BongoCompiler");
+                compiler_logger->Error(fmt::format("Error at Line: {}, Invalid value found while compiling a single value expression OwO", sv_SingleValueExpr->m_Value.m_SourceCodeLineNumber), "BongoCompiler");
                 return false;
         }
     }
@@ -268,7 +270,7 @@ bool
 {
     if (fp_PrintFunction->Arguments.size() != 1)
     {
-        compiler_logger->Error(format("Error at Line Number: {}, invalid argument count found when compiling print() function call", fp_PrintFunction->FuncName.m_SourceCodeLineNumber), "Compiler");
+        compiler_logger->Error(fmt::format("Error at Line Number: {}, invalid argument count found when compiling print() function call", fp_PrintFunction->FuncName.m_SourceCodeLineNumber), "Compiler");
         return false;
     }
 
@@ -429,13 +431,13 @@ bool
 
         if (not CompileStringExpr(fp_InputFunction->Arguments[0].get(), fp_CompilationUnit))
         {
-            compiler_logger->Error(format("Error at Line Number: {}, invalid string expression found when compiling input() function call", fp_InputFunction->FuncName.m_SourceCodeLineNumber), "Compiler");
+            compiler_logger->Error(fmt::format("Error at Line Number: {}, invalid string expression found when compiling input() function call", fp_InputFunction->FuncName.m_SourceCodeLineNumber), "Compiler");
             return false;
         }
     }
     else if (fp_InputFunction->Arguments.size() != 0)
     {
-        compiler_logger->Error(format("Error at Line Number: {}, invalid number of arguments, found: {} arguments when 1 or 0 was expected when compiling input() function call", fp_InputFunction->FuncName.m_SourceCodeLineNumber, fp_InputFunction->Arguments.size()), "Compiler");
+        compiler_logger->Error(fmt::format("Error at Line Number: {}, invalid number of arguments, found: {} arguments when 1 or 0 was expected when compiling input() function call", fp_InputFunction->FuncName.m_SourceCodeLineNumber, fp_InputFunction->Arguments.size()), "Compiler");
         return false;
     }
 
@@ -551,7 +553,7 @@ bool
         }
         break;
         default:
-            compiler_logger->Error(format("Invalid statement unknown to compiler found inside the declaration of function: '{}' ", fp_FuncDeclaration->m_FuncName.m_Value), "BongoCompiler");
+            compiler_logger->Error(fmt::format("Invalid statement unknown to compiler found inside the declaration of function: '{}' ", fp_FuncDeclaration->m_FuncName.m_Value), "BongoCompiler");
             return false;
         }
     }
@@ -658,7 +660,7 @@ bool
         return true;
     }
 
-    Symbol  f_Symbol = fp_CompilationUnit->SymbolTable.at(f_VarName);
+    Symbol f_Symbol = fp_CompilationUnit->SymbolTable.at(f_VarName);
 
     if (f_Symbol.Type != fp_Expression->EvaluatesTo) //if the types dont match for storing and doing ops w uwu
     {
@@ -672,7 +674,7 @@ bool
     {
         if (not CompileRegularExpr(fp_Expression->NewValue.get(), fp_CompilationUnit))
         {
-            compiler_logger->Error(format("Error at Line Number: {}, unable to compile default value of variable named: {}", fp_Expression->Operator.m_SourceCodeLineNumber, f_VarName), "Compiler");
+            compiler_logger->Error(fmt::format("Error at Line Number: {}, unable to compile default value of variable named: {}", fp_Expression->Operator.m_SourceCodeLineNumber, f_VarName), "Compiler");
             return false;
         }
         
@@ -705,7 +707,7 @@ bool
 
     if (not CompileRegularExpr(fp_Expression->NewValue.get(), fp_CompilationUnit))
     {
-        compiler_logger->Error(format("Error at Line Number: {}, unable to compile default value of variable named: {}", fp_Expression->Operator.m_SourceCodeLineNumber, f_VarName), "Compiler");
+        compiler_logger->Error(fmt::format("Error at Line Number: {}, unable to compile default value of variable named: {}", fp_Expression->Operator.m_SourceCodeLineNumber, f_VarName), "Compiler");
         return false;
     }
 
@@ -754,7 +756,7 @@ bool
     }
     break;
     default: //THROW ERROR: 
-        compiler_logger->Error(format("Error at Line Number: {}, unable to compile default value of variable named: {}", fp_Expression->Operator.m_SourceCodeLineNumber, f_VarName), "Compiler");
+        compiler_logger->Error(fmt::format("Error at Line Number: {}, unable to compile default value of variable named: {}", fp_Expression->Operator.m_SourceCodeLineNumber, f_VarName), "Compiler");
         return false;
     }
 
@@ -785,7 +787,7 @@ bool
 {
     if (not CompileRegularExpr(fp_VarDeclaration->DefaultValue.get(), fp_CompilationUnit))
     {
-        compiler_logger->Error(format("Error at Line Number: {}, unable to compile default value of variable named: {}", fp_VarDeclaration->Name.m_SourceCodeLineNumber, fp_VarDeclaration->Name.m_Value), "Compiler");
+        compiler_logger->Error(fmt::format("Error at Line Number: {}, unable to compile default value of variable named: {}", fp_VarDeclaration->Name.m_SourceCodeLineNumber, fp_VarDeclaration->Name.m_Value), "Compiler");
         return false;
     }
 
@@ -922,7 +924,7 @@ int
 
     if (not fp_CompilationUnit)
     {
-        compiler_logger->Fatal(format("Tried to pass nullptr reference for CompilationUnit during attempted compilation of script: '{}'", fp_BongoScriptFilePath), "BongoCompiler");
+        compiler_logger->Fatal(fmt::format("Tried to pass nullptr reference for CompilationUnit during attempted compilation of script: '{}'", fp_BongoScriptFilePath), "BongoCompiler");
         return TRIED_TO_PASS_NULLPTR_REF_TO_COMPILATION_UNIT;
     }
 
@@ -939,7 +941,7 @@ int
     vector<Token> f_ProgramTokens;
     if (not Tokenize(VectorStream<char>(move(f_SourceCode)), f_ProgramTokens, compiler_logger.get()))
     {
-        compiler_logger->Fatal(format("Compiler was not able to Lex: '{}', compilation will not proceed any further. nothing was done.", fp_BongoScriptFilePath), "Compiler");
+        compiler_logger->Fatal(fmt::format("Compiler was not able to Lex: '{}', compilation will not proceed any further. nothing was done.", fp_BongoScriptFilePath), "Compiler");
         return BONGO_FAILED_TO_LEX_SCRIPT;
     }
 
@@ -947,7 +949,7 @@ int
 
     if (not f_BongoProgram)
     {
-        compiler_logger->Fatal(format("Failed to parse file: '{}', compilation failed :'(", fp_BongoScriptFilePath), "BongoCompiler");
+        compiler_logger->Fatal(fmt::format("Failed to parse file: '{}', compilation failed :'(", fp_BongoScriptFilePath), "BongoCompiler");
         return EXIT_FAILURE;
     }
 
@@ -961,6 +963,8 @@ int
 
     //////////////////////////////////////////////////////////// Main Compile Loop ////////////////////////////////////////////////////////////
 
+    //this could be a single switch no while, but i wanna let ppl have multiple class defs in a file, or just straight up functions owo
+
     while (f_BongoProgram->ParsedScript.size() > 0) //compiling the main function code body
     {
         f_CurrentProgramStatement = ShiftForward(f_BongoProgram->ParsedScript);
@@ -973,7 +977,7 @@ int
             
             if (not CompileDeclaredFunction(sv_FuncDec.get(), fp_CompilationUnit, f_CurrentNamespace))
             {
-                compiler_logger->Error(format("Invalid statement unknown to compiler found inside the declaration of function: '{}' ", sv_FuncDec->m_FuncName.m_Value), "BongoCompiler");
+                compiler_logger->Error(fmt::format("Invalid statement unknown to compiler found inside the declaration of function: '{}' ", sv_FuncDec->m_FuncName.m_Value), "BongoCompiler");
                 return EXIT_FAILURE;
             }
         }
@@ -984,7 +988,7 @@ int
 
             if(not CompileDeclaredClass(sv_ClassDec.get(), fp_CompilationUnit, f_CurrentNamespace))
             {
-                compiler_logger->Error(format("Invalid statement unknown to compiler found inside the declaration of class: '{}' ", sv_ClassDec->ClassName.m_Value), "BongoCompiler");
+                compiler_logger->Error(fmt::format("Invalid statement unknown to compiler found inside the declaration of class: '{}' ", sv_ClassDec->ClassName.m_Value), "BongoCompiler");
                 return EXIT_FAILURE;
             }
         }
@@ -995,7 +999,7 @@ int
 
             if (not CompileDeclaredStruct(sv_StructDec.get(), fp_CompilationUnit, f_CurrentNamespace))
             {
-                compiler_logger->Error(format("Invalid statement unknown to compiler found inside the declaration of class: '{}' ", sv_StructDec->StructName.m_Value), "BongoCompiler");
+                compiler_logger->Error(fmt::format("Invalid statement unknown to compiler found inside the declaration of class: '{}' ", sv_StructDec->StructName.m_Value), "BongoCompiler");
                 return EXIT_FAILURE;
             }
         }
@@ -1013,7 +1017,7 @@ int
 
             if (not CompileVarDeclaration(sv_VarDec.get(), fp_CompilationUnit, f_CurrentNamespace))
             {
-                compiler_logger->Error(format("Invalid statement unknown to compiler found during the declaration of variable: '{}' ", sv_VarDec->Name.m_Value), "BongoCompiler");
+                compiler_logger->Error(fmt::format("Invalid statement unknown to compiler found during the declaration of variable: '{}' ", sv_VarDec->Name.m_Value), "BongoCompiler");
                 return EXIT_FAILURE;
             }
         }
@@ -1026,7 +1030,7 @@ int
         }
         break;
         default:
-            compiler_logger->Fatal(format("FATAL COMPILATION ERROR: Compiler tried processing an invalid StatementNode either produced improperly by Parser, or Compiler should know the statement but hasnt been updated properly\n COMPILER ID: {}\n", pm_CompiledThreadID), "Compiler");
+            compiler_logger->Fatal(fmt::format("FATAL COMPILATION ERROR: Compiler tried processing an invalid StatementNode either produced improperly by Parser, or Compiler should know the statement but hasnt been updated properly\n COMPILER ID: {}\n", pm_CompiledThreadID), "Compiler");
             return EXIT_FAILURE;
         }
     }

@@ -34,7 +34,7 @@ namespace BongoJam {
     public:
         BongoLinker() 
         {
-            linker_logger = Logger::CreateUnique("BongoLinker", DEFAULT_LOG_FLAGS, DEFAULT_LOG_OUTPUT_DIRECTORY);
+            linker_logger = Logger::CreateUnique("BongoLinker", PEACH_LOGGER_DEFAULT_FLAGS, PEACH_LOGGER_DEFAULT_OUTPUT_DIR);
 
             if (not linker_logger)
             {

@@ -13,6 +13,7 @@
 
 ///BongoJam
 #include "Compiler.h"
+#include "../ErrorCodes.h"
 
 ///STL
 #include <queue>
@@ -46,7 +47,7 @@ namespace BongoJam {
                 pm_Workers[lv_ThreadNumber] = jthread(&CompilerThreadPool::Worker, this, lv_ThreadNumber);
             }
 
-            threadpool_logger = Logger::CreateUnique("ThreadPoolLogger", DEFAULT_LOG_FLAGS, DEFAULT_LOG_OUTPUT_DIRECTORY);
+            threadpool_logger = Logger::CreateUnique("ThreadPoolLogger", PEACH_LOGGER_DEFAULT_FLAGS, PEACH_LOGGER_DEFAULT_OUTPUT_DIR);
 
             if (not threadpool_logger)
             {
@@ -114,7 +115,7 @@ namespace BongoJam {
                     pm_BatchActive = false;
                     pm_BatchLatch.reset();
 
-                   PrintError(format("Unhandled exception: {}", fp_Exception.what()));
+                   PRINT_ERROR(fmt::format("Unhandled exception: {}", fp_Exception.what()));
                 }
             }
         }
@@ -142,7 +143,7 @@ namespace BongoJam {
                     return;
                 }
 
-                threadpool_logger->Debug(format("Enqueueing Task with script path: {}", fp_Task.FilePath), "ThreadPool");
+                threadpool_logger->Debug(fmt::format("Enqueueing Task with script path: {}", fp_Task.FilePath), "ThreadPool");
 
                 pm_Tasks.push(fp_Task);
             }
@@ -228,17 +229,17 @@ namespace BongoJam {
                     if (f_Result != BONGO_OK)
                     {
                         f_IsSuccessful = false;
-                        f_CompilerLogger->Error(format("Failed to compile : '{}', with compiler exit code : {} ", f_Task.FilePath, f_Result), "Worker");
+                        f_CompilerLogger->Error(fmt::format("Failed to compile : '{}', with compiler exit code : {} ", f_Task.FilePath, f_Result), "Worker");
                     }
                     else
                     {
-                        f_CompilerLogger->Info(format("Worker successfully compiled: '{}'!", f_Task.FilePath), "Worker");
+                        f_CompilerLogger->Info(fmt::format("Worker successfully compiled: '{}'!", f_Task.FilePath), "Worker");
                     }
                 }
                 catch (const exception& Exception)
                 {
                     f_IsSuccessful = false;
-                    f_CompilerLogger->Error(format("Unhandled exception: {}, while compiling : '{}' ", Exception.what(), f_Task.FilePath), "Worker");
+                    f_CompilerLogger->Error(fmt::format("Unhandled exception: {}, while compiling : '{}' ", Exception.what(), f_Task.FilePath), "Worker");
                 }
 
                 // --------- Update global state + latch ---------
@@ -276,7 +277,7 @@ namespace BongoJam {
                 }
                 else
                 {
-                    f_CompilerLogger->Error(format("Invalid nullptr ref to latch threadpool cannot operate uwu, while compiling : '{}' ", f_Task.FilePath), "Worker");
+                    f_CompilerLogger->Error(fmt::format("Invalid nullptr ref to latch threadpool cannot operate uwu, while compiling : '{}' ", f_Task.FilePath), "Worker");
                     return;
                 }
             }

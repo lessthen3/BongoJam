@@ -19,18 +19,19 @@
     //XXX: probably better to just pass bongomanager funcs using a C calling convention since its args are compatible and don't return anything just
     // writes artifacts to build output dir
 
-    #if (defined(_WIN32) || defined(_WIN64)) && defined(BONGO_SHARED)
+    #if defined(PEACH_PLATFORM_WINDOWS) && defined(BONGO_SHARED)
         #define BONGO_API extern "C" __declspec(dllexport)
+    #elif defined(PEACH_PLATFORM_WINDOWS) && !defined(BONGO_STATIC)
+        #define BONGO_API extern "C" __declspec(dllimport)
     #else
         #define BONGO_API extern "C"
     #endif
 
 #else //being used from C
     #define BONGO_API //leave empty when included in C file
-
 #endif //C++ detection
 
-typedef int64_t BONGO_ERROR_CODE;
+typedef int32_t BONGO_ERROR_CODE;
 
 BONGO_API BONGO_ERROR_CODE
     BONGO_ParseArguments(int fp_ArgCount, char* fp_ArgVector[]);

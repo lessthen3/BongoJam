@@ -191,6 +191,7 @@ namespace BongoJam {
             );
 
 //================================================================================================= Class Declaration =================================================================================================//
+        
         unique_ptr<ClassDeclaration>
             ParseClassDeclaration
             (
@@ -198,6 +199,7 @@ namespace BongoJam {
                 VectorStream<Token>& fp_ProgramTokens,
                 bool fp_IsSingle
             );
+//================================================================================================= Structs =================================================================================================//
 
         unique_ptr<InPlaceStructConstruction> //assumed entry token is '{'
             ParseStructConstruction
@@ -213,6 +215,8 @@ namespace BongoJam {
                 VectorStream<Token>& fp_ProgramTokens
             );
 
+//================================================================================================= Scope Declaration =================================================================================================//
+
         unique_ptr<ScopeDeclaration>
             ParseScopeDeclaration
             (
@@ -220,11 +224,15 @@ namespace BongoJam {
                 VectorStream<Token>& fp_ProgramTokens
             );
 
+//================================================================================================= List and Dictionary =================================================================================================//
+
         unique_ptr<ListDeclaration>
             ParseListDeclaration();
 
         unique_ptr<DictionaryDeclaration>
             ParseDictionaryDeclaration();
+
+//================================================================================================= Variable Declaration =================================================================================================//
 
         unique_ptr<VarDeclaration> //returns true if it worked, false if it failed
             ParseVarDeclaration
@@ -250,7 +258,7 @@ namespace BongoJam {
         bool
             ValidateFunctionReturnPaths();
 
-        //ValidateAST's main job is to check for things like scope errors, where a variable is being referenced outside its scope of definition
+        //ValidateAST's main job is to check for things like scope errors, where a variable is being referenced outside its scope of definition, type checking
         bool
             ValidateAST(vector<StatementNode>& fp_ProgramStatements);
     
