@@ -15,6 +15,62 @@
 
 namespace BongoJam {
 
+    enum class BindingPower : int
+    {
+        NONE = 0,
+        ASSIGN = 10,
+        LOGICAL = 20,  // or, and
+        COMPARE = 30,  // ==, !=, <, >, <=, >=
+        BITWISE = 40,  // |, &, ^, <<, >>
+        ADDITIVE = 50,  // + and - SAME level, left-assoc
+        MULT = 60,  // *, /, % SAME level, left-assoc
+        UNARY = 70,  // prefix: -, !, ~
+        POSTFIX = 80,  // ++, --, call, index, dot
+    };
+
+    // Returns {left_bp, right_bp} for a given infix operator
+// Left-assoc:  r_bp = l_bp + 1  (right side must beat left, so left binds tighter)
+// Right-assoc: r_bp = l_bp      (right side only needs to tie, so it chains right)
+    static pair<int, int>
+        GetInfixBP
+        (
+            TokenType fp_Type
+        )
+        noexcept
+    {
+        switch (fp_Type)
+        {
+        case TokenType::AdditionOperator:
+        case TokenType::NegativeOperator:
+            return { (int)BindingPower::ADDITIVE, (int)BindingPower::ADDITIVE + 1 };
+
+        case TokenType::MultiplicationOperator:
+        case TokenType::DivisionOperator:
+        case TokenType::ModulusOperator:
+            return { (int)BindingPower::MULT, (int)BindingPower::MULT + 1 };
+
+        case TokenType::StrictlyEquals:
+        case TokenType::DoesNotEquals:
+            return { (int)BindingPower::COMPARE, (int)BindingPower::COMPARE + 1 };
+
+        case TokenType::And:
+            return { (int)BindingPower::LOGICAL, (int)BindingPower::LOGICAL + 1 };
+
+        case TokenType::Or:
+            return { (int)BindingPower::LOGICAL - 1, (int)BindingPower::LOGICAL }; // or < and
+
+        case TokenType::BitOrOperator:
+        case TokenType::BitXorOperator:
+        case TokenType::Ampersand:
+        case TokenType::BitshiftLeftOperator:
+        case TokenType::BitshiftRightOperator:
+            return { (int)BindingPower::BITWISE, (int)BindingPower::BITWISE + 1 };
+
+        default:
+            return { -1, -1 }; // not an infix op, signals loop exit
+        }
+    }
+
     //////////////////////////////////////////////
     // Utility Functions
     //////////////////////////////////////////////
@@ -90,6 +146,137 @@ namespace BongoJam {
     //XXX: probaly should keep parsing after finding an error for intellisense and to list ALL errors not just one at a time so multiple compile attempts arent required
 
 //================================================================================================= Numbers =================================================================================================//
+
+    // Parses atoms and prefix unary ops only — NO binary operator handling here anymore
+    unique_ptr<Expr>
+        Parser::PrattParsePrimary
+        (
+            Token fp_CurrentToken,
+            VectorStream<Token>& fp_ProgramTokens
+        )
+    {
+        fp_ProgramTokens.ShiftForward(fp_CurrentToken);
+
+        switch (fp_CurrentToken.m_Type)
+        {
+        case TokenType::IntNumber:
+        case TokenType::FloatNumber:
+        case TokenType::DoubleNumber:
+        case TokenType::UnsignedIntNumber:
+            return make_unique<SingleValueExpr>(fp_CurrentToken);
+
+        case TokenType::StringLiteral:
+        case TokenType::CharLiteral:
+            return make_unique<SingleValueExpr>(fp_CurrentToken);
+
+        case TokenType::UserIdentifier:
+            return ParseUserIdentifier(fp_CurrentToken, fp_ProgramTokens);
+
+        case TokenType::OpenParen:
+        {
+            auto sv_Inner = PrattParseExpr(fp_CurrentToken, fp_ProgramTokens, 0); // parse inside paren with fresh min_bp=0 then expect close paren
+
+            if (not sv_Inner)
+            {
+                parser_logger->Error(fmt::format("Error at line: {}, failed to parse expression inside parentheses", fp_CurrentToken.m_SourceCodeLineNumber), "Parser");
+                return nullptr;
+            }
+
+            fp_ProgramTokens.ShiftForward(fp_CurrentToken);
+
+            if (fp_CurrentToken.m_Type != TokenType::CloseParen)
+            {
+                parser_logger->Error(fmt::format("Error at line: {}, expected ')' but found '{}'", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
+                return nullptr;
+            }
+
+            return sv_Inner; // parens are transparent — they don't produce a node, just control grouping
+        }
+
+        // Prefix unary ops
+        case TokenType::NegativeOperator:
+        case TokenType::BitNotOperator:
+        case TokenType::Not:
+        {
+            Token f_OpToken = fp_CurrentToken;
+            // unary right-side parses at UNARY binding power so it binds tighter than any binary op
+            auto sv_Operand = PrattParseExpr(fp_CurrentToken, fp_ProgramTokens, (int)BindingPower::UNARY);
+
+            if (not sv_Operand)
+            {
+                parser_logger->Error(fmt::format("Error at line: {}, failed to parse operand for unary operator '{}'", fp_CurrentToken.m_SourceCodeLineNumber, f_OpToken.m_Value), "Parser");
+                return nullptr;
+            }
+
+            return make_unique<UnaryOperatorExpr>(f_OpToken, std::move(sv_Operand));
+        }
+
+        default:
+            parser_logger->Error(fmt::format("Error at line: {}, unexpected token '{}' when expression was expected", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser");
+            return nullptr;
+        }
+    }
+
+    // THE Pratt loop — this replaces all the binary op handling scattered in ParseNumber etc
+    unique_ptr<Expr>
+        Parser::PrattParseExpr
+        (
+            Token fp_CurrentToken,
+            VectorStream<Token>& fp_ProgramTokens,
+            int fp_MinBP
+        )
+    {
+        auto f_Left = PrattParsePrimary(fp_CurrentToken, fp_ProgramTokens);
+
+        if (not f_Left)
+        {
+            return nullptr;
+        }
+
+        while (true)
+        {
+            Token f_OpToken;
+
+            if (not fp_ProgramTokens.Peek(f_OpToken))
+            {
+                break; // EOF, hand back what we have
+            }
+
+            // stop at statement terminators / delimiters — these are never infix ops
+            if 
+                (
+                    f_OpToken.m_Type == TokenType::SemiDot or
+                    f_OpToken.m_Type == TokenType::CloseParen or
+                    f_OpToken.m_Type == TokenType::CloseBracket or
+                    f_OpToken.m_Type == TokenType::CloseSquareBracket or
+                    f_OpToken.m_Type == TokenType::Comma
+                )
+            {
+                break;
+            }
+
+            auto [f_LeftBP, f_RightBP] = GetInfixBP(f_OpToken.m_Type);
+
+            if (f_LeftBP < fp_MinBP)
+            {
+                break; // next op doesn't bind tightly enough — let caller handle it
+            }
+
+            fp_ProgramTokens.ShiftForward(f_OpToken); // consume the operator
+
+            auto f_Right = PrattParseExpr(f_OpToken, fp_ProgramTokens, f_RightBP);
+
+            if (not f_Right)
+            {
+                parser_logger->Error(fmt::format("Error at line: {}, failed to parse right-hand side of '{}'", f_OpToken.m_SourceCodeLineNumber, f_OpToken.m_Value), "Parser");
+                return nullptr;
+            }
+
+            f_Left = make_unique<BinaryOperationExpr>(f_OpToken, std::move(f_Left), std::move(f_Right));
+        }
+
+        return f_Left;
+    }
 
     unique_ptr<Expr>
         Parser::ParseNumber
@@ -231,9 +418,9 @@ namespace BongoJam {
 
     //================================================================================================= User Identifiers =================================================================================================//
 
-            //this function is used to deal with user defined tokens relating to lines of code like "myVar = newVal;" or "myClass.myFunc();" or "myFunc();"		    handled by ParseNumber()
-            //we also deal with expressions formed within method or function calls, so this method will return an expression ending with ';' or ',' eg. myFunc(1, 3 + otherFunc(), otherFunc() * 2);
-            //																																					called					      called
+    //this function is used to deal with user defined tokens relating to lines of code like "myVar = newVal;" or "myClass.myFunc();" or "myFunc();"		    handled by ParseNumber()
+    //we also deal with expressions formed within method or function calls, so this method will return an expression ending with ';' or ',' eg. myFunc(1, 3 + otherFunc(), otherFunc() * 2);
+
     unique_ptr<Expr>
         Parser::ParseUserIdentifier //called when current token = user identifier, so it handles shifting
         (

@@ -47,6 +47,23 @@ namespace BongoJam {
 
 //================================================================================================= Numbers =================================================================================================//
 
+        // Parses atoms and prefix unary ops only — NO binary operator handling here anymore
+        unique_ptr<Expr>
+            PrattParsePrimary
+            (
+                Token fp_CurrentToken,
+                VectorStream<Token>& fp_ProgramTokens
+            );
+
+        // THE Pratt loop — this replaces all the binary op handling scattered in ParseNumber etc
+        unique_ptr<Expr>
+            PrattParseExpr
+            (
+                Token fp_CurrentToken,
+                VectorStream<Token>& fp_ProgramTokens,
+                int fp_MinBP
+            );
+
         unique_ptr<Expr>
             ParseNumber
             (
