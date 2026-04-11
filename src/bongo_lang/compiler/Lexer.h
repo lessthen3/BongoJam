@@ -189,7 +189,7 @@ namespace BongoJam {
         //////////////////// Error Handling ////////////////////
 
         Panic,
-        StaticAssert,
+        StaticAssert, //should be able to throw a constexpr error which involves non string literals since compile time evaluation runs inside a real process context uwu
         Assert,
 
         //////////////////// Types ////////////////////
