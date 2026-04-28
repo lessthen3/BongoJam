@@ -13,7 +13,15 @@
 
 #include "Interpreter.h"
 
+///BongoJam
 #include "../ErrorCodes.h"
+#include "../DynamicLoader.h"
+#include "../Opcodes.h"
+#include "../BinaryCodec.h"
+#include "../FileIO.h"
+
+///STL
+#include <iostream>
 
 namespace BongoJam {
 
@@ -143,8 +151,9 @@ namespace BongoJam {
         }
 
         //DecodeAndStoreUTF8Strings(&BONGO_PROGRAM);
-
-        const const const const const size_t f_Size = BONGO_PROGRAM.size(); //you never know if ones enough, gotta throw in a few more just in case
+        
+        //gcc rlly didnt like the const const const const owo
+        const size_t f_Size = BONGO_PROGRAM.size(); //you never know if ones enough, gotta throw in a few more just in case
 
         size_t _l = 0; //line counter
 
@@ -158,22 +167,22 @@ namespace BongoJam {
             {
             case PUSH_I:
             {
-                Push(Value{ ValueType::I64, BinaryCodec::DecodeInt<int64_t>(BONGO_PROGRAM, ++PROGRAM_COUNTER) });
+                Push(Value{ ValueType::I64, BinaryCodec::LittleEndian::DecodeNumber<int64_t>(BONGO_PROGRAM, ++PROGRAM_COUNTER) });
             }
             break;
             case PUSH_F:
             {
-                Push(Value{ ValueType::F64, BinaryCodec::DecodeDouble(BONGO_PROGRAM, ++PROGRAM_COUNTER) });
+                Push(Value{ ValueType::F64, BinaryCodec::LittleEndian::DecodeNumber<double>(BONGO_PROGRAM, ++PROGRAM_COUNTER) });
             }
             break;
             case PUSH_U:
             {
-                Push(Value{ ValueType::U64, BinaryCodec::DecodeInt<uint64_t>(BONGO_PROGRAM, ++PROGRAM_COUNTER) });
+                Push(Value{ ValueType::U64, BinaryCodec::LittleEndian::DecodeNumber<uint64_t>(BONGO_PROGRAM, ++PROGRAM_COUNTER) });
             }
             break;
             case PUSH_S:
             {
-                Push(Value{ ValueType::STRING,  (void*) new string(BinaryCodec::DecodeStringUTF8<uint32_t>(BONGO_PROGRAM, ++PROGRAM_COUNTER)) });
+                Push(Value{ ValueType::STRING,  (void*) new string(BinaryCodec::LittleEndian::DecodeStringUTF8<BONGO_STRING_CHAR_MAX_LENGTH>(BONGO_PROGRAM, ++PROGRAM_COUNTER)) });
             }
             break;
             case POP:
@@ -196,14 +205,14 @@ namespace BongoJam {
             case JMP:
             {
                 //jump offset should figure out that its -1 the actual offset in bytecode since decode advances a byte uwu, but thats a compile time thing not a runtime thing
-                int64_t sv_JmpOffset = BinaryCodec::DecodeInt<int64_t>(BONGO_PROGRAM, ++PROGRAM_COUNTER);
+                int64_t sv_JmpOffset = BinaryCodec::LittleEndian::DecodeNumber<int64_t>(BONGO_PROGRAM, ++PROGRAM_COUNTER);
 
                 PROGRAM_COUNTER += sv_JmpOffset; //offset is signed so can go backwards or forwards
             }
             break;
             case STORE_LOCAL: 
             {
-                uint8_t slot = BinaryCodec::DecodeInt<uint32_t>(BONGO_PROGRAM, ++PROGRAM_COUNTER);
+                uint8_t slot = BinaryCodec::LittleEndian::DecodeNumber<uint32_t>(BONGO_PROGRAM, ++PROGRAM_COUNTER);
                 Value val = Pop();
                 size_t addr = BASE_POINTER + slot;
 
@@ -512,7 +521,7 @@ namespace BongoJam {
             case STDOUT: //print function
             {
                 //we're going to decode the utf8 string directly from the bytecode, however we should do a once-over and decode all function names for the lib versions of the compiled bytecode
-                cout << BinaryCodec::DecodeStringUTF8<uint32_t>(BONGO_PROGRAM, ++PROGRAM_COUNTER);
+                std::cout << BinaryCodec::LittleEndian::DecodeStringUTF8<BONGO_STRING_CHAR_MAX_LENGTH>(BONGO_PROGRAM, ++PROGRAM_COUNTER);
             }
             break;
             case STDIN:
@@ -527,7 +536,7 @@ namespace BongoJam {
             case STDERR:
             {
                 //we're going to decode the utf8 string directly from the bytecode, however we should do a once-over and decode all function names for the lib versions of the compiled bytecode
-                cerr << BinaryCodec::DecodeStringUTF8<uint32_t>(BONGO_PROGRAM, ++PROGRAM_COUNTER);
+                std::cerr << BinaryCodec::LittleEndian::DecodeStringUTF8<BONGO_STRING_CHAR_MAX_LENGTH>(BONGO_PROGRAM, ++PROGRAM_COUNTER);
             }
             break;
             case CEIL:  //IMPORTANT: static analysis will prevent invalid values being pushed onto the stack here, and we just treat any value here as a double then recast after ig
@@ -549,7 +558,7 @@ namespace BongoJam {
             break;
             case NATIVE_CALL:
             {
-                string sv_FuncName = BinaryCodec::DecodeStringUTF8<uint32_t>(BONGO_PROGRAM, ++PROGRAM_COUNTER);
+                string sv_FuncName = BinaryCodec::LittleEndian::DecodeStringUTF8<BONGO_STRING_CHAR_MAX_LENGTH>(BONGO_PROGRAM, ++PROGRAM_COUNTER);
 
                 if (NativeFunctions.contains(sv_FuncName))
                 {
@@ -568,9 +577,9 @@ namespace BongoJam {
             //XXX: Compiler should always pad a halt call w a exit code after
             case HALT: //XXX: used for exit() or abort() calls
             {
-                int64_t f_ExitCode = BinaryCodec::DecodeInt<int64_t>(BONGO_PROGRAM, ++PROGRAM_COUNTER);
+                int64_t f_ExitCode = BinaryCodec::LittleEndian::DecodeNumber<int64_t>(BONGO_PROGRAM, ++PROGRAM_COUNTER);
                 cout << "\n\n"; //XXX: padding for exit msg and last print msg from user script
-                PRINT(fmt::format("\nBongoJam program exited with code {}", f_ExitCode), BrightCyan);
+                BONGO_PRINT_FMT(BONGO_COL_BRIGHT_CYAN, "\nBongoJam program exited with code {}", f_ExitCode);
                 return f_ExitCode; //SHOULD return number returned by bj script main func
             }
             break;

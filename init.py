@@ -4,6 +4,7 @@ import argparse
 import platform
 import shutil
 import sys
+import re
 
 from shutil import which
 
@@ -37,7 +38,6 @@ def ensure_tool_installed(fp_ToolName: str) -> bool:
     if which(fp_ToolName) is None:
         print(CreateColouredText(f"[ERROR]: Required tool '{fp_ToolName}' not found in PATH", "red"))
         return False
-    
     else:
         return True
 
@@ -48,6 +48,33 @@ g_ErrorLog:   dict[str, list[str]] = {}  # dep_name -> [error lines]
 g_WarningLog: dict[str, list[str]] = {}  # dep_name -> [warning lines]
 g_CurrentDep: str = "Peach-E"            # this is more for build_deps.py but w/e
 
+############# Compiled Regex Patterns for Build Output Classification #############
+
+_g_ErrorPatterns = [
+    re.compile(r':\s*error\b',              re.IGNORECASE), # "error:" / ": error" — GCC, Clang, MSVC
+    re.compile(r'\bfatal\s+error\b',        re.IGNORECASE), # "fatal error:" — preprocessor, linker
+    # re.compile(r'\bfailed\b',              re.IGNORECASE),  # ninja "FAILED: CMakeFiles/..." / MSBuild "Build FAILED."
+
+    re.compile(r'\blnk\d{4}\b',             re.IGNORECASE), # MSVC linker: LNK1181, LNK2019 etc
+    re.compile(r'\b[Cc][2-9]\d{3}\b'),                      # MSVC compiler: C2065, C3861 
+    re.compile(r'\bld:\s+error\b',          re.IGNORECASE), # GNU ld errors
+    re.compile(r'\bundefined\s+symbol\b',   re.IGNORECASE), # linker: undefined symbol
+    re.compile(r'\bduplicate\s+symbol\b',         re.IGNORECASE), # linker: duplicate symbol
+    re.compile(r'\bundefined\s+reference\b',re.IGNORECASE), # GCC linker variant
+    re.compile(r'\breferenced\s+from\b',    re.IGNORECASE), # Apple ld variant
+    
+    re.compile(r'\bninja:\s+error\b',       re.IGNORECASE), # "ninja: error:" — only ninja errors, not every ninja line
+    re.compile(r'\bcommand\s+failed\b',     re.IGNORECASE), # generic CMake command failure
+    re.compile(r'cmake\s+error',            re.IGNORECASE), # CMake configure errors
+
+    re.compile(r'\binternal\s+compiler\s+error\b',re.IGNORECASE), # GCC/Clang ICE
+]
+
+_g_WarningPatterns = [
+    re.compile(r':\s*warning\b',            re.IGNORECASE), # "warning:" / ": warning" — GCC, Clang, MSVC
+    re.compile(r'\b[Cc]4\d{3}\b'),                          # MSVC warnings: C4100, C4244 etc
+    re.compile(r'\bcmake\s+warning\b',      re.IGNORECASE), # CMake configure warnings
+]
 
 ############# Run command for live console feed #############
 
@@ -57,6 +84,7 @@ g_CurrentDep: str = "Peach-E"            # this is more for build_deps.py but w/
     Warnings → printed yellow in real time, collected into g_WarningLog
     Raises CalledProcessError if the command fails.
 """
+
 
 def run_command_with_live_output(fp_Command, fp_WorkingDirectory=".") -> None:
 
@@ -74,24 +102,20 @@ def run_command_with_live_output(fp_Command, fp_WorkingDirectory=".") -> None:
 
     f_OutputLines = []
 
-    # keywords that indicate an error line — lowercase check
-    f_ErrorKeywords   = ("error:", "fatal error:", "linker error", "lnk", "c2", "c3", "ld:", "undefined symbol", "referenced from")
-    f_WarningKeywords = ("warning:",)
-
     try:
         for line in f_Process.stdout:
 
-            f_Lower = line.lower()
+            f_Stripped = line.rstrip('\n')
 
-            if any(kw in f_Lower for kw in f_ErrorKeywords):
-                sys.stdout.write(CreateColouredText(line.rstrip('\n'), "bright red") + '\n')
+            if any(pat.search(line) for pat in _g_ErrorPatterns):
+                sys.stdout.write(CreateColouredText(f_Stripped, "bright red") + '\n')
                 if g_CurrentDep:
-                    g_ErrorLog.setdefault(g_CurrentDep, []).append(line.rstrip('\n'))
+                    g_ErrorLog.setdefault(g_CurrentDep, []).append(f_Stripped)
 
-            elif any(kw in f_Lower for kw in f_WarningKeywords):
-                sys.stdout.write(CreateColouredText(line.rstrip('\n'), "yellow") + '\n')
+            elif any(pat.search(line) for pat in _g_WarningPatterns):
+                sys.stdout.write(CreateColouredText(f_Stripped, "yellow") + '\n')
                 if g_CurrentDep:
-                    g_WarningLog.setdefault(g_CurrentDep, []).append(line.rstrip('\n'))
+                    g_WarningLog.setdefault(g_CurrentDep, []).append(f_Stripped)
 
             else:
                 sys.stdout.write(line)
@@ -109,7 +133,6 @@ def run_command_with_live_output(fp_Command, fp_WorkingDirectory=".") -> None:
 
     finally:
         f_Process.stdout.close()
-
 
 ############# Markdown Summary Dump #############
 
@@ -149,7 +172,7 @@ def WriteBuildSummaryMarkdown(fp_BaseDir: str, fp_PrintErrors: bool, fp_PrintWar
 
 ############# Main CMake Function #############
 
-def run_cmake(fp_BuildType: str, fp_Generator: str, fp_TargetPlatform: str, fp_ShouldExportCommands : bool, fp_IsVerbose : bool) -> bool:
+def run_cmake(fp_BuildType: str, fp_Generator: str, fp_TargetPlatform: str, fp_ExtraArgs: list, fp_ExtraConfigs: list) -> bool:
 
     f_GeneratorMap = {
         "vs2026": "Visual Studio 18 2026",
@@ -184,16 +207,6 @@ def run_cmake(fp_BuildType: str, fp_Generator: str, fp_TargetPlatform: str, fp_S
     f_IsMultiConfig = fp_Generator in ["vs2026", "vs2022", "vs2019", "vs2017", "vs2015", "xcode", "ninja-mc"]
 
     f_CMakeConfigCommand = ['cmake', '-S', '.', '-B', 'build', '-G', f_GeneratorMap[fp_Generator]]
-
-    if fp_ShouldExportCommands:
-        f_CMakeConfigCommand.append('-DCMAKE_EXPORT_COMPILE_COMMANDS=ON');
-    
-    f_ExtraBuildConfigs = []
-
-    if fp_IsVerbose:
-        if fp_Generator == "vs2022":
-            f_ExtraBuildConfigs += ['--verbose', '--', '-verbosity:diagnostic']
-
     
     if not f_IsMultiConfig:
 
@@ -207,18 +220,21 @@ def run_cmake(fp_BuildType: str, fp_Generator: str, fp_TargetPlatform: str, fp_S
 
     ############# Set Target Platform #############
 
-    if fp_TargetPlatform != "":
-        f_CMakeConfigCommand += [
-            "-DCMAKE_TOOLCHAIN_FILE=peach.toolchain.cmake",
-            f"-DPEACH_TARGET_PLATFORM={fp_TargetPlatform}"
-        ]
+    if fp_TargetPlatform == "":
+        print(CreateColouredText("[ERROR]: No target platform was selected, please specify which platform Peach-E is being built for uwu"))
+        return False
+    
+    f_CMakeConfigCommand += [
+        "-DCMAKE_TOOLCHAIN_FILE=peach.toolchain.cmake",
+        f"-DPEACH_TARGET_PLATFORM={fp_TargetPlatform}"
+    ]
 
     ############# Generate CMake Project #############
 
     try:
         print(CreateColouredText(f"[INFO]: Running CMake project generation for {f_GeneratorMap[fp_Generator]}...", "green"))
 
-        run_command_with_live_output(f_CMakeConfigCommand)
+        run_command_with_live_output(f_CMakeConfigCommand + fp_ExtraConfigs)
 
     except subprocess.CalledProcessError as err:
         print(CreateColouredText("[ERROR]: CMake project generation failed!", "red"))
@@ -232,7 +248,7 @@ def run_cmake(fp_BuildType: str, fp_Generator: str, fp_TargetPlatform: str, fp_S
         try:
             print(CreateColouredText(f"[INFO]: Running CMake single config build for {fp_BuildType}...", "green"))
 
-            run_command_with_live_output(['cmake', '--build', 'build'] + f_ExtraBuildConfigs)
+            run_command_with_live_output(['cmake', '--build', 'build'] + fp_ExtraArgs)
 
         except subprocess.CalledProcessError as err:
             print(CreateColouredText(f"[ERROR]: CMake single config {fp_BuildType} build process failed!", "red"))
@@ -248,7 +264,7 @@ def run_cmake(fp_BuildType: str, fp_Generator: str, fp_TargetPlatform: str, fp_S
         try:
             print(CreateColouredText("[INFO]: Running CMake build for Debug...", "green"))
 
-            run_command_with_live_output(['cmake', '--build', 'build', '--config', 'Debug'] + f_ExtraBuildConfigs)
+            run_command_with_live_output(['cmake', '--build', 'build', '--config', 'Debug'] + fp_ExtraArgs)
 
         except subprocess.CalledProcessError as err:
             print(CreateColouredText("[ERROR]: CMake debug build process failed!", "red"))
@@ -262,7 +278,7 @@ def run_cmake(fp_BuildType: str, fp_Generator: str, fp_TargetPlatform: str, fp_S
         try:
             print(CreateColouredText("[INFO]: Running CMake build for Release...", "green"))
 
-            run_command_with_live_output(['cmake', '--build', 'build', '--config', 'Release'] + f_ExtraBuildConfigs)
+            run_command_with_live_output(['cmake', '--build', 'build', '--config', 'Release'] + fp_ExtraArgs)
 
         except subprocess.CalledProcessError as err:
             print(CreateColouredText("[ERROR]: CMake release build process failed!", "red"))
@@ -355,6 +371,13 @@ def main() -> bool:
     )
 
     parser.add_argument(
+        '-J',
+        nargs=1,
+        metavar="[max_jobs]",
+        help=CreateColouredText("Set max number of jobs the compiler can do at once owo",'cyan')
+    )
+
+    parser.add_argument(
         '--dump_errors',
         action='store_true',
         help=CreateColouredText('Dump all build errors to build_errors.md', 'bright magenta')
@@ -384,48 +407,20 @@ def main() -> bool:
         help=CreateColouredText('Adds verbose and will add additional flags depending on generator', 'bright magenta')
     )
 
+    parser.add_argument(
+        '--use_clang',
+        action='store_true',
+        help=CreateColouredText('Compiles with clang on compatible platforms', 'bright magenta')
+    )
+
+    parser.add_argument(
+        '--use_gcc',
+        action='store_true',
+        help=CreateColouredText('Compiles with gcc on compatible platforms', 'bright magenta')
+    )
+
     args = parser.parse_args()
 
-    ############# Export compile commands? #############
-
-    f_IsVerbose = False;
-
-    if args.verbose:
-        f_IsVerbose = True;
-
-    ############# Export compile commands? #############
-
-    f_ShouldExportCompileCommands = False
-
-    if args.export_commands:
-        f_ShouldExportCompileCommands = True;
-
-    ############# Target Platform Config #############
-
-    f_ToolchainKey = ""
-
-    if args.T:
-        f_ToolchainKey = args.T[0].lower()
-    else:
-        f_SystemPlatform = platform.system()
-        f_MachineArch = platform.machine().lower()
-
-        if f_SystemPlatform == "Windows":
-            f_ToolchainKey = "windows-arm64" if "arm" in f_MachineArch else "windows" #python is weird mang
-        elif f_SystemPlatform == "Darwin":
-            f_ToolchainKey = "macos"
-        elif f_SystemPlatform == "Linux":
-            f_ToolchainKey = "linux"
-        elif f_SystemPlatform == "FreeBSD":
-            f_ToolchainKey = "freebsd"
-        elif f_SystemPlatform == "Haiku":
-            f_ToolchainKey = "haiku"
-        else:
-            print(CreateColouredText(f"[ERROR]: Could not auto-detect platform: {f_SystemPlatform}, please specify with -T uwu", "red"))
-            return False
-
-        print(CreateColouredText(f"[INFO]: Auto-detected platform: {f_ToolchainKey} ~ nya~", "bright cyan"))
-    
     ############# Validate Build Config #############
 
     f_BuildType = "nothing"
@@ -442,14 +437,6 @@ def main() -> bool:
     else:
         print(CreateColouredText("[ERROR]: No valid build type input detected, use -h or --help if you're unfamiliar", "red"))
         return False
-    
-    ############# Check for Generator #############
-        
-    if(not args.G):
-        print(CreateColouredText("[ERROR]: YOU DIDN'T USE -G FLAG BROTHER", "red"))
-        return False
-
-    f_DesiredGenerator = args.G[0].lower() #convert to all lower case for easier handling
 
     ############# Check for --clean flag #############
 
@@ -460,9 +447,87 @@ def main() -> bool:
 
     f_CurrentPlatform = platform.system()
 
+    ############# Extra args and cmake configs owo #############
+
+    f_ExtraArgs = []
+    f_ExtraBuildConfigs = []
+
+    ############# Check for Generator #############
+        
+    if(not args.G):
+        print(CreateColouredText("[ERROR]: YOU DIDN'T USE -G FLAG BROTHER", "red"))
+        return False
+
+    f_DesiredGenerator = args.G[0].lower() #convert to all lower case for easier handling
+
+    ############# Export compile commands? #############
+
+    if args.verbose:
+        if f_DesiredGenerator == "vs2022":
+            f_ExtraArgs += ['--verbose', '--', '-verbosity:diagnostic']
+
+    ############# Thread Limiter #############
+
+    if args.J:
+        f_MaxNumberOfJobs = args.J[0]
+
+        f_ExtraArgs.extend(["--parallel", f_MaxNumberOfJobs])
+
+    ############# Export compile commands? #############
+
+    if args.export_commands:
+        f_ExtraBuildConfigs.append('-DCMAKE_EXPORT_COMPILE_COMMANDS=ON')        
+
+    ############# Target Platform Config #############
+
+    f_ToolchainKey = ""
+
+    if args.T:
+        f_ToolchainKey = args.T[0].lower()
+    else:
+        f_MachineArch = platform.machine().lower()
+
+        if f_CurrentPlatform == "Windows":
+            f_ToolchainKey = "windows-arm64" if "arm" in f_MachineArch else "windows" #python is weird mang
+        elif f_CurrentPlatform == "Darwin":
+            f_ToolchainKey = "macos"
+        elif f_CurrentPlatform == "Linux":
+            f_ToolchainKey = "linux"
+        elif f_CurrentPlatform == "FreeBSD":
+            f_ToolchainKey = "freebsd"
+        elif f_CurrentPlatform == "Haiku":
+            f_ToolchainKey = "haiku"
+        else:
+            print(CreateColouredText(f"[ERROR]: Could not auto-detect platform: {f_CurrentPlatform}, please specify with -T uwu", "red"))
+            return False
+
+        print(CreateColouredText(f"[INFO]: Auto-detected platform: {f_ToolchainKey} ~ nya~", "bright cyan"))
+
+    ############# Compiler Identification #############
+
+    if args.use_clang:
+
+        if f_CurrentPlatform == "Windows":
+            print(CreateColouredText("[ERROR]: can't use clang/clang++ on windows, aborting build process", "red"))
+    
+        if not ensure_tool_installed("clang") and not ensure_tool_installed("clang++"):
+            return False
+
+        f_ExtraBuildConfigs.extend(["-DCMAKE_C_COMPILER=clang", "-DCMAKE_CXX_COMPILER=clang++"])
+
+    elif args.use_gcc:
+
+        if f_CurrentPlatform == "Windows":
+            print(CreateColouredText("[ERROR]: can't use gcc/g++ on windows, aborting build process", "red"))
+
+        if not ensure_tool_installed("gcc") and not ensure_tool_installed("g++"):
+            return False
+
+        f_ExtraBuildConfigs.extend(["-DCMAKE_C_COMPILER=gcc", "-DCMAKE_CXX_COMPILER=g++"])
+
     ############# Run Build Fingers Crossed >w< #############
 
-    build_result = run_cmake(f_BuildType, f_DesiredGenerator, f_ToolchainKey, f_ShouldExportCompileCommands, f_IsVerbose)
+    build_result = run_cmake(f_BuildType, f_DesiredGenerator, f_ToolchainKey, f_ExtraArgs, f_ExtraBuildConfigs)
 
     ############# Provide Printout #############
 

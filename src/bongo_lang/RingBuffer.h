@@ -89,7 +89,7 @@ namespace BongoJam {
         constexpr void 
             Emplace(Args&&... fp_Args)
         {
-            EmplaceOverwrite(forward<Args>(fp_Args)...);
+            EmplaceOverwrite(std::forward<Args>(fp_Args)...);
         }
 
         void 

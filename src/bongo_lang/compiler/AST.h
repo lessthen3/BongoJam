@@ -13,10 +13,11 @@
 
 #include "Lexer.h"
 
-#include <array>
 #include <vector>
 #include <unordered_map>
 #include <memory>
+
+#include <filesystem>
 
 
 namespace BongoJam {
@@ -511,7 +512,7 @@ namespace BongoJam {
 
     struct TranslationUnit
     {
-        filesystem::path ScriptPath; //compilation units rae generated per script so # of scripts = # of compilation units
+        filesystem::path ScriptPath; //compilation units are generated per script so # of scripts = # of compilation units
 
         //first function should be the very first function, defined in the very top level of the import tree
         SyntaxTree ParsedScript; //contains all defined functions inside the script

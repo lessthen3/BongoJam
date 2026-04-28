@@ -130,7 +130,7 @@ namespace BongoJam {
                     pm_BatchActive = false;
                     pm_BatchLatch.reset();
 
-                   PRINT_ERROR(fmt::format("Unhandled exception: {}", fp_Exception.what()));
+                   BONGO_PRINT_ERROR_FMT("Unhandled exception: {}", fp_Exception.what());
                 }
             }
         }

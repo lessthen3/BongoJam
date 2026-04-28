@@ -1,6 +1,6 @@
 /*******************************************************************
  *                        Peach-E v0.0.1
- *              Created by Ranyodh Mandur - 🍑 2024
+ *         Created by Ranyodh Singh Mandur - 🍑 2024-2026
  *
  *              Licensed under the MIT License (MIT).
  *         For more details, see the LICENSE file or visit:
@@ -17,48 +17,39 @@
 #include <variant>
 #include <vector>
 #include <memory>
-#include <cstdint>
-#include <cstring> //for memcpy uwu
 
 #include <type_traits>
 #include <utility>
+#include <sstream>
+#include <iomanip>
 
 /// fmt
 #include <fmt/format.h>
 
 ///Peach-E
-#include "Logger.h"
+#include "FileIO.h" //already includes Logger.h idk just guessing the compiler is smart enough not to double glue the header into the TU but w/e
+#include "BinaryCodec.h"
 
-/// Magic World
 
-// One field: expands to v.field("a", a) inside peachVisit
-#define PEACH_FIELD(f) v(#f, f)
+/*
+    idk static error handling with C++ is really fucking annoying when trying to give useful information via an error or failed assert
+    found at compile time which is definitely what you want lmfao like wtf man, u introduce constexpr into C++17 but like don't
+    consider the fact that static error propogation up a compile time "stack trace" would be useful when doing all this template shit
+    at compile time?????????????????????
 
-// Base / non-inherited type
-#define PEACH_SERIALIZABLE(...)                           \
-    using peach_serializable_tag = void;                  \
-    template <typename V>                                 \
-    void PEACH_VISIT(V&& v) {                              \
-        __VA_ARGS__;                               \
-    }                                                     \
-    template <typename V>                                 \
-    void PEACH_VISIT(V&& v) const {                        \
-        __VA_ARGS__;                               \
-    }
+    like yeah ik that most compilers will implement a proper call stack when the static assert fails but like cmon the compiler fucking
+    knows whats wrong why not just let me use it to tell me what it needs u fucks
 
-// Derived type that wants to also serialize its Base part
-#define PEACH_SERIALIZABLE_DERIVED(Base, ...)             \
-    using peach_serializable_tag = void;                  \
-    template <typename V>                                 \
-    void PEACH_VISIT(V&& v) {                              \
-        Base::PEACH_VISIT(v);                              \
-        __VA_ARGS__;                               \
-    }                                                     \
-    template <typename V>                                 \
-    void PEACH_VISIT(V&& v) const {                        \
-        Base::PEACH_VISIT(v);                              \
-        __VA_ARGS__;                               \
-    }
+    annnd yeah ik "oh its coming in C++26", fuck you I don't want to wait another 10 years for gcc, msvc and clang to finally probably
+    implement most of the standard fuck you
+
+    although gcc is surpisingly faithful to the standard, idk why I use clang on more posixy platforms lmfao
+
+    well apple-clang is the only way to get things to work properly w all the dynamically linked weirdness and compilation between 
+    objc++ <-> C++
+
+    I should just be happy that compiler engineers even allow me to lick their boots, but I'm not >:^(
+*/
 
 #define PEACH_STRINGIFY(fp_X) #fp_X
 #define PEACH_TOSTRING(fp_X) PEACH_STRINGIFY(fp_X)
@@ -133,940 +124,11 @@
         ::BongoJam::Serializer::UnpackFromBinaryVector(fp_EmptyObject, fp_BinaryVector, fp_Logger, fp_StartReadOffset) \
     )
 
-
-template<typename>
-inline constexpr bool always_false_v = false;
-
 /// back to normality >W<
 
 namespace BongoJam {
 
     constexpr size_t MAX_ARRAY_LINE_WIDTH = 20;
-
-    namespace BinaryCodec { //all these functions use big-endian
-
-        //////////////////////////////////////////////
-        // Encoding Functions
-        //////////////////////////////////////////////
-
-        inline void
-            EncodeUint8
-            (
-                vector<uint8_t>& fp_Bytecode,
-                const uint8_t fp_Int
-            )
-        {
-            fp_Bytecode.push_back(fp_Int);
-        }
-
-        inline void
-            EncodeUint16
-            (
-                vector<uint8_t>& fp_ByteCode,
-                const uint16_t fp_Int
-            )
-        {
-            fp_ByteCode.push_back((fp_Int >> 8) & 0xFF); // High byte
-            fp_ByteCode.push_back(fp_Int & 0xFF);         // Low byte
-        }
-
-        inline void
-            EncodeUint32
-            (
-                vector<uint8_t>& fp_ByteCode,
-                const uint32_t fp_Int
-            )
-        {
-            fp_ByteCode.push_back((fp_Int >> 24) & 0xFF); // High byte
-            fp_ByteCode.push_back((fp_Int >> 16) & 0xFF);
-            fp_ByteCode.push_back((fp_Int >> 8) & 0xFF);
-            fp_ByteCode.push_back(fp_Int & 0xFF);         // Low byte
-        }
-
-        inline void
-            EncodeUint64
-            (
-                vector<uint8_t>& fp_ByteCode,
-                const uint64_t fp_Int
-            )
-        {
-            fp_ByteCode.push_back((fp_Int >> 56) & 0xFF); // High byte
-            fp_ByteCode.push_back((fp_Int >> 48) & 0xFF);
-            fp_ByteCode.push_back((fp_Int >> 40) & 0xFF);
-            fp_ByteCode.push_back((fp_Int >> 32) & 0xFF);
-            fp_ByteCode.push_back((fp_Int >> 24) & 0xFF);
-            fp_ByteCode.push_back((fp_Int >> 16) & 0xFF);
-            fp_ByteCode.push_back((fp_Int >> 8) & 0xFF);
-            fp_ByteCode.push_back(fp_Int & 0xFF);         // Low byte
-        }
-
-        inline void
-            EncodeInt8
-            (
-                vector<uint8_t>& fp_Bytecode,
-                const int8_t fp_Int
-            )
-        {
-            EncodeUint8(fp_Bytecode, static_cast<uint8_t>(fp_Int));
-        }
-
-        inline void
-            EncodeInt16
-            (
-                vector<uint8_t>& fp_ByteCode,
-                const int16_t fp_Int
-            )
-        {
-            EncodeUint16(fp_ByteCode, static_cast<uint16_t>(fp_Int));
-        }
-
-        inline void
-            EncodeInt32
-            (
-                vector<uint8_t>& fp_ByteCode,
-                const int32_t fp_Int
-            )
-        {
-            EncodeUint32(fp_ByteCode, static_cast<uint32_t>(fp_Int));
-        }
-
-        inline void
-            EncodeInt64
-            (
-                vector<uint8_t>& fp_ByteCode,
-                const int64_t fp_Int
-            )
-        {
-            EncodeUint64(fp_ByteCode, static_cast<uint64_t>(fp_Int));
-        }
-
-        template <typename T>
-        inline void
-            EncodeInt
-            (
-                vector<uint8_t>& fp_Bytecode,
-                const T fp_Int
-            )
-        {
-            static_assert
-                (
-                    is_same_v<T, uint8_t> or is_same_v<T, uint16_t> or is_same_v<T, uint32_t> or is_same_v<T, uint64_t>
-                    or is_same_v<T, int8_t> or is_same_v<T, int16_t> or is_same_v<T, int32_t> or is_same_v<T, int64_t>,
-                    "EncodeInt only accepts 8/16/32/64-bit signed or unsigned integer types"
-                    );
-
-            if constexpr (sizeof(T) == 1)
-            {
-                EncodeUint8(fp_Bytecode, static_cast<uint8_t>(fp_Int));
-            }
-            else if constexpr (sizeof(T) == 2)
-            {
-                EncodeUint16(fp_Bytecode, static_cast<uint16_t>(fp_Int));
-            }
-            else if constexpr (sizeof(T) == 4)
-            {
-                EncodeUint32(fp_Bytecode, static_cast<uint32_t>(fp_Int));
-            }
-            else if constexpr (sizeof(T) == 8)
-            {
-                EncodeUint64(fp_Bytecode, static_cast<uint64_t>(fp_Int));
-            }
-            else
-            {
-                static_assert(always_false_v<T>, "EncodeInt only supports 8/16/32/64-bit integer types");
-            }
-        }
-
-        inline void
-            EncodeBool
-            (
-                vector<uint8_t>& fp_ByteCode,
-                bool fp_Bool
-            )
-        {
-            uint8_t f_BoolAsInt = fp_Bool ? 1 : 0; // Convert boolean to 32-bit integer
-            fp_ByteCode.push_back(f_BoolAsInt);
-        }
-
-        inline void
-            EncodeFloat
-            (
-                vector<uint8_t>& fp_ByteCode,
-                const float fp_Float
-            )
-        {
-            uint32_t f_AsInt;
-            memcpy(&f_AsInt, &fp_Float, sizeof(float)); // Copy the float into an uint32_t bit pattern
-            EncodeUint32(fp_ByteCode, f_AsInt);      // Reuse the integer encoding function
-        }
-
-        inline void
-            EncodeDouble
-            (
-                vector<uint8_t>& fp_ByteCode,
-                const double fp_DoubleVal
-            )
-        {
-            uint64_t f_AsInt;
-            memcpy(&f_AsInt, &fp_DoubleVal, sizeof(double)); // Copy the double into a uint64_t bit pattern
-            EncodeUint64(fp_ByteCode, f_AsInt);      // Reuse the integer encoding function
-        }
-
-        template<typename LengthT>
-        inline void
-            EncodeStringWithoutEscapeCharacters
-            (
-                vector<uint8_t>& fp_ByteCode,
-                const string& fp_String
-            )
-        {
-            ////////////////////////////////////////////// Validate Length Type //////////////////////////////////////////////
-
-            static_assert
-                (
-                    is_same_v<LengthT, uint8_t> or is_same_v<LengthT, uint16_t> or is_same_v<LengthT, uint32_t> or is_same_v<LengthT, uint64_t>,
-                    "EncodeStringWithoutEscapeCharacters only accepts 8/16/32/64-bit unsigned integer types"
-                    );
-
-            ////////////////////////////////////////////// Overflow Check on String Size With Passed Type //////////////////////////////////////////////
-
-            if (fp_String.size() > numeric_limits<LengthT>::max())
-            {
-                throw length_error("EncodeStringWithoutEscapeCharacters: string too long for LengthT");
-            }
-
-            ////////////////////////////////////////////// Encode String Length //////////////////////////////////////////////
-
-            EncodeInt<LengthT>(fp_ByteCode, static_cast<LengthT>(fp_String.size()));
-
-            ////////////////////////////////////////////// Write Character by Character //////////////////////////////////////////////
-
-            for (const char lv_Char : fp_String)
-            {
-                fp_ByteCode.push_back(static_cast<uint8_t>(lv_Char));
-            }
-        }
-
-        template<typename LengthT>
-        inline void
-            EncodeStringUTF8
-            (
-                vector<uint8_t>& fp_ByteCode,
-                const string& fp_String
-            )
-        {
-            ////////////////////////////////////////////// Validate Length Type //////////////////////////////////////////////
-
-            static_assert
-                (
-                    is_same_v<LengthT, uint8_t> or is_same_v<LengthT, uint16_t> or is_same_v<LengthT, uint32_t> or is_same_v<LengthT, uint64_t>,
-                    "EncodeStringUTF8 only accepts 8/16/32/64-bit unsigned integer types"
-                    );
-
-            ////////////////////////////////////////////// Create Temporary Buffer //////////////////////////////////////////////
-
-            vector<uint8_t> f_TempBuffer; //use a temp buffer so that size can be encoded first, and escape characters need to be double counted
-            f_TempBuffer.reserve(fp_String.size());
-
-            ////////////////////////////////////////////// Write Character by Character //////////////////////////////////////////////
-
-            for (const char lv_Char : fp_String)
-            {
-                switch (lv_Char)
-                {
-                case '\n':  // Newline
-                    f_TempBuffer.push_back('\\');
-                    f_TempBuffer.push_back('n');
-                    break;
-                case '\t':  // Tab
-                    f_TempBuffer.push_back('\\');
-                    f_TempBuffer.push_back('t');
-                    break;
-                case '\\':  // Backslash
-                    f_TempBuffer.push_back('\\');
-                    f_TempBuffer.push_back('\\');
-                    break;
-                default:
-                    f_TempBuffer.push_back(static_cast<uint8_t>(lv_Char));
-                    break;
-                }
-            }
-
-            ////////////////////////////////////////////// Overflow Check on String Size With Passed Type //////////////////////////////////////////////
-
-            if (f_TempBuffer.size() > numeric_limits<LengthT>::max())
-            {
-                throw length_error("EncodeStringUTF8: string too long for given type");
-            }
-
-            ////////////////////////////////////////////// Encode String Length //////////////////////////////////////////////
-
-            EncodeInt<LengthT>(fp_ByteCode, static_cast<LengthT>(f_TempBuffer.size()));
-
-            ////////////////////////////////////////////// Append Temp Buffer -> Bytecode //////////////////////////////////////////////
-
-            fp_ByteCode.insert(fp_ByteCode.end(), f_TempBuffer.begin(), f_TempBuffer.end());
-        }
-
-        //////////////////////////////////////////////
-        // Decoding Functions
-        //////////////////////////////////////////////
-
-        [[nodiscard]] inline uint8_t
-            DecodeUint8
-            (
-                const vector<uint8_t>& fp_Bytecode,
-                size_t& fp_Offset
-            )
-        {
-            ////////////////////////////////////////////// Safety Check Bounds //////////////////////////////////////////////
-
-            if (fp_Offset >= fp_Bytecode.size())
-            {
-                throw runtime_error("DecodeUint8: out of bounds");
-            }
-
-            ////////////////////////////////////////////// Decode 8-Bit Int //////////////////////////////////////////////
-
-            return fp_Bytecode[fp_Offset++];
-        }
-
-        [[nodiscard]] inline uint16_t
-            DecodeUint16
-            (
-                const vector<uint8_t>& fp_ByteCode,
-                size_t& fp_Offset
-            )
-        {
-            ////////////////////////////////////////////// Safety Check Bounds //////////////////////////////////////////////
-
-            if (fp_Offset + 1 >= fp_ByteCode.size())
-            {
-                throw runtime_error("DecodeUint16: out of bounds");
-            }
-
-            ////////////////////////////////////////////// Decode 16-Bit Int //////////////////////////////////////////////
-
-            uint16_t f_Value =
-                (static_cast<uint16_t>(fp_ByteCode[fp_Offset]) << 8) |
-                (static_cast<uint16_t>(fp_ByteCode[fp_Offset + 1]));
-
-            ////////////////////////////////////////////// Shift Offset onto First Leading Byte //////////////////////////////////////////////
-
-            fp_Offset += 2; // End on fresh byte right after the last decoded byte uwu
-
-            ////////////////////////////////////////////// Return Decoded 16-Bit Int //////////////////////////////////////////////
-
-            return f_Value;
-        }
-
-        [[nodiscard]] inline uint32_t
-            DecodeUint32
-            (
-                const vector<uint8_t>& fp_ByteCode,
-                size_t& fp_Offset
-            )
-        {
-            ////////////////////////////////////////////// Safety Check Bounds //////////////////////////////////////////////
-
-            if (fp_Offset + 3 >= fp_ByteCode.size())
-            {
-                throw runtime_error("DecodeUint32: out of bounds");
-            }
-
-            ////////////////////////////////////////////// Decode 32-Bit Int //////////////////////////////////////////////
-
-            uint32_t f_Value =
-                (static_cast<uint32_t>(fp_ByteCode[fp_Offset]) << 24) |
-                (static_cast<uint32_t>(fp_ByteCode[fp_Offset + 1]) << 16) |
-                (static_cast<uint32_t>(fp_ByteCode[fp_Offset + 2]) << 8) |
-                (static_cast<uint32_t>(fp_ByteCode[fp_Offset + 3]));
-
-            ////////////////////////////////////////////// Shift Offset onto First Leading Byte //////////////////////////////////////////////
-
-            fp_Offset += 4; // End on fresh byte right after the last decoded byte uwu
-
-            ////////////////////////////////////////////// Return Decoded 32-Bit Int //////////////////////////////////////////////
-
-            return f_Value;
-        }
-
-        [[nodiscard]] inline uint64_t
-            DecodeUint64
-            (
-                const vector<uint8_t>& fp_ByteCode,
-                size_t& fp_Offset
-            )
-        {
-            ////////////////////////////////////////////// Safety Check Bounds //////////////////////////////////////////////
-
-            if (fp_Offset + 7 >= fp_ByteCode.size())
-            {
-                throw runtime_error("DecodeUint64: out of bounds");
-            }
-
-            ////////////////////////////////////////////// Decode 64-Bit Int //////////////////////////////////////////////
-
-            uint64_t f_Value =
-                (static_cast<uint64_t>(fp_ByteCode[fp_Offset]) << 56) |
-                (static_cast<uint64_t>(fp_ByteCode[fp_Offset + 1]) << 48) |
-                (static_cast<uint64_t>(fp_ByteCode[fp_Offset + 2]) << 40) |
-                (static_cast<uint64_t>(fp_ByteCode[fp_Offset + 3]) << 32) |
-                (static_cast<uint64_t>(fp_ByteCode[fp_Offset + 4]) << 24) |
-                (static_cast<uint64_t>(fp_ByteCode[fp_Offset + 5]) << 16) |
-                (static_cast<uint64_t>(fp_ByteCode[fp_Offset + 6]) << 8) |
-                (static_cast<uint64_t>(fp_ByteCode[fp_Offset + 7]));
-
-            ////////////////////////////////////////////// Shift Offset onto First Leading Byte //////////////////////////////////////////////
-
-            fp_Offset += 8; // End on fresh byte right after the last decoded byte uwu
-
-            ////////////////////////////////////////////// Return Decoded 64-Bit Int //////////////////////////////////////////////
-
-            return f_Value;
-        }
-
-        [[nodiscard]] inline int8_t
-            DecodeInt8
-            (
-                const vector<uint8_t>& fp_ByteCode,
-                size_t& fp_Offset
-            )
-        {
-            return static_cast<int8_t>(DecodeUint8(fp_ByteCode, fp_Offset));
-        }
-
-        [[nodiscard]] inline int16_t
-            DecodeInt16
-            (
-                const vector<uint8_t>& fp_ByteCode,
-                size_t& fp_Offset
-            )
-        {
-            return static_cast<int16_t>(DecodeUint16(fp_ByteCode, fp_Offset));
-        }
-
-        [[nodiscard]] inline int32_t
-            DecodeInt32
-            (
-                const vector<uint8_t>& fp_ByteCode,
-                size_t& fp_Offset
-            )
-        {
-            return static_cast<int32_t>(DecodeUint32(fp_ByteCode, fp_Offset));
-        }
-
-        [[nodiscard]] inline int64_t
-            DecodeInt64
-            (
-                const vector<uint8_t>& fp_ByteCode,
-                size_t& fp_Offset
-            )
-        {
-            return static_cast<int64_t>(DecodeUint64(fp_ByteCode, fp_Offset));
-        }
-
-        template <typename T>
-        [[nodiscard]] inline T
-            DecodeInt
-            (
-                const vector<uint8_t>& fp_Bytecode,
-                size_t& fp_Offset
-            )
-        {
-            static_assert
-                (
-                    is_same_v<T, uint8_t> or is_same_v<T, uint16_t> or is_same_v<T, uint32_t> or is_same_v<T, uint64_t>
-                    or is_same_v<T, int8_t> or is_same_v<T, int16_t> or is_same_v<T, int32_t> or is_same_v<T, int64_t>,
-                    "DecodeInt only accepts integer types, you tried to pass a non integer type"
-                    );
-
-            if constexpr (sizeof(T) == 1)
-            {
-                return static_cast<T>(DecodeUint8(fp_Bytecode, fp_Offset));
-            }
-            else if constexpr (sizeof(T) == 2)
-            {
-                return static_cast<T>(DecodeUint16(fp_Bytecode, fp_Offset));
-            }
-            else if constexpr (sizeof(T) == 4)
-            {
-                return static_cast<T>(DecodeUint32(fp_Bytecode, fp_Offset));
-            }
-            else if constexpr (sizeof(T) == 8)
-            {
-                return static_cast<T>(DecodeUint64(fp_Bytecode, fp_Offset));
-            }
-            else
-            {
-                static_assert(always_false_v<T>, "DecodeInt only supports 8/16/32/64-bit integer types");
-            }
-        }
-
-        [[nodiscard]] inline bool
-            DecodeBool
-            (
-                const vector<uint8_t>& fp_Bytecode,
-                size_t& fp_Offset
-            )
-        {
-            ////////////////////////////////////////////// Safety Check Bounds //////////////////////////////////////////////
-
-            if (fp_Offset >= fp_Bytecode.size())
-            {
-                throw runtime_error("DecodeBool: out of bounds");
-            }
-
-            ////////////////////////////////////////////// Coerce uint8_t -> bool and Increment Offset by 1 Byte //////////////////////////////////////////////
-
-            return fp_Bytecode[fp_Offset++] != 0; //revolutionary uwu
-        }
-
-        template<typename LengthT>
-        [[nodiscard]] inline string
-            DecodeStringWithoutEscapeCharacters
-            (
-                const vector<uint8_t>& fp_Bytecode,
-                size_t& fp_Offset
-            )
-        {
-            ////////////////////////////////////////////// Validate Length Type //////////////////////////////////////////////
-
-            static_assert
-                (
-                    is_same_v<LengthT, uint8_t> or is_same_v<LengthT, uint16_t> or is_same_v<LengthT, uint32_t> or is_same_v<LengthT, uint64_t>,
-                    "DecodeStringWithoutEscapeCharacters only accepts 8/16/32/64-bit unsigned integer types"
-                    );
-
-            ////////////////////////////////////////////// Get String Length //////////////////////////////////////////////
-
-            size_t f_StringLength = DecodeInt<LengthT>(fp_Bytecode, fp_Offset);
-
-            ////////////////////////////////////////////// Safety Check Bounds //////////////////////////////////////////////
-
-            if (fp_Offset + f_StringLength > fp_Bytecode.size()) // not >= because lv_CurrentOffset -> f_StringLength - 1, so if fp_Offset + f_StringLength == size() it's fine
-            {
-                throw runtime_error("DecodeStringWithoutEscapeCharacters: out of bounds");
-            }
-
-            ////////////////////////////////////////////// Create String and Allocate Space //////////////////////////////////////////////
-
-            string f_TempString;
-            f_TempString.reserve(f_StringLength); // Reserve space to optimize append operations and avoid pointer invalidation and chunk resizing overhead
-
-            ////////////////////////////////////////////// Decode String //////////////////////////////////////////////
-
-            for (size_t lv_CurrentOffset = 0; lv_CurrentOffset < f_StringLength; ++lv_CurrentOffset)
-            {
-                f_TempString.push_back(static_cast<char>(fp_Bytecode[fp_Offset + lv_CurrentOffset]));
-            }
-
-            ////////////////////////////////////////////// Shift Offset onto First Leading Byte //////////////////////////////////////////////
-
-            fp_Offset += f_StringLength; // End on fresh byte right after the last decoded byte uwu
-
-            ////////////////////////////////////////////// Return Decoded String //////////////////////////////////////////////
-
-            return f_TempString;
-        }
-
-        template<typename LengthT>
-        [[nodiscard]] string
-            DecodeStringUTF8
-            (
-                const vector<uint8_t>& fp_Bytecode,
-                size_t& fp_Offset
-            )
-        {
-            ////////////////////////////////////////////// Validate Length Type //////////////////////////////////////////////
-
-            static_assert
-                (
-                    is_same_v<LengthT, uint8_t> or is_same_v<LengthT, uint16_t> or is_same_v<LengthT, uint32_t> or is_same_v<LengthT, uint64_t>,
-                    "DecodeStringUTF8 only accepts 8/16/32/64-bit unsigned integer types"
-                    );
-
-            ////////////////////////////////////////////// Get String Length //////////////////////////////////////////////
-
-            size_t f_StringLength = DecodeInt<LengthT>(fp_Bytecode, fp_Offset);
-            size_t f_EndRegionIndex = fp_Offset + f_StringLength;
-
-            ////////////////////////////////////////////// Safety Check Bounds //////////////////////////////////////////////
-
-            if (fp_Offset + f_StringLength > fp_Bytecode.size()) // not >= because lv_CurrentOffset -> f_StringLength - 1, so if fp_Offset + f_StringLength == size() it's fine
-            {
-                throw runtime_error("DecodeStringUTF8: out of bounds");
-            }
-
-            ////////////////////////////////////////////// Create String and Allocate Space //////////////////////////////////////////////
-
-            string f_DecodedString;
-            f_DecodedString.reserve(f_StringLength); // Reserve space to optimize append operations
-
-            ////////////////////////////////////////////// Decode String //////////////////////////////////////////////
-
-            for (size_t lv_CurrentOffset = 0; lv_CurrentOffset < f_StringLength; ++lv_CurrentOffset)
-            {
-                size_t f_CurrentIndex = fp_Offset + lv_CurrentOffset;
-                char f_CurrentChar = static_cast<char>(fp_Bytecode[f_CurrentIndex]);
-
-                if (f_CurrentChar == '\\' and f_CurrentIndex + 1 < f_EndRegionIndex) // Check for escape character and ensure it's not the last char
-                {
-                    char f_NextChar = static_cast<char>(fp_Bytecode[f_CurrentIndex + 1]);
-
-                    switch (f_NextChar)
-                    {
-                    case 'n':
-                        f_DecodedString.push_back('\n');
-                        lv_CurrentOffset++;  // Skip the 'n' character in the stream
-                        break;
-                    case 't':
-                        f_DecodedString.push_back('\t');
-                        lv_CurrentOffset++;  // Skip the 't' character in the stream
-                        break;
-                    case '\\':
-                        f_DecodedString.push_back('\\');
-                        lv_CurrentOffset++;  // Skip the next '\'
-                        break;
-                    default:
-                        f_DecodedString.push_back(f_CurrentChar);  // If it's not a recognized escape sequence, add the backslash
-                        break;
-                    }
-                }
-                else
-                {
-                    f_DecodedString.push_back(f_CurrentChar);
-                }
-            }
-
-            ////////////////////////////////////////////// Shift Offset onto First Leading Byte //////////////////////////////////////////////
-
-            fp_Offset += f_StringLength; // End on fresh byte right after the last decoded byte uwu
-
-            ////////////////////////////////////////////// Return Decoded String //////////////////////////////////////////////
-
-            return f_DecodedString;
-        }
-
-        [[nodiscard]] inline float
-            DecodeFloat
-            (
-                const vector<uint8_t>& fp_ByteCode,
-                size_t& fp_Offset
-            )
-        {
-            uint32_t f_AsInt = DecodeUint32(fp_ByteCode, fp_Offset); //decode as an uint since we can just memcpy the bits into a float
-            float f_Val;
-            memcpy(&f_Val, &f_AsInt, sizeof(float)); // Copy the bits into a float
-
-            return f_Val;
-        }
-
-        [[nodiscard]] inline double
-            DecodeDouble
-            (
-                const vector<uint8_t>& fp_ByteCode,
-                size_t& fp_Offset
-            )
-        {
-            uint64_t f_AsInt = DecodeUint64(fp_ByteCode, fp_Offset); //decode as an uint since we only need the bits
-            double f_Val;
-            memcpy(&f_Val, &f_AsInt, sizeof(double)); // Copy the bits into a float
-
-            return f_Val;
-        }
-    }//namespace BinaryCodec
-
-    namespace FileIO
-    {
-        //////////////////////////////////////////////
-        // Binary File Read/Write Functions
-        //////////////////////////////////////////////
-
-        [[nodiscard]] inline bool
-            WriteToBinary
-            (
-                const string& fp_DesiredOutputDirectory,
-                const string& fp_DesiredName,
-                const vector<uint8_t>& fp_Binary,
-                Logger* const logger
-            )
-        {
-            ////////////////////////////////////////////// Logger nullptr Safety Check //////////////////////////////////////////////
-
-            if (not logger)
-            {
-                PRINT_ERROR("Serialization Error: Tried to pass nullptr reference to logger during WriteToBinary()");
-                return false;
-            }
-
-            ////////////////////////////////////////////// Ensure Directory Exists //////////////////////////////////////////////
-
-            if (not filesystem::exists(fp_DesiredOutputDirectory))
-            {
-                logger->Error(fmt::format("Serialization Error: Tried to pass invalid write directory: '{}' to WriteToBinary", fp_DesiredOutputDirectory), "Serializer");
-                return false;
-            }
-
-            ////////////////////////////////////////////// Make Sure fp_Binary is Not Empty //////////////////////////////////////////////
-
-            if (fp_Binary.empty()) //check if the byte vector is empty uwu
-            {
-                logger->Error(fmt::format("Serialization Error: Tried passing empty byte vector for writing to file name: '{}', nothing was done.", fp_DesiredName), "Serializer");
-                return false;
-            }
-
-            string f_FileName;
-
-            if (fp_DesiredOutputDirectory == "./")
-            {
-                f_FileName = "./" + fp_DesiredName;
-            }
-            else
-            {
-                f_FileName = fp_DesiredOutputDirectory + "/" + fp_DesiredName;
-            }
-
-            ofstream file(f_FileName, ios::binary);  // Open in regular string mode
-
-            if (not file)
-            {
-                logger->Error(fmt::format("Serialization Error: Failed to open file: '{}' for writing.", f_FileName), "Serializer");
-                return false;
-            }
-
-            // Write the entire contents of the vector -> peach binary
-            file.write(reinterpret_cast<const char*>(fp_Binary.data()), fp_Binary.size());
-            // Close the file
-            file.close();
-
-            return true; //success! wrote byte vector -> peach binary
-        }
-
-        [[nodiscard]] inline bool
-            ReadBinaryIntoVector //i think this'll work lmfao
-            (
-                const string& fp_ScriptFilePath,
-                const vector<string>& fp_Extensions,
-                vector<uint8_t>& fp_Binary,
-                Logger* const logger
-            )
-        {
-            ////////////////////////////////////////////// Logger nullptr Safety Check //////////////////////////////////////////////
-
-            if (not logger) //check for nullptr ref passed to ReadBinaryIntoVector
-            {
-                PRINT_ERROR("Serialization Error: Tried to pass nullptr reference to logger during ReadBinaryIntoVector()");
-                return false;
-            }
-
-            // Ensure directory exists
-            if (not filesystem::exists(fp_ScriptFilePath))
-            {
-                logger->Error("Serialization Error: Tried to pass invalid directory to ReadBinaryIntoVector()", "Serializer");
-                return false;
-            }
-
-            if (not fp_Binary.empty()) //check if the byte vector is empty before reading data into it OwO
-            {
-                logger->Error(fmt::format("Serialization Error: Tried passing non-empty byte vector for reading to file name: '{}', nothing was done.", fp_ScriptFilePath), "Serializer");
-                return false;
-            }
-
-            // Extract file extension assuming fmt::format "filename.ext"
-            size_t f_LastDotIndex = fp_ScriptFilePath.rfind('.');
-
-            if (f_LastDotIndex == string::npos)
-            {
-                logger->Error("Serialization Error: No file extension found for Peach-E Binary", "Serializer");
-                return false;
-            }
-
-            string f_FileExtension = fp_ScriptFilePath.substr(f_LastDotIndex);
-
-            bool f_IsValidExtension = false;
-
-            for (const string& lv_ExtensionName : fp_Extensions)
-            {
-                if (f_FileExtension == lv_ExtensionName) //file extension for peach-e binary encoding, get it? it's like a bin of peaches >w<
-                {
-                    f_IsValidExtension = true;
-                    break;
-                }
-            }
-
-            if (not f_IsValidExtension)
-            {
-                logger->Error(fmt::format("Serialization Error: Attempted to read from an unknown binary extension: '{}'", f_FileExtension), "Serializer");
-                return false;
-            }
-
-            ifstream f_BinaryStream(fp_ScriptFilePath, ios::binary); //open in binary mode
-
-            if (not f_BinaryStream) //check if the file opened properly
-            {
-                logger->Error(fmt::format("Serialization Error: Failed to open binary for reading: '{}'", fp_ScriptFilePath), "Serializer");
-                return false;
-            }
-
-            // Get the size of the file
-            f_BinaryStream.seekg(0, ios::end);
-            size_t f_Size = f_BinaryStream.tellg();
-            f_BinaryStream.seekg(0, ios::beg);
-
-            // Resize the vector to the size of the file
-            fp_Binary.resize(f_Size);
-
-            // Read the entire file into the vector
-            f_BinaryStream.read(reinterpret_cast<char*>(fp_Binary.data()), f_Size);
-            // Close the file
-            f_BinaryStream.close();
-
-            return true; //success! file read into vector
-        }
-
-        //////////////////////////////////////////////
-        // JSON File Read/Write Functions
-        //////////////////////////////////////////////
-
-        [[nodiscard]] inline bool
-            WriteStringToFile
-            (
-                const string& fp_DesiredOutputDirectory,
-                const string& fp_DesiredName,
-                const string& fp_FileString,
-                Logger* const logger
-            )
-        {
-            if (not logger)
-            {
-                PRINT_ERROR("Serialization Error: Tried to pass nullptr reference to logger during WriteToJSON()");
-                return false;
-            }
-
-            // Ensure directory exists
-            if (not filesystem::exists(fp_DesiredOutputDirectory))
-            {
-                logger->Error("Serialization Error: Tried to pass invalid write directory to WriteToJSON", "Serializer");
-                return false;
-            }
-
-            string f_FileName;
-
-            if (fp_DesiredOutputDirectory == "./")
-            {
-                f_FileName = "./" + fp_DesiredName;
-            }
-            else
-            {
-                f_FileName = fp_DesiredOutputDirectory + "/" + fp_DesiredName;
-            }
-
-            ofstream f_OpenedFile(f_FileName, ios::out);  // Open in regular string mode
-
-            if (not f_OpenedFile)
-            {
-                logger->Error(fmt::format("Serialization Error: Failed to open file: '{}' for writing.", f_FileName), "Serializer");
-                return false;
-            }
-
-            // Write JSON string -> .json file
-            f_OpenedFile.write(fp_FileString.c_str(), fp_FileString.size());
-            // Close the file
-            f_OpenedFile.close();
-
-            return true;
-        }
-
-        [[nodiscard]] inline bool
-            ReadFileIntoCharBuffer
-            (
-                const string& fp_ScriptFilePath,
-                const vector<string>& fp_Extensions,
-                vector<char>& fp_CharBuffer,
-                Logger* const logger
-            )
-        {
-            ////////////////////////////////////////////// Logger nullptr Safety Check //////////////////////////////////////////////
-
-            if (not logger)
-            {
-                PRINT_ERROR("Serialization Error: Tried to pass nullptr reference to logger during ReadFileIntoCharBuffer()");
-                return false;
-            }
-
-            ////////////////////////////////////////////// Ensure directory exists //////////////////////////////////////////////
-
-            if (not filesystem::exists(fp_ScriptFilePath))
-            {
-                logger->Error("Serialization Error: Tried to pass invalid filepath to ReadFileIntoCharBuffer()", "Serializer");
-                return false;
-            }
-
-            ////////////////////////////////////////////// Extract file extension assuming fmt::format "filename.ext" //////////////////////////////////////////////
-
-            size_t lastDotIndex = fp_ScriptFilePath.rfind('.');
-
-            if (lastDotIndex == string::npos)
-            {
-                logger->Error("Serialization Error: No file extension found", "Serializer");
-                return false;
-            }
-
-            string f_FileExtension = fp_ScriptFilePath.substr(lastDotIndex);
-
-            bool f_IsValidExtension = false;
-
-            for (const string& lv_ExtensionName : fp_Extensions)
-            {
-                if (f_FileExtension == lv_ExtensionName) //file extension for peach-e binary encoding, get it? it's like a bin of peaches >w<
-                {
-                    f_IsValidExtension = true;
-                    break;
-                }
-            }
-
-            if (not f_IsValidExtension)
-            {
-                logger->Error(fmt::format("Serialization Error: Attempted to read from an unknown text file extension: '{}'", f_FileExtension), "Serializer");
-                return false;
-            }
-
-            ifstream f_FileStream(fp_ScriptFilePath, ios::in | ios::binary);
-
-            if (not f_FileStream)
-            {
-                logger->Error(fmt::format("Serialization Error: Failed to open '{}' for reading.", fp_ScriptFilePath), "Serializer");
-                return false;
-            }
-
-            ////////////////////////////////////////////// Get File Size //////////////////////////////////////////////
-
-            f_FileStream.seekg(0, ios::end);
-            streampos f_FileSize = f_FileStream.tellg();
-            f_FileStream.seekg(0, ios::beg);
-
-            ////////////////////////////////////////////// Assert File Contains Data //////////////////////////////////////////////
-
-            if (f_FileSize <= 0) //Treat empty files as an error since user thinks the file has something otherwise they wouldn't have tried to read from it UwU!
-            {
-                logger->Error("Serialization Error: Tried to pass empty file to ReadJSONIntoString()", "Serializer");
-                fp_CharBuffer.clear();
-                return false;
-            }
-
-            ////////////////////////////////////////////// Store Data -> fp_CharBuffer //////////////////////////////////////////////
-
-            fp_CharBuffer.resize(static_cast<size_t>(f_FileSize));
-            f_FileStream.read(fp_CharBuffer.data(), f_FileSize);
-
-            f_FileStream.close();
-
-            ////////////////////////////////////////////// Success! //////////////////////////////////////////////
-
-            return true;
-        }
-    }//namespace FileIO
 
     struct Serializer
     {
@@ -1104,7 +166,7 @@ namespace BongoJam {
 
             f_TokenizedJson.reserve(static_cast<size_t>(f_CharBuffer.size() / 4)); //heurisitic to avoid dynamic resizing overhead
 
-            if (not Tokenize(VectorStream<char>(std::move(f_CharBuffer)), f_TokenizedJson, logger)) //convert JSON string into a vector of tokens
+            if (not Tokenize(VectorStream<char>(std::move(f_CharBuffer)), f_TokenizedJson,  logger)) //convert JSON string into a vector of tokens
             {
                 logger->Error("Failed to Lex JSON", "FromJSON");
                 return false;
@@ -1132,11 +194,11 @@ namespace BongoJam {
                 const string& fp_DesiredOutputDirectory,
                 Logger* logger
             )
-        {
+        {         
             JSONValue f_TempJSON = ToJSON(fp_DesiredObject);
 
             string f_JsonString;
-
+                
             ToString(&f_JsonString, f_TempJSON);
 
             if (not FileIO::WriteStringToFile(fp_DesiredOutputDirectory, fp_DesiredFileName + ".json", f_JsonString, logger))
@@ -1193,13 +255,13 @@ namespace BongoJam {
         template<typename T>
         struct VectorStream
         {
-            explicit
+            explicit 
                 VectorStream(vector<T>&& fp_Vector) : pm_Vector(move(fp_Vector)) {}
 
-            [[nodiscard]] bool
-                IsEmpty()
+            [[nodiscard]] bool 
+                IsEmpty() 
                 const noexcept
-            {
+            { 
                 return pm_Position >= pm_Vector.size();
             }
 
@@ -1211,7 +273,7 @@ namespace BongoJam {
                     return false;
                 }
 
-                fp_Out = pm_Vector[pm_Position++];
+                fp_Out =  pm_Vector[pm_Position++];
 
                 return true;
             }
@@ -1304,13 +366,13 @@ namespace BongoJam {
             TokenType m_Type;
             size_t m_SourceCodeLineNumber;
 
-            explicit
+            explicit 
                 Token(const string& fp_Value, const TokenType fp_Type, const int fp_SourceCodeLineNumber) : m_Value(fp_Value), m_Type(fp_Type), m_SourceCodeLineNumber(fp_SourceCodeLineNumber) {}
 
-            explicit
+            explicit 
                 Token(const char fp_Value, const TokenType fp_Type, const int fp_SourceCodeLineNumber) : m_Value(1, fp_Value), m_Type(fp_Type), m_SourceCodeLineNumber(fp_SourceCodeLineNumber) {}
 
-            explicit
+            explicit 
                 Token() : m_Value(""), m_Type(TokenType::NO_TOKEN_VALUE), m_SourceCodeLineNumber(0) {}
         };
 
@@ -1337,7 +399,7 @@ namespace BongoJam {
                 {
                     break;
                 }
-
+                
                 //////////////////// Handle Spaces, New-Lines, and Comments ////////////////////
 
                 if (f_CurrentChar == '\n') //used to keep track of what line number we're at in the source code, we only have single line comments, so this is sufficient
@@ -1466,7 +528,7 @@ namespace BongoJam {
                         fp_Tokens.emplace_back(f_Number, TokenType::FloatLiteral, f_CurrentLineNumber); //No need for a continue here since the current character isnt a digit
                     }
                     else //push an int
-                    {
+                    {	
                         fp_Tokens.emplace_back(f_Number, TokenType::IntLiteral, f_CurrentLineNumber); //No need for a continue here since the current character isnt a digit
                     }
 
@@ -1552,23 +614,23 @@ namespace BongoJam {
                         {
                             switch (f_CurrentChar)
                             {
-                            case 'n':
-                                f_CurrentStringLiteral += '\n'; // Add a newline character
-                                break;
-                            case 't':
-                                f_CurrentStringLiteral += '\t'; // Add a tab character
-                                break;
-                            case '\\':
-                                f_CurrentStringLiteral += '\\'; // Add a literal backslash
-                                break;
-                            case '"':
-                                f_CurrentStringLiteral += '"'; // Add a literal double quote
-                                break;
-                            default:
-                                // Handle unknown escape sequences or add a fallback behavior
-                                f_CurrentStringLiteral += '\\'; // Re-add the backslash as it was part of the input
-                                f_CurrentStringLiteral += f_CurrentChar; // Add the unknown character as is
-                                break;
+                                case 'n':
+                                    f_CurrentStringLiteral += '\n'; // Add a newline character
+                                    break;
+                                case 't':
+                                    f_CurrentStringLiteral += '\t'; // Add a tab character
+                                    break;
+                                case '\\':
+                                    f_CurrentStringLiteral += '\\'; // Add a literal backslash
+                                    break;
+                                case '"':
+                                    f_CurrentStringLiteral += '"'; // Add a literal double quote
+                                    break;
+                                default:
+                                    // Handle unknown escape sequences or add a fallback behavior
+                                    f_CurrentStringLiteral += '\\'; // Re-add the backslash as it was part of the input
+                                    f_CurrentStringLiteral += f_CurrentChar; // Add the unknown character as is
+                                    break;
                             }
                         }
                         else
@@ -1628,16 +690,16 @@ namespace BongoJam {
             } JSONType;
 
             variant //idk im lazy and sick of using templates
-                <
-                JSONObject,
-                JSONArray,
-                string,
+            <
+                JSONObject, 
+                JSONArray, 
+                string, 
                 bool,
 
-                int64_t,
+                int64_t, 
                 uint64_t,
-                double
-                > m_Value;
+                double 
+            > m_Value;
 
             JSONValue() : JSONType(Type::Null), m_Value(false) {}
 
@@ -1663,13 +725,13 @@ namespace BongoJam {
         static bool
             ToString
             (
-                string* fp_JSONString,
+                string* fp_JSONString, 
                 const JSONValue& fp_JSON
             ) //kicks off recursive creation of JSON string
         {
             if (not fp_JSONString)
             {
-                PRINT_ERROR("Passed nullptr reference to string, ToString() is not possible exiting function call immediately");
+                BONGO_PRINT_ERROR("Passed nullptr reference to string, ToString() is not possible exiting function call immediately");
                 return false;
             }
 
@@ -1677,7 +739,7 @@ namespace BongoJam {
 
             if (not ToStringStream(fp_JSON, f_TempString))
             {
-                PRINT_ERROR("Unable to stringify JSON");
+                BONGO_PRINT_ERROR("Unable to stringify JSON");
                 return false;
             }
 
@@ -1688,7 +750,7 @@ namespace BongoJam {
         static void
             EscapeJSONString
             (
-                const string& fp_In,
+                const string& fp_In, 
                 stringstream& fp_Out
             )
         {
@@ -1752,86 +814,86 @@ namespace BongoJam {
 
             switch (fp_JSONValue.JSONType)
             {
-            case JSONValue::Type::String:
-            {
-                const string& sv_String = get<string>(fp_JSONValue.m_Value);
-                EscapeJSONString(sv_String, fp_JSONString);
-            }
-            break;
-            case JSONValue::Type::Null:
-                fp_JSONString << "null";
-                break;
-            case JSONValue::Type::Boolean:
-                fp_JSONString << (get<bool>(fp_JSONValue.m_Value) ? "true" : "false");
-                break;
-            case JSONValue::Type::Integer:
-                fp_JSONString << get<int64_t>(fp_JSONValue.m_Value);
-                break;
-            case JSONValue::Type::Float:
-                fp_JSONString << setprecision(numeric_limits<double>::max_digits10) << defaultfloat << get<double>(fp_JSONValue.m_Value); //have to do this to preserve precision using iostreams 
-                break;
-            case JSONValue::Type::UnsignedInteger:
-                fp_JSONString << get<uint64_t>(fp_JSONValue.m_Value);
-                break;
-            case JSONValue::Type::Array:
-            {
-                const auto& arr = get<JSONArray>(fp_JSONValue.m_Value);
-                string f_ScopeIndent = f_IndentLevel + string(4, ' '); //add a 4 space indent for the scope
-
-                fp_JSONString << "[" << "\n" << f_ScopeIndent; //start array, advance to next line, and indent for scope
-
-                size_t f_Indexer = 0; //used for tracking if the col width is rlly long because i want pretty jsons uwu
-
-                for (auto _it = arr.begin(); _it != arr.end(); ++_it)
+                case JSONValue::Type::String:
                 {
-                    ToStringStream(*_it, fp_JSONString, fp_Spacing + 4); //4 spaces for indent level
-
-                    if (next(_it) == arr.end()) //do this before adding any new lines to avoid double new lines for prettyness >w<
-                    {
-                        break; //break so we dont add an extra comma after the end has been reached
-                    }
-
-                    fp_JSONString << ", "; //add comma until we hit the last element
-
-                    if (_it->JSONType == JSONValue::Type::Object or _it->JSONType == JSONValue::Type::Array) //XXX: we're assuming mono typed arrays so no mixing of objects/arrays and primitive types
-                    {
-                        fp_JSONString << "\n" << f_ScopeIndent; //new line for each JSONObject inside the array
-                    }
-                    else if (f_Indexer % MAX_ARRAY_LINE_WIDTH == MAX_ARRAY_LINE_WIDTH - 1) //this is an else if so that objects/arrays won't double line
-                    {
-                        fp_JSONString << "\n" << f_ScopeIndent; //newline every 20 elements for non objects
-                    }
-
-                    f_Indexer++;
+                    const string& sv_String = get<string>(fp_JSONValue.m_Value);
+                    EscapeJSONString(sv_String, fp_JSONString);
                 }
-
-                fp_JSONString << "\n" << f_IndentLevel << "]";
-            }
-            break;
-            case JSONValue::Type::Object:
-            {
-                fp_JSONString << "{" << "\n";
-                const auto& obj = get<JSONObject>(fp_JSONValue.m_Value);
-
-                string f_ScopeIndent = f_IndentLevel + string(4, ' '); //add a 4 space indent for the scope
-
-                for (auto it = obj.begin(); it != obj.end(); ++it)
+                break;
+                case JSONValue::Type::Null:
+                    fp_JSONString << "null";
+                    break;
+                case JSONValue::Type::Boolean:
+                    fp_JSONString << (get<bool>(fp_JSONValue.m_Value) ? "true" : "false");
+                    break;
+                case JSONValue::Type::Integer:
+                    fp_JSONString << get<int64_t>(fp_JSONValue.m_Value);
+                    break;
+                case JSONValue::Type::Float:
+                    fp_JSONString << setprecision(numeric_limits<double>::max_digits10) << defaultfloat << get<double>(fp_JSONValue.m_Value); //have to do this to preserve precision using iostreams 
+                    break;
+                case JSONValue::Type::UnsignedInteger:
+                    fp_JSONString << get<uint64_t>(fp_JSONValue.m_Value);
+                    break;
+                case JSONValue::Type::Array:
                 {
-                    fp_JSONString << f_ScopeIndent << '"' << it->first << '"' << ": ";
+                    const auto& arr = get<JSONArray>(fp_JSONValue.m_Value);
+                    string f_ScopeIndent = f_IndentLevel + string(4, ' '); //add a 4 space indent for the scope
 
-                    ToStringStream(it->second, fp_JSONString, fp_Spacing + 4); //add 4 for indent level
+                    fp_JSONString << "[" << "\n" << f_ScopeIndent; //start array, advance to next line, and indent for scope
 
-                    if (next(it) != obj.end()) //check for the end of the container
+                    size_t f_Indexer = 0; //used for tracking if the col width is rlly long because i want pretty jsons uwu
+
+                    for (auto _it = arr.begin(); _it != arr.end(); ++_it)
                     {
-                        fp_JSONString << ", "; // comma after each element except the last
+                        ToStringStream(*_it, fp_JSONString, fp_Spacing + 4); //4 spaces for indent level
+
+                        if (next(_it) == arr.end()) //do this before adding any new lines to avoid double new lines for prettyness >w<
+                        {
+                            break; //break so we dont add an extra comma after the end has been reached
+                        }
+
+                        fp_JSONString << ", "; //add comma until we hit the last element
+
+                        if (_it->JSONType == JSONValue::Type::Object or _it->JSONType == JSONValue::Type::Array) //XXX: we're assuming mono typed arrays so no mixing of objects/arrays and primitive types
+                        {
+                            fp_JSONString << "\n" << f_ScopeIndent; //new line for each JSONObject inside the array
+                        }
+                        else if (f_Indexer % MAX_ARRAY_LINE_WIDTH == MAX_ARRAY_LINE_WIDTH - 1) //this is an else if so that objects/arrays won't double line
+                        {
+                            fp_JSONString << "\n" << f_ScopeIndent; //newline every 20 elements for non objects
+                        }
+
+                        f_Indexer++;
                     }
 
-                    fp_JSONString << "\n";
+                    fp_JSONString << "\n" << f_IndentLevel << "]";
                 }
+                break;
+                case JSONValue::Type::Object:
+                {
+                    fp_JSONString << "{" << "\n";
+                    const auto& obj = get<JSONObject>(fp_JSONValue.m_Value);
 
-                fp_JSONString << f_IndentLevel << "}";
-            }
-            break;
+                    string f_ScopeIndent = f_IndentLevel + string(4, ' '); //add a 4 space indent for the scope
+
+                    for (auto it = obj.begin(); it != obj.end(); ++it)
+                    {
+                        fp_JSONString << f_ScopeIndent << '"' << it->first << '"' << ": ";
+
+                        ToStringStream(it->second, fp_JSONString, fp_Spacing + 4); //add 4 for indent level
+
+                        if (next(it) != obj.end()) //check for the end of the container
+                        {
+                            fp_JSONString << ", "; // comma after each element except the last
+                        }
+
+                        fp_JSONString << "\n";
+                    }
+
+                    fp_JSONString << f_IndentLevel << "}";
+                }
+                break;
             }
 
             return true;
@@ -1842,7 +904,7 @@ namespace BongoJam {
         {
             string f_StringJSON;
             ToString(&f_StringJSON, fp_JSON);
-            PRINT(f_StringJSON, BrightWhite);
+            BONGO_PRINT(f_StringJSON, BONGO_COL_BRIGHT_WHITE);
         }
 
         //////////////////////////////////////////////
@@ -1857,7 +919,7 @@ namespace BongoJam {
         */
 
         template<typename T, typename = void>
-        struct has_reserve : false_type {};
+        struct has_reserve : false_type{};
 
         template<typename T>
         struct has_reserve <T, void_t<decltype(declval<T&>().reserve(declval<typename T::size_type()>))>> : true_type {};
@@ -1869,13 +931,12 @@ namespace BongoJam {
         struct is_queue : false_type {};
 
         template<typename T>
-        struct is_queue<T,
+        struct is_queue<T, 
             void_t<
-            typename T::value_type,
-            decltype(declval<T>().pop())
+                typename T::value_type,
+                decltype(declval<T>().pop())
             >
-        > : true_type {
-        };
+        > : true_type {};
 
         template<typename T, typename = void>
         struct is_map : false_type {};
@@ -1938,68 +999,68 @@ namespace BongoJam {
         */
 
         //==================================================================================================================================================================//
-
+        
         //////////////////////////////////////////////
         // JSON Serialization
         //////////////////////////////////////////////
 
-        template<typename T>
+        template<typename T>        
         static JSONValue
             ToJSON(const T& fp_ObjectToSerialize) //IT WORKKKKKKKKKKKKKKKKKKKKKKKKKKKKKKSSS IM SO TIRED >w< ;w; i sleep like a champion tn
         {
             JSONObject f_Object; // ✅ this is what i was missin UwU
 
             auto f_Visitor = [&f_Object](const char* fp_Name, auto&& fp_Value)
+            {
+                using FieldType = decay_t<decltype(fp_Value)>; //makes things look prettier
+
+                if constexpr (is_arithmetic_v<FieldType> or is_basic_string<FieldType>::value)
                 {
-                    using FieldType = decay_t<decltype(fp_Value)>; //makes things look prettier
+                    //JSONValue constructor call will auto assign appropriate type since we utilize explicit constructors
+                    f_Object.emplace(fp_Name, fp_Value);
+                }
+                else if constexpr (is_serializable_struct<FieldType>::value)
+                {
+                    f_Object.emplace(fp_Name, Serializer::ToJSON(fp_Value));
+                }
+                else if constexpr (is_map<FieldType>::value)
+                {
+                    JSONObject f_MapObj;
 
-                    if constexpr (is_arithmetic_v<FieldType> or is_basic_string<FieldType>::value)
-                    {
-                        //JSONValue constructor call will auto assign appropriate type since we utilize explicit constructors
-                        f_Object.emplace(fp_Name, fp_Value);
-                    }
-                    else if constexpr (is_serializable_struct<FieldType>::value)
-                    {
-                        f_Object.emplace(fp_Name, Serializer::ToJSON(fp_Value));
-                    }
-                    else if constexpr (is_map<FieldType>::value)
-                    {
-                        JSONObject f_MapObj;
+                    using MapValType = typename FieldType::mapped_type;
 
-                        using MapValType = typename FieldType::mapped_type;
-
-                        for (const auto& [lv_MapKey, lv_MapVal] : fp_Value)
+                    for (const auto& [lv_MapKey, lv_MapVal] : fp_Value)
+                    {
+                        if constexpr (is_serializable_struct<MapValType>::value)
                         {
-                            if constexpr (is_serializable_struct<MapValType>::value)
-                            {
-                                f_MapObj.emplace(lv_MapKey, Serializer::ToJSON(lv_MapVal));
-                            }
-                            //XXX: this is used for vector keys
-                            else if constexpr (is_vector<MapValType>::value) //is constexpr here kosher idk, future me: yeah it is
-                            {
-                                JSONArray f_TempArray;
-                                Serializer::ToJSONArray(f_TempArray, lv_MapVal);
-                                f_MapObj.emplace(lv_MapKey, f_TempArray);
-                            }
-                            else
-                            {
-                                f_MapObj.emplace(lv_MapKey, lv_MapVal);
-                            }
+                            f_MapObj.emplace(lv_MapKey, Serializer::ToJSON(lv_MapVal));
                         }
+                        //XXX: this is used for vector keys
+                        else if constexpr (is_vector<MapValType>::value) //is constexpr here kosher idk, future me: yeah it is
+                        {
+                            JSONArray f_TempArray;
+                            Serializer::ToJSONArray(f_TempArray, lv_MapVal);
+                            f_MapObj.emplace(lv_MapKey, f_TempArray);
+                        }
+                        else
+                        {
+                            f_MapObj.emplace(lv_MapKey, lv_MapVal);
+                        }
+                    }
 
-                        f_Object.emplace(fp_Name, f_MapObj);
-                    }
-                    else if constexpr (is_vector<FieldType>::value)
-                    {
-                        JSONArray arr;
-                        Serializer::ToJSONArray(arr, fp_Value);
-                        f_Object.emplace(fp_Name, arr);
-                    }
-                    else
-                    {
-                        static_assert(always_false_v<FieldType>, "Unsupported field type in ToJSON, did you forget a macro definition?");
-                    }
-                };
+                    f_Object.emplace(fp_Name, f_MapObj);
+                }
+                else if constexpr (is_vector<FieldType>::value)
+                {
+                    JSONArray arr;
+                    Serializer::ToJSONArray(arr, fp_Value);
+                    f_Object.emplace(fp_Name, arr);
+                }
+                else
+                {
+                    static_assert(always_false_v<FieldType>, "Unsupported field type in ToJSON, did you forget a macro definition?");
+                }
+            };
 
             fp_ObjectToSerialize.PEACH_VISIT(f_Visitor);
 
@@ -2013,9 +1074,9 @@ namespace BongoJam {
         static void
             ToJSONArray
             (
-                JSONArray& fp_ArrayObject,
+                JSONArray& fp_ArrayObject, 
                 const T_VectorObject& fp_SerializableObjectField
-            )
+            ) 
         {
             using VectorElem = typename decay_t<decltype(fp_SerializableObjectField)>::value_type;
 
@@ -2044,12 +1105,12 @@ namespace BongoJam {
 
         //==================================================================================================================================================================//
 
-        template<typename T>
+        template<typename T> 
         [[nodiscard]] static bool //leverages SERIALIZE_FIELD function defs to assign values to a default constructed data struct
             FromJSON
             (
-                const JSONValue& fp_JSON,
-                T& fp_OutObject,
+                const JSONValue& fp_JSON, 
+                T& fp_OutObject, 
                 Logger* logger
             )
         {
@@ -2063,97 +1124,97 @@ namespace BongoJam {
             bool f_IsSuccessful = true; //XXX: used to track state of lambda execution
 
             auto f_Visitor = [&f_JSONObject, &f_IsSuccessful, logger](const char* fp_Name, auto& fp_Value)
+            {
+                if (not f_IsSuccessful) //immediately return since something failed along the way >///< >w<!
                 {
-                    if (not f_IsSuccessful) //immediately return since something failed along the way >///< >w<!
+                    return;
+                }
+
+                auto f_It = f_JSONObject.find(fp_Name);
+
+                if (f_It == f_JSONObject.end()) //SOMETHING BAD HAPPENED WTF, someone hand editied a json or i fucked the dog on this one
+                {
+                    logger->Error(fmt::format("Missing JSON field '{}', WHAT DID YOU DO, WHAT DID I DO WTF???", fp_Name), "FromJSON");
+                    f_IsSuccessful = false;
+                    return;
+                }
+
+                using FieldType = decay_t<decltype(fp_Value)>;
+
+                try
+                {
+                    const JSONValue& f_JsonValue = f_It->second;
+
+                    if constexpr (is_basic_string<FieldType>::value or is_arithmetic_v<FieldType>)
                     {
-                        return;
+                        fp_Value = Serializer::Extract<FieldType>(f_JsonValue);
                     }
-
-                    auto f_It = f_JSONObject.find(fp_Name);
-
-                    if (f_It == f_JSONObject.end()) //SOMETHING BAD HAPPENED WTF, someone hand editied a json or i fucked the dog on this one
+                    else if constexpr (is_serializable_struct<FieldType>::value)
                     {
-                        logger->Error(fmt::format("Missing JSON field '{}', WHAT DID YOU DO, WHAT DID I DO WTF???", fp_Name), "FromJSON");
-                        f_IsSuccessful = false;
-                        return;
-                    }
-
-                    using FieldType = decay_t<decltype(fp_Value)>;
-
-                    try
-                    {
-                        const JSONValue& f_JsonValue = f_It->second;
-
-                        if constexpr (is_basic_string<FieldType>::value or is_arithmetic_v<FieldType>)
+                        if (not Serializer::FromJSON(f_JsonValue, fp_Value, logger))
                         {
-                            fp_Value = Serializer::Extract<FieldType>(f_JsonValue);
+                            logger->Error("failed to deserialize non primitive struct inside JSON Object", "FromJSON");
+                            f_IsSuccessful = false;
+                            return; //exit early UwU!
                         }
-                        else if constexpr (is_serializable_struct<FieldType>::value)
+                    }
+                    else if constexpr (is_map<FieldType>::value)
+                    {
+                        const JSONObject& f_MapObject = get<JSONObject>(f_JsonValue.m_Value);
+                        fp_Value.clear(); //clear the map in case the user passes a map filled with values
+
+                        using ValType = typename FieldType::mapped_type; //can do this since FieldType is guaranteed a map uwu, holy shit nostradamus is AHHHHH record of ragnarock mang
+
+                        for (const auto& [lv_MapKey, lv_Val] : f_MapObject)
                         {
-                            if (not Serializer::FromJSON(f_JsonValue, fp_Value, logger))
+                            ValType f_Item{};
+
+                            if constexpr (is_serializable_struct<ValType>::value)
                             {
-                                logger->Error("failed to deserialize non primitive struct inside JSON Object", "FromJSON");
-                                f_IsSuccessful = false;
-                                return; //exit early UwU!
+                                if (not Serializer::FromJSON(lv_Val, f_Item, logger))
+                                {
+                                    logger->Error("failed to deserialize non primitive struct inside JSON Object", "FromJSON");
+                                    f_IsSuccessful = false;
+                                    return; //exit early uwu
+                                }
                             }
-                        }
-                        else if constexpr (is_map<FieldType>::value)
-                        {
-                            const JSONObject& f_MapObject = get<JSONObject>(f_JsonValue.m_Value);
-                            fp_Value.clear(); //clear the map in case the user passes a map filled with values
-
-                            using ValType = typename FieldType::mapped_type; //can do this since FieldType is guaranteed a map uwu, holy shit nostradamus is AHHHHH record of ragnarock mang
-
-                            for (const auto& [lv_MapKey, lv_Val] : f_MapObject)
+                            //XXX: this is used for nested vectors
+                            else if constexpr (is_vector<ValType>::value) //is constexpr here kosher idk, future me: yeah it is
                             {
-                                ValType f_Item{};
+                                const JSONArray& arr = get<JSONArray>(lv_Val.m_Value);
 
-                                if constexpr (is_serializable_struct<ValType>::value)
+                                if (not Serializer::FromJSONArray(arr, f_Item, logger)) //OwO!
                                 {
-                                    if (not Serializer::FromJSON(lv_Val, f_Item, logger))
-                                    {
-                                        logger->Error("failed to deserialize non primitive struct inside JSON Object", "FromJSON");
-                                        f_IsSuccessful = false;
-                                        return; //exit early uwu
-                                    }
+                                    f_IsSuccessful = false;
+                                    return;
                                 }
-                                //XXX: this is used for nested vectors
-                                else if constexpr (is_vector<ValType>::value) //is constexpr here kosher idk, future me: yeah it is
-                                {
-                                    const JSONArray& arr = get<JSONArray>(lv_Val.m_Value);
-
-                                    if (not Serializer::FromJSONArray(arr, f_Item, logger)) //OwO!
-                                    {
-                                        f_IsSuccessful = false;
-                                        return;
-                                    }
-                                }
-                                else
-                                {
-                                    f_Item = Serializer::Extract<ValType>(lv_Val);
-                                }
-
-                                fp_Value.emplace(lv_MapKey, move(f_Item));
                             }
-                        }
-                        else if constexpr (is_vector<FieldType>::value) //XXX: don't need to check for string types here since we already do so at the first branch
-                        {
-                            const JSONArray& arr = get<JSONArray>(f_JsonValue.m_Value);
-
-                            if (not Serializer::FromJSONArray(arr, fp_Value, logger))
+                            else
                             {
-                                logger->Error(fmt::format("Failed to deserialize vector for field '{}'", fp_Name), "FromJSON");
-                                f_IsSuccessful = false;
-                                return;
+                                f_Item = Serializer::Extract<ValType>(lv_Val);
                             }
+
+                            fp_Value.emplace(lv_MapKey, move(f_Item));
                         }
                     }
-                    catch (const exception& fp_Exception)
+                    else if constexpr (is_vector<FieldType>::value) //XXX: don't need to check for string types here since we already do so at the first branch
                     {
-                        logger->Error(fmt::format("Deserialization failed for field '{}' (type: {}): {}", fp_Name, typeid(decltype(fp_Value)).name(), fp_Exception.what()), "FromJSON");
-                        f_IsSuccessful = false;
+                        const JSONArray& arr = get<JSONArray>(f_JsonValue.m_Value);
+
+                        if (not Serializer::FromJSONArray(arr, fp_Value, logger))
+                        {
+                            logger->Error(fmt::format("Failed to deserialize vector for field '{}'", fp_Name), "FromJSON");
+                            f_IsSuccessful = false;
+                            return;
+                        }
                     }
-                };
+                }
+                catch (const exception& fp_Exception)
+                {
+                    logger->Error(fmt::format("Deserialization failed for field '{}' (type: {}): {}", fp_Name, typeid(decltype(fp_Value)).name(), fp_Exception.what()), "FromJSON");
+                    f_IsSuccessful = false;
+                }
+            };
 
             fp_OutObject.PEACH_VISIT(f_Visitor);
 
@@ -2161,12 +1222,12 @@ namespace BongoJam {
         }
 
         template<typename T>
-        static T
+        static T 
             Extract(const JSONValue& fp_JSON) //we extract and recast anything like doubles and 64 bit ints -> whatever the user defined eg vector<int>
         {
             using FieldType = decay_t<T>;
 
-            if constexpr (is_basic_string<FieldType>::value)
+            if constexpr (is_basic_string<FieldType>::value) 
             {
                 return get<string>(fp_JSON.m_Value);
             }
@@ -2194,15 +1255,15 @@ namespace BongoJam {
                     throw runtime_error("Extract<T>: JSON type is not numeric but is aritmetic UwU!");
                 }
             }
-            else
+            else 
             {
                 // Static error w/ full type sig
-#if defined(_MSC_VER)
-                static_assert(always_false_v<T>, "Unsupported type in Extract. Check __FUNCSIG__ for details: " __FUNCSIG__);
-#else
-                static_assert(always_false_v<T>, "Unsupported type in Extract. Check __func__ for details: ");
-                //static_assert(always_false_v<T>, "Unsupported type in Extract. Check __PRETTY_FUNCTION__ for details: " __PRETTY_FUNCTION__);
-#endif
+                #if defined(_MSC_VER)
+                    static_assert(always_false_v<T>, "Unsupported type in Extract. Check __FUNCSIG__ for details: " __FUNCSIG__);
+                #else
+                    static_assert(always_false_v<T>, "Unsupported type in Extract. Check __func__ for details: " );
+                    //static_assert(always_false_v<T>, "Unsupported type in Extract. Check __PRETTY_FUNCTION__ for details: " __PRETTY_FUNCTION__);
+                #endif
             }
         }
 
@@ -2210,7 +1271,7 @@ namespace BongoJam {
         static bool
             FromJSONArray
             (
-                const JSONArray& fp_ArrayObject,
+                const JSONArray& fp_ArrayObject, 
                 T_VectorObject& fp_SerializableObjectField,
                 Logger* logger
             )
@@ -2237,9 +1298,9 @@ namespace BongoJam {
                     {
                         const JSONArray& f_NestedArray = get<JSONArray>(lv_VectorVal.m_Value); //peel back vector one layer at a time
                         //call again assuming Elem reduces to a vector type and at the lowest level it will fill item with primitives or serializable structs
-                        if (not FromJSONArray(f_NestedArray, item, logger))
+                        if(not FromJSONArray(f_NestedArray, item, logger))
                         {
-                            logger->Error("Failed to deserialize nested vector element", "FromJSONArray");
+                            logger->Error("Failed to deserialize nested vector element" , "FromJSONArray");
                             return false;
                         }
                     }
@@ -2274,29 +1335,29 @@ namespace BongoJam {
             (
                 const T& fp_ObjectToSerialize,
                 vector<uint8_t>& fp_BinaryWriteVector
-            )
+            ) 
         {
             auto f_Visitor = [&fp_BinaryWriteVector](const char* fp_Name, auto&& fp_Value)
-                {
-                    using FieldType = decay_t<decltype(fp_Value)>; //makes things look prettier
+            {
+                using FieldType = decay_t<decltype(fp_Value)>; //makes things look prettier
 
-                    if constexpr (is_serializable_struct<FieldType>::value)
-                    {
-                        Serializer::ToBinary(fp_Value, fp_BinaryWriteVector);
-                    }
-                    else if constexpr (is_map<FieldType>::value) //WARNING: oof never use unordered_map here UNLESS u know what ur doing owo
-                    {
-                        Serializer::MapToBinary(fp_Value, fp_BinaryWriteVector);
-                    }
-                    else if constexpr (is_vector<FieldType>::value)
-                    {
-                        Serializer::VectorToBinary(fp_Value, fp_BinaryWriteVector);
-                    }
-                    else
-                    {
-                        Serializer::ValueToBinary(fp_Value, fp_BinaryWriteVector);
-                    }
-                };
+                if constexpr (is_serializable_struct<FieldType>::value)
+                {
+                    Serializer::ToBinary(fp_Value, fp_BinaryWriteVector);
+                }
+                else if constexpr (is_map<FieldType>::value) //WARNING: oof never use unordered_map here UNLESS u know what ur doing owo
+                {
+                    Serializer::MapToBinary(fp_Value, fp_BinaryWriteVector);
+                }
+                else if constexpr (is_vector<FieldType>::value)
+                {
+                    Serializer::VectorToBinary(fp_Value, fp_BinaryWriteVector);
+                }
+                else
+                {
+                    Serializer::ValueToBinary(fp_Value, fp_BinaryWriteVector);
+                }
+            };
 
             fp_ObjectToSerialize.PEACH_VISIT(f_Visitor);
 
@@ -2313,7 +1374,7 @@ namespace BongoJam {
         {
             static_assert(is_vector<T_VectorObject>::value, "[INTERNAL ERROR]: attempted to pass non vector object into VectorToBinary()");
 
-            BinaryCodec::EncodeInt<uint64_t>(fp_BinaryWriteVector, static_cast<uint64_t>(fp_SerializableObjectField.size())); //since it's a vector we push the size first uwu
+            BinaryCodec::LittleEndian::EncodeNumber<uint64_t>(fp_BinaryWriteVector, static_cast<uint64_t>(fp_SerializableObjectField.size())); //since it's a vector we push the size first uwu
 
             using VectorElem = typename decay_t<decltype(fp_SerializableObjectField)>::value_type;
 
@@ -2348,7 +1409,7 @@ namespace BongoJam {
         {
             static_assert(is_map<T_MapObject>::value, "[INTERNAL ERROR]: attempted to pass non map object into MapToBinary()");
 
-            BinaryCodec::EncodeInt<uint64_t>(fp_BinaryWriteVector, static_cast<uint64_t>(fp_SerializableObjectField.size())); //since it's a map we push the size first uwu
+            BinaryCodec::LittleEndian::EncodeNumber<uint64_t>(fp_BinaryWriteVector, static_cast<uint64_t>(fp_SerializableObjectField.size())); //since it's a map we push the size first uwu
 
             using MapValType = typename T_MapObject::mapped_type;
             using MapKeyType = typename T_MapObject::key_type;
@@ -2407,30 +1468,18 @@ namespace BongoJam {
         {
             using ValType = remove_cvref_t<T>;
 
-            if constexpr (is_same_v<ValType, float>)
+            if constexpr (is_arithmetic_v<ValType>) //this handles floating, integral, and bool types
             {
-                BinaryCodec::EncodeFloat(fp_BinaryWriteVector, fp_Value);
-            }
-            else if constexpr (is_same_v<ValType, double>)
-            {
-                BinaryCodec::EncodeDouble(fp_BinaryWriteVector, fp_Value);
-            }
-            else if constexpr (is_same_v<ValType, bool>)
-            {
-                BinaryCodec::EncodeBool(fp_BinaryWriteVector, fp_Value);
-            }
-            else if constexpr (is_arithmetic_v<ValType>)
-            {
-                BinaryCodec::EncodeInt<ValType>(fp_BinaryWriteVector, fp_Value);
+                BinaryCodec::LittleEndian::EncodeNumber<ValType>(fp_BinaryWriteVector, fp_Value);
             }
             else if constexpr (is_basic_string<ValType>::value)
             {
-                BinaryCodec::EncodeStringUTF8<BINARY_STRING_LENGTH_V>(fp_BinaryWriteVector, fp_Value);
+                BinaryCodec::LittleEndian::EncodeStringUTF8<BINARY_STRING_LENGTH_V>(fp_BinaryWriteVector, fp_Value); //uses memchr so one scan for no escapes owo
             }
             else if constexpr (is_unique_ptr_v<ValType>)
             {
                 bool f_IsNotNull = static_cast<bool>(fp_Value); //convert ptr address -> bool
-                BinaryCodec::EncodeBool(fp_BinaryWriteVector, f_IsNotNull);
+                BinaryCodec::LittleEndian::EncodeNumber<bool>(fp_BinaryWriteVector, f_IsNotNull);
 
                 if (f_IsNotNull) //encode only if not null >w<
                 {
@@ -2483,61 +1532,61 @@ namespace BongoJam {
             bool f_IsSuccessful = true; //XXX: used to track state of lambda execution
 
             auto f_Visitor = [&fp_BinaryReadVector, &fp_CurrentOffset, &f_IsSuccessful, logger](const char* fp_Name, auto& fp_Value)
+            {
+                if (not f_IsSuccessful) //immediately return since something failed along the way >///< >w<!
                 {
-                    if (not f_IsSuccessful) //immediately return since something failed along the way >///< >w<!
-                    {
-                        return;
-                    }
+                    return;
+                }
 
-                    using FieldType = decay_t<decltype(fp_Value)>;
+                using FieldType = decay_t<decltype(fp_Value)>;
 
-                    try
+                try
+                {
+                    if constexpr (is_serializable_struct<FieldType>::value)
                     {
-                        if constexpr (is_serializable_struct<FieldType>::value)
+                        if (not Serializer::FromBinary(fp_Value, fp_BinaryReadVector, fp_CurrentOffset, logger))
                         {
-                            if (not Serializer::FromBinary(fp_Value, fp_BinaryReadVector, fp_CurrentOffset, logger))
-                            {
-                                logger->Error(fmt::format("Failed to deserialize non primitive struct from binary for field named: '{}'", fp_Name), "FromBinary");
-                                f_IsSuccessful = false;
-                                return; //exit early UwU!
-                            }
+                            logger->Error(fmt::format("Failed to deserialize non primitive struct from binary for field named: '{}'", fp_Name), "FromBinary");
+                            f_IsSuccessful = false;
+                            return; //exit early UwU!
                         }
-                        else if constexpr (is_map<FieldType>::value)
-                        {
-                            if (not Serializer::MapFromBinary(fp_Value, fp_BinaryReadVector, fp_CurrentOffset, logger))
-                            {
-                                logger->Error(fmt::format("Failed to deserialize map for field named: '{}'", fp_Name), "FromBinary");
-                                f_IsSuccessful = false;
-                                return;
-                            }
-                        }
-                        else if constexpr (is_vector<FieldType>::value) //XXX: don't need to check for string types here since we already do so at the first branch
-                        {
-                            if (not Serializer::VectorFromBinary(fp_Value, fp_BinaryReadVector, fp_CurrentOffset, logger))
-                            {
-                                logger->Error(fmt::format("Failed to deserialize vector for field named: '{}'", fp_Name), "FromBinary");
-                                f_IsSuccessful = false;
-                                return;
-                            }
-                        }
-                        else
-                        {
-                            if (not Serializer::ValueFromBinary(fp_Value, fp_BinaryReadVector, fp_CurrentOffset, logger))
-                            {
-                                logger->Error(fmt::format("Failed to deserialize value for field named: '{}'", fp_Name), "FromBinary");
-                                f_IsSuccessful = false; //tell outer function thatis false uwu
-                                return; //return from lambda
-                            }
-                        }
-
                     }
-                    catch (const exception& fp_Exception)
+                    else if constexpr (is_map<FieldType>::value)
                     {
-                        logger->Error(fmt::format("Deserialization failed for field '{}' (type: {}): {}", fp_Name, typeid(decltype(fp_Value)).name(), fp_Exception.what()), "FromBinary");
-                        f_IsSuccessful = false;
-                        return;
+                        if (not Serializer::MapFromBinary(fp_Value, fp_BinaryReadVector, fp_CurrentOffset, logger))
+                        {
+                            logger->Error(fmt::format("Failed to deserialize map for field named: '{}'", fp_Name), "FromBinary");
+                            f_IsSuccessful = false;
+                            return;
+                        }
                     }
-                };
+                    else if constexpr (is_vector<FieldType>::value) //XXX: don't need to check for string types here since we already do so at the first branch
+                    {
+                        if (not Serializer::VectorFromBinary(fp_Value, fp_BinaryReadVector, fp_CurrentOffset, logger))
+                        {
+                            logger->Error(fmt::format("Failed to deserialize vector for field named: '{}'", fp_Name), "FromBinary");
+                            f_IsSuccessful = false;
+                            return;
+                        }
+                    }
+                    else
+                    {
+                        if (not Serializer::ValueFromBinary(fp_Value, fp_BinaryReadVector, fp_CurrentOffset, logger))
+                        {
+                            logger->Error(fmt::format("Failed to deserialize value for field named: '{}'", fp_Name), "FromBinary");
+                            f_IsSuccessful = false; //tell outer function thatis false uwu
+                            return; //return from lambda
+                        }
+                    }
+                    
+                }
+                catch (const exception& fp_Exception)
+                {
+                    logger->Error(fmt::format("Deserialization failed for field '{}' (type: {}): {}", fp_Name, typeid(decltype(fp_Value)).name(), fp_Exception.what()), "FromBinary");
+                    f_IsSuccessful = false;
+                    return;
+                }
+            };
 
             fp_OutObject.PEACH_VISIT(f_Visitor);
 
@@ -2552,33 +1601,21 @@ namespace BongoJam {
                 const vector<uint8_t>& fp_BinaryReadVector,
                 size_t& fp_CurrentOffset,
                 Logger* logger
-            )
+            ) 
         {
             using ValType = remove_cvref_t<T>;
 
-            if constexpr (is_same_v<ValType, float>)
+            if constexpr (is_arithmetic_v<ValType>)
             {
-                fp_OutValue = BinaryCodec::DecodeFloat(fp_BinaryReadVector, fp_CurrentOffset);
-            }
-            else if constexpr (is_same_v<ValType, double>)
-            {
-                fp_OutValue = BinaryCodec::DecodeDouble(fp_BinaryReadVector, fp_CurrentOffset);
-            }
-            else if constexpr (is_same_v<ValType, bool>)
-            {
-                fp_OutValue = BinaryCodec::DecodeBool(fp_BinaryReadVector, fp_CurrentOffset);
-            }
-            else if constexpr (is_arithmetic_v<ValType>)
-            {
-                fp_OutValue = BinaryCodec::DecodeInt<ValType>(fp_BinaryReadVector, fp_CurrentOffset);
+                fp_OutValue = BinaryCodec::LittleEndian::DecodeNumber<ValType>(fp_BinaryReadVector, fp_CurrentOffset);
             }
             else if constexpr (is_basic_string<ValType>::value)
             {
-                fp_OutValue = BinaryCodec::DecodeStringUTF8<BINARY_STRING_LENGTH_V>(fp_BinaryReadVector, fp_CurrentOffset);
+                fp_OutValue = BinaryCodec::LittleEndian::DecodeStringUTF8<BINARY_STRING_LENGTH_V>(fp_BinaryReadVector, fp_CurrentOffset);
             }
             else if constexpr (is_unique_ptr_v<ValType>)
             {
-                bool f_HasValue = BinaryCodec::DecodeBool(fp_BinaryReadVector, fp_CurrentOffset);
+                bool f_HasValue = BinaryCodec::LittleEndian::DecodeNumber<bool>(fp_BinaryReadVector, fp_CurrentOffset);
 
                 if (f_HasValue) //decode only if not null >w<
                 {
@@ -2614,8 +1651,7 @@ namespace BongoJam {
 #if defined(_MSC_VER)
                 static_assert(always_false_v<T>, "Unsupported type in Extract. Check __FUNCSIG__ for details: " __FUNCSIG__);
 #else
-                static_assert(always_false_v<T>, fmt::format("Unsupported type in Extract. Check __func__ for details: {}", __func__));
-                //static_assert(always_false_v<T>, "Unsupported type in Extract. Check __PRETTY_FUNCTION__ for details: " __PRETTY_FUNCTION__);
+                static_assert(always_false_v<T>, "Unsupported type in Extract, Did you manually edit or pass a binary not generated by Serializer.h?");
 #endif
             }
 
@@ -2634,7 +1670,7 @@ namespace BongoJam {
         {
             static_assert(is_vector<T_VectorObject>::value, "[INTERNAL ERROR]: attempted to pass non vector object into VectorFromBinary()");
 
-            size_t f_AmountOfVectorElements = static_cast<size_t>(BinaryCodec::DecodeInt<uint64_t>(fp_BinaryReadVector, fp_CurrentOffset));
+            size_t f_AmountOfVectorElements = static_cast<size_t>(BinaryCodec::LittleEndian::DecodeNumber<uint64_t>(fp_BinaryReadVector, fp_CurrentOffset));
 
             fp_OutVector.clear(); //clear the vector in case the user passes a vector filled with values
 
@@ -2674,7 +1710,7 @@ namespace BongoJam {
                             return false;
                         }
                     }
-                    else if (not ValueFromBinary(fv_CurrentItem, fp_BinaryReadVector, fp_CurrentOffset, logger))
+                    else if(not ValueFromBinary(fv_CurrentItem, fp_BinaryReadVector, fp_CurrentOffset, logger))
                     {
                         logger->Error("Failed to deserialize value element", "VectorFromBinary");
                         return false;
@@ -2705,7 +1741,7 @@ namespace BongoJam {
             using MapValType = typename T_MapObject::mapped_type; //can do this since T_MapObject is guaranteed a map uwu, holy shit nostradamus is AHHHHH record of ragnarock mang
             using MapKeyType = typename T_MapObject::key_type;
 
-            size_t f_AmountOfMapElements = static_cast<size_t>(BinaryCodec::DecodeInt<uint64_t>(fp_BinaryReadVector, fp_CurrentOffset));
+            size_t f_AmountOfMapElements = static_cast<size_t>(BinaryCodec::LittleEndian::DecodeNumber<uint64_t>(fp_BinaryReadVector, fp_CurrentOffset));
 
             fp_OutMap.clear(); //clear the map in case the user passes a map filled with values
 
@@ -2745,7 +1781,7 @@ namespace BongoJam {
                         return false;
                     }
                 }
-                else
+                else 
                 {
                     if (not ValueFromBinary(fv_CurrentMapKeyItem, fp_BinaryReadVector, fp_CurrentOffset, logger))
                     {
@@ -2791,7 +1827,7 @@ namespace BongoJam {
                 }
                 else
                 {
-                    if ((not ValueFromBinary(fv_KeyIt->second, fp_BinaryReadVector, fp_CurrentOffset, logger)))
+                    if((not ValueFromBinary(fv_KeyIt->second, fp_BinaryReadVector, fp_CurrentOffset, logger)))
                     {
                         logger->Error("Failed to deserialize map value element!", "MapFromBinary");
                         return false;
@@ -2926,46 +1962,46 @@ namespace BongoJam {
         {
             switch (fp_CurrentToken.m_Type)
             {
-            case TokenType::StringLiteral:
-                fp_Array.emplace_back(fp_CurrentToken.m_Value);
-                break;
-            case TokenType::IntLiteral:
-                if (fp_CurrentToken.m_Value[0] == '-') //store any positive number as a uint64 because y not we'll recast it at deserialization
-                {
-                    fp_Array.emplace_back(static_cast<int64_t>(stoll(fp_CurrentToken.m_Value))); // signed
-                }
-                else
-                {
-                    fp_Array.emplace_back(static_cast<uint64_t>(stoull(fp_CurrentToken.m_Value))); // unsigned
-                }
-                break;
-            case TokenType::FloatLiteral:
-                fp_Array.emplace_back(stod(fp_CurrentToken.m_Value));
-                break;
-            case TokenType::BoolLiteral:
-                fp_Array.emplace_back(fp_CurrentToken.m_Value == "true");
-                break;
-            case TokenType::NullLiteral:
-                fp_Array.emplace_back(); //lmfao this looks so dumb but works
-                break;
+                case TokenType::StringLiteral:
+                    fp_Array.emplace_back(fp_CurrentToken.m_Value);
+                    break;
+                case TokenType::IntLiteral:
+                    if (fp_CurrentToken.m_Value[0] == '-') //store any positive number as a uint64 because y not we'll recast it at deserialization
+                    {
+                        fp_Array.emplace_back(static_cast<int64_t>(stoll(fp_CurrentToken.m_Value))); // signed
+                    }
+                    else
+                    {
+                        fp_Array.emplace_back(static_cast<uint64_t>(stoull(fp_CurrentToken.m_Value))); // unsigned
+                    }
+                    break;
+                case TokenType::FloatLiteral:
+                    fp_Array.emplace_back(stod(fp_CurrentToken.m_Value));
+                    break;
+                case TokenType::BoolLiteral:
+                    fp_Array.emplace_back(fp_CurrentToken.m_Value == "true");
+                    break;
+                case TokenType::NullLiteral:
+                    fp_Array.emplace_back(); //lmfao this looks so dumb but works
+                    break;
 
-            case TokenType::OpenBracket: //check for nested objects
-            {
-                JSONObject f_TempObject;
-                ParseObject(fp_Tokens, f_TempObject, logger);
-                fp_Array.emplace_back(f_TempObject);
-            }
-            break;
-            case TokenType::OpenSquareBracket: //check for nested arrays
-            {
-                JSONArray f_TempArray;
-                ParseArray(fp_Tokens, f_TempArray, logger);
-                fp_Array.emplace_back(f_TempArray);
-            }
-            break;
-            default:
-                logger->Error(fmt::format("Parsing Error: found '{}' inside array, when integral type was expected at line number: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber), "ParseValue");
-                return false;
+                case TokenType::OpenBracket: //check for nested objects
+                {
+                    JSONObject f_TempObject;
+                    ParseObject(fp_Tokens, f_TempObject, logger);
+                    fp_Array.emplace_back(f_TempObject);
+                }
+                break;
+                case TokenType::OpenSquareBracket: //check for nested arrays
+                {
+                    JSONArray f_TempArray;
+                    ParseArray(fp_Tokens, f_TempArray, logger);
+                    fp_Array.emplace_back(f_TempArray);
+                }
+                break;
+                default:
+                    logger->Error(fmt::format("Parsing Error: found '{}' inside array, when integral type was expected at line number: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber), "ParseValue");
+                    return false;
             }
 
             return true;
@@ -2983,46 +2019,46 @@ namespace BongoJam {
         {
             switch (fp_CurrentToken.m_Type)
             {
-            case TokenType::StringLiteral:
-                fp_JSONObject.emplace(fp_ValueKey, fp_CurrentToken.m_Value);
-                break;
-            case TokenType::IntLiteral:
-                if (fp_CurrentToken.m_Value[0] == '-') //XXX: this is used to handle container sizing issues coming from values serialized as a large uint64 vs a regular int64
-                {
-                    fp_JSONObject.emplace(fp_ValueKey, static_cast<int64_t>(stoll(fp_CurrentToken.m_Value))); // signed
-                }
-                else
-                {
-                    fp_JSONObject.emplace(fp_ValueKey, static_cast<uint64_t>(stoull(fp_CurrentToken.m_Value))); // unsigned
-                }
-                break;
-            case TokenType::FloatLiteral:
-                fp_JSONObject.emplace(fp_ValueKey, stod(fp_CurrentToken.m_Value));
-                break;
-            case TokenType::BoolLiteral:
-                fp_JSONObject.emplace(fp_ValueKey, fp_CurrentToken.m_Value == "true");
-                break;
-            case TokenType::NullLiteral:
-                fp_JSONObject.emplace(fp_ValueKey, JSONValue());
-                break;
+                case TokenType::StringLiteral:
+                    fp_JSONObject.emplace(fp_ValueKey, fp_CurrentToken.m_Value);
+                    break;
+                case TokenType::IntLiteral:
+                    if (fp_CurrentToken.m_Value[0] == '-') //XXX: this is used to handle container sizing issues coming from values serialized as a large uint64 vs a regular int64
+                    {
+                        fp_JSONObject.emplace(fp_ValueKey, static_cast<int64_t>(stoll(fp_CurrentToken.m_Value))); // signed
+                    }
+                    else
+                    {
+                        fp_JSONObject.emplace(fp_ValueKey, static_cast<uint64_t>(stoull(fp_CurrentToken.m_Value))); // unsigned
+                    }
+                    break;
+                case TokenType::FloatLiteral:
+                    fp_JSONObject.emplace(fp_ValueKey, stod(fp_CurrentToken.m_Value));
+                    break;
+                case TokenType::BoolLiteral:
+                    fp_JSONObject.emplace(fp_ValueKey, fp_CurrentToken.m_Value == "true");
+                    break;
+                case TokenType::NullLiteral:
+                    fp_JSONObject.emplace(fp_ValueKey, JSONValue());
+                    break;
 
-            case TokenType::OpenBracket:
-            {
-                JSONObject f_TempObject;
-                ParseObject(fp_Tokens, f_TempObject, logger);
-                fp_JSONObject.emplace(fp_ValueKey, f_TempObject);
-            }
-            break;
-            case TokenType::OpenSquareBracket:
-            {
-                JSONArray f_TempArray;
-                ParseArray(fp_Tokens, f_TempArray, logger);
-                fp_JSONObject.emplace(fp_ValueKey, f_TempArray);
-            }
-            break;
-            default:
-                logger->Error(fmt::format("Parsing Error: found '{}' inside object, when integral type was expected at line number: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber), "ParseValue");
-                return false;
+                case TokenType::OpenBracket:
+                {
+                    JSONObject f_TempObject;
+                    ParseObject(fp_Tokens, f_TempObject, logger);
+                    fp_JSONObject.emplace(fp_ValueKey, f_TempObject);
+                }
+                break;
+                case TokenType::OpenSquareBracket:
+                {
+                    JSONArray f_TempArray;
+                    ParseArray(fp_Tokens, f_TempArray, logger);
+                    fp_JSONObject.emplace(fp_ValueKey, f_TempArray);
+                }
+                break;
+                default:
+                    logger->Error(fmt::format("Parsing Error: found '{}' inside object, when integral type was expected at line number: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber), "ParseValue");
+                    return false;
             }
 
             return true;
@@ -3046,23 +2082,23 @@ namespace BongoJam {
 
             switch (f_CurrentToken.m_Type) //should only need to do this once for a valid JSON
             {
-            case TokenType::OpenBracket:
-            {
-                JSONObject f_Object;
-                ParseObject(fp_Tokens, f_Object, logger);
-                fp_JSON = std::move(JSONValue(f_Object));
-            }
-            break;
-            case TokenType::OpenSquareBracket:
-            {
-                JSONArray f_Array;
-                ParseArray(fp_Tokens, f_Array, logger);
-                fp_JSON = std::move(JSONValue(f_Array));
-            }
-            break;
-            default:
-                logger->Error("Parsing Error: ill-formed JSON found, parsing failed", "ParseJSON");
-                return false;
+                case TokenType::OpenBracket:
+                {
+                    JSONObject f_Object;
+                    ParseObject(fp_Tokens, f_Object, logger);
+                    fp_JSON = std::move(JSONValue(f_Object));
+                }
+                break;
+                case TokenType::OpenSquareBracket:
+                {
+                    JSONArray f_Array;
+                    ParseArray(fp_Tokens, f_Array, logger);
+                    fp_JSON = std::move(JSONValue(f_Array));
+                }
+                break;
+                default:
+                    logger->Error("Parsing Error: ill-formed JSON found, parsing failed", "ParseJSON");
+                    return false;
             }
 
             return true;

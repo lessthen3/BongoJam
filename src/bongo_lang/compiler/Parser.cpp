@@ -130,7 +130,7 @@ namespace BongoJam {
         }
         else
         {
-            PRINT_ERROR("Tried to pass nullptr reference to Parser Instance >:^(");
+            BONGO_PRINT_ERROR("Tried to pass nullptr reference to Parser Instance >:^(");
         }
     }
 
@@ -515,7 +515,7 @@ namespace BongoJam {
             }
             break;
             default:
-                PRINT_ERROR(fmt::format("OFFENDING SYNTAX NODE TYPE: {}", static_cast<int>(sv_PossibleExprExtension->m_Domain)));
+                BONGO_PRINT_ERROR_FMT("OFFENDING SYNTAX NODE TYPE: {}", static_cast<int>(sv_PossibleExprExtension->m_Domain));
                 parser_logger->Error(fmt::format("Error at Line Number: {}, Found : '{}', when regular expression was expected while parsing a contained index access expression", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser::ParseUserIdentifier()");
                 return nullptr;
             }
@@ -621,7 +621,7 @@ namespace BongoJam {
             }
             break;
             default:
-                PRINT_ERROR(fmt::format("OFFENDING SYNTAX NODE TYPE: {}", static_cast<int>(sv_PossibleExprExtension->m_Domain)));
+                BONGO_PRINT_ERROR_FMT("OFFENDING SYNTAX NODE TYPE: {}", static_cast<int>(sv_PossibleExprExtension->m_Domain));
                 parser_logger->Error(fmt::format("Error at Line Number: {}, Found : '{}', when regular expression was expected while parsing a function call expression", fp_CurrentToken.m_SourceCodeLineNumber, fp_CurrentToken.m_Value), "Parser::ParseUserIdentifier()");
                 return nullptr;
             }
@@ -1572,7 +1572,7 @@ namespace BongoJam {
             }
             else //THROW ERROR : general syntax error, unexpected symbol here means a symbol the compiler doesn't look for when parsing function arguments
             {
-                PRINT(fmt::format("Token before error thrown is: {} at line: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber), Magenta);
+                BONGO_PRINT_FMT(BONGO_COL_MAGENTA, "Token before error thrown is: {} at line: {}", fp_CurrentToken.m_Value, fp_CurrentToken.m_SourceCodeLineNumber);
                 parser_logger->Error(fmt::format("Error at Line Number: {}, found a symbol that was not expected during function argument definition for {} and found: '{}' instead", fp_CurrentToken.m_SourceCodeLineNumber, f_FuncDec->m_FuncName.m_Value, fp_CurrentToken.m_Value), "Parser");
                 parser_logger->Warning(fmt::format("Tip: Try taking a look at your comma separation between function parameters", f_FuncDec->m_FuncName.m_Value), "Parser");
                 return nullptr;

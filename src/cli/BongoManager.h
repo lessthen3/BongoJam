@@ -14,8 +14,11 @@
 ///BongoJam
 #include "runtime/Interpreter.h"
 #include "compiler/Linker.h"
-#include "Serializer.h"
 #include "compiler/CompilerThreadPool.h"
+
+#include "SerializerMacros.h"
+
+#include <iostream>
 
 namespace BongoJam
 {
@@ -28,26 +31,26 @@ namespace BongoJam
         uint32_t pm_LogFlags = PEACH_LOGGER_DEFAULT_FLAGS;
         uint64_t m_MaximumAllowedThreads = 1;
 
-        void
-            PrintConfigsToConsole()
-            const
-        {
-            cout
-                << "\n\n" //XXX: used for spacing messages from CLI call
-                << CreateColouredText("Script File Path: ", Colours::BrightYellow)
-                //<< CreateColouredText(m_ScriptFilePath, Colours::BrightCyan)
-                << "\n"
-                << CreateColouredText("Output File Name: ", Colours::BrightYellow)
-                //<< CreateColouredText(m_OutputFileName + ".bongo", Colours::BrightCyan)
-                << "\n"
-                << CreateColouredText("Output Directory: ", Colours::BrightYellow)
-                //<< CreateColouredText(m_BongoFileOutputDirectory, Colours::BrightCyan)
-                << "\n"
-                << CreateColouredText("Log Output Directory: ", Colours::BrightYellow)
-                << CreateColouredText(pm_LogOutputDirectory, Colours::BrightCyan)
-                << "\n\n"
-                ;
-        }
+        // void
+        //     PrintConfigsToConsole()
+        //     const
+        // {
+        //     std::cout
+        //         << "\n\n" //XXX: used for spacing messages from CLI call
+        //         << CreateColouredText("Script File Path: ", Colours::BrightYellow)
+        //         //<< CreateColouredText(m_ScriptFilePath, Colours::BrightCyan)
+        //         << "\n"
+        //         << CreateColouredText("Output File Name: ", Colours::BrightYellow)
+        //         //<< CreateColouredText(m_OutputFileName + ".bongo", Colours::BrightCyan)
+        //         << "\n"
+        //         << CreateColouredText("Output Directory: ", Colours::BrightYellow)
+        //         //<< CreateColouredText(m_BongoFileOutputDirectory, Colours::BrightCyan)
+        //         << "\n"
+        //         << CreateColouredText("Log Output Directory: ", Colours::BrightYellow)
+        //         << CreateColouredText(pm_LogOutputDirectory, Colours::BrightCyan)
+        //         << "\n\n"
+        //         ;
+        // }
 
         bool
             CreateProfile()

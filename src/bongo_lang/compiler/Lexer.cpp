@@ -11,6 +11,9 @@
 **************************************************************************/
 #include "Lexer.h"
 
+#include <algorithm>
+#include <fmt/format.h>
+
 namespace BongoJam {
 
     //////////////////////////////////////////////
@@ -33,7 +36,7 @@ namespace BongoJam {
 
         if (not fp_Src.Peek(fp_CurrentChar))
         {
-            logger->Error(format("Found END__OF__FILE while parsing a number! Why is there a number at the end of the file >O<? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+            logger->Error(fmt::format("Found END__OF__FILE while parsing a number! Why is there a number at the end of the file >O<? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
             return false;
         }
 
@@ -44,7 +47,7 @@ namespace BongoJam {
 
             if (not fp_Src.Peek(fp_CurrentChar))
             {
-                logger->Error(format("Found END__OF__FILE while parsing a number! Why is '{}' at the end of the file >O<? Error occured at line number: {}", f_Number, fp_CurrentLineNumber), "Lexer");
+                logger->Error(fmt::format("Found END__OF__FILE while parsing a number! Why is '{}' at the end of the file >O<? Error occured at line number: {}", f_Number, fp_CurrentLineNumber), "Lexer");
                 return false;
             }
         }
@@ -58,13 +61,13 @@ namespace BongoJam {
 
             if (not fp_Src.Peek(fp_CurrentChar))
             {
-                logger->Error(format("Found END__OF__FILE while parsing a decimal number! Why is the EOF after '{}' >O<? Error occured at line number: {}", f_Number, fp_CurrentLineNumber), "Lexer");
+                logger->Error(fmt::format("Found END__OF__FILE while parsing a decimal number! Why is the EOF after '{}' >O<? Error occured at line number: {}", f_Number, fp_CurrentLineNumber), "Lexer");
                 return false;
             }
 
             if (not isdigit(fp_CurrentChar)) // Handle error: incomplete float definition -> '59. '
             {
-                logger->Error(format("Error at Line Number: {}, unexpected symbol: '{}' found following a '.' brother!, looks like you've input a non-numeric symbol while defining a decimal number", fp_CurrentLineNumber, fp_CurrentChar), "Lexer");
+                logger->Error(fmt::format("Error at Line Number: {}, unexpected symbol: '{}' found following a '.' brother!, looks like you've input a non-numeric symbol while defining a decimal number", fp_CurrentLineNumber, fp_CurrentChar), "Lexer");
                 return false;
             }
             //is a digit so check for digit again to verify and shiftforwards for value uwu
@@ -75,7 +78,7 @@ namespace BongoJam {
 
                 if (not fp_Src.Peek(fp_CurrentChar))
                 {
-                    logger->Error(format("Found END__OF__FILE while parsing a decimal number! Why is '{}' at the end of the file >O<? Error occured at line number: {}", f_Number, fp_CurrentLineNumber), "Lexer");
+                    logger->Error(fmt::format("Found END__OF__FILE while parsing a decimal number! Why is '{}' at the end of the file >O<? Error occured at line number: {}", f_Number, fp_CurrentLineNumber), "Lexer");
                     return false;
                 }
             }
@@ -104,7 +107,7 @@ namespace BongoJam {
 
         if (not fp_Src.Peek(fp_CurrentChar))
         {
-            logger->Error(format("Found END__OF__FILE while parsing '='! Did you forget to finish your does not equals or strictly equals statement >O<? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+            logger->Error(fmt::format("Found END__OF__FILE while parsing '='! Did you forget to finish your does not equals or strictly equals statement >O<? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
             return false;
         }
 
@@ -115,7 +118,7 @@ namespace BongoJam {
 
             if (not fp_Src.Peek(fp_CurrentChar))
             {
-                logger->Error(format("Found END__OF__FILE while parsing a word! What did you do to your program? this isn't a valid way to end a statement, Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+                logger->Error(fmt::format("Found END__OF__FILE while parsing a word! What did you do to your program? this isn't a valid way to end a statement, Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
                 return false;
             }
         }
@@ -142,7 +145,7 @@ namespace BongoJam {
 
             if (not fp_Src.Peek(fp_CurrentChar))
             {
-                logger->Error(format("Found END__OF__FILE while parsing '='! Did you forget to finish your does not equals or strictly equals statement >O<? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+                logger->Error(fmt::format("Found END__OF__FILE while parsing '='! Did you forget to finish your does not equals or strictly equals statement >O<? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
                 return LEX_OPERATOR_SYNTAX_ERROR;
             }
 
@@ -153,7 +156,7 @@ namespace BongoJam {
 
                 if (not fp_Src.Peek(fp_CurrentChar))
                 {
-                    logger->Error(format("Found END__OF__FILE while parsing '='! Did you forget to finish your does not equals or strictly equals statement >O<? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+                    logger->Error(fmt::format("Found END__OF__FILE while parsing '='! Did you forget to finish your does not equals or strictly equals statement >O<? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
                     return LEX_OPERATOR_SYNTAX_ERROR;
                 }
             }
@@ -176,12 +179,12 @@ namespace BongoJam {
 
             if (not fp_Src.Peek(fp_CurrentChar))
             {
-                logger->Error(format("Found END__OF__FILE while parsing '!'! Did you forget to finish your does not equals statement >O<? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+                logger->Error(fmt::format("Found END__OF__FILE while parsing '!'! Did you forget to finish your does not equals statement >O<? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
                 return LEX_OPERATOR_SYNTAX_ERROR;
             }
             else if (fp_CurrentChar != '=') //handles the case for when nothing valid follows a '!' in the source code //THROW ERROR
             {
-                logger->Error(format("Error at Line Number: {}, invalid token found, you used a '!' but maybe forgot a '=' after it", fp_CurrentLineNumber), "Lexer");
+                logger->Error(fmt::format("Error at Line Number: {}, invalid token found, you used a '!' but maybe forgot a '=' after it", fp_CurrentLineNumber), "Lexer");
                 return LEX_OPERATOR_SYNTAX_ERROR;
             }
             else
@@ -200,7 +203,7 @@ namespace BongoJam {
 
             if (not fp_Src.Peek(fp_CurrentChar))
             {
-                logger->Error(format("Found END__OF__FILE while parsing '+'! Did you forget to finish your addition/equals? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+                logger->Error(fmt::format("Found END__OF__FILE while parsing '+'! Did you forget to finish your addition/equals? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
                 return LEX_OPERATOR_SYNTAX_ERROR;
             }
             else if (fp_CurrentChar == '=') //look for an equals sign for the "+=" operator 
@@ -234,7 +237,7 @@ namespace BongoJam {
 
             if (not fp_Src.Peek(fp_CurrentChar))
             {
-                logger->Error(format("Found END__OF__FILE while parsing '*'! Did you forget to finish your multiplication/equals statement >///<? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+                logger->Error(fmt::format("Found END__OF__FILE while parsing '*'! Did you forget to finish your multiplication/equals statement >///<? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
                 return LEX_OPERATOR_SYNTAX_ERROR;
             }
 
@@ -262,7 +265,7 @@ namespace BongoJam {
 
             if (not fp_Src.Peek(sv_Peek))
             {
-                logger->Error(format("Found END__OF__FILE while parsing '-'! Did you forget to finish your type arrow or subtraction statement uwu? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+                logger->Error(fmt::format("Found END__OF__FILE while parsing '-'! Did you forget to finish your type arrow or subtraction statement uwu? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
                 return LEX_OPERATOR_SYNTAX_ERROR;
             }
 
@@ -273,7 +276,7 @@ namespace BongoJam {
 
                 if (not fp_Src.Peek(sv_Peek))
                 {
-                    logger->Error(format("Found END__OF__FILE while parsing '-'! Did you forget to finish your type arrow or subtraction statement uwu? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+                    logger->Error(fmt::format("Found END__OF__FILE while parsing '-'! Did you forget to finish your type arrow or subtraction statement uwu? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
                     return LEX_OPERATOR_SYNTAX_ERROR;
                 }
             }
@@ -294,7 +297,7 @@ namespace BongoJam {
                 }
                 else
                 {
-                    logger->Error(format("Error at Line Number: {}, too many '-' minus signs brother pick 1 for subtraction or 2 for the decrement operator uwu", fp_CurrentLineNumber), "Lexer");
+                    logger->Error(fmt::format("Error at Line Number: {}, too many '-' minus signs brother pick 1 for subtraction or 2 for the decrement operator uwu", fp_CurrentLineNumber), "Lexer");
                     return LEX_OPERATOR_SYNTAX_ERROR;
                 }
             }
@@ -317,12 +320,12 @@ namespace BongoJam {
             }
             else if (fp_CurrentChar == '=' and f_TypeArrow.size() > 1) //check for single minus equals so '-=' not '-----=' srry m8 thats 2 far for m9
             {
-                logger->Error(format("Error at Line Number: {}, minus equals definition has too many dashes COMON", fp_CurrentLineNumber), "Lexer");
+                logger->Error(fmt::format("Error at Line Number: {}, minus equals definition has too many dashes COMON", fp_CurrentLineNumber), "Lexer");
                 return LEX_OPERATOR_SYNTAX_ERROR;
             }
             else //if we have more than one consecutive '-', then it's a mistake regardless of what you were trying to do // Handle error: Unterminated type arrow
             {
-                logger->Error(format("Error at Line Number: {}", fp_CurrentLineNumber), "Lexer");
+                logger->Error(fmt::format("Error at Line Number: {}", fp_CurrentLineNumber), "Lexer");
                 logger->Warning("Unterminated type arrow brother!, looks like you're missing an arrow head to your type arrow definition", "Lexer");
                 return LEX_OPERATOR_SYNTAX_ERROR;
             }
@@ -336,7 +339,7 @@ namespace BongoJam {
 
             if (not fp_Src.Peek(sv_Peek))
             {
-                logger->Error(format("Found END__OF__FILE while parsing '/'! Did you forget to finish a division or comment statement? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+                logger->Error(fmt::format("Found END__OF__FILE while parsing '/'! Did you forget to finish a division or comment statement? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
                 return LEX_OPERATOR_SYNTAX_ERROR;
             }
 
@@ -362,7 +365,7 @@ namespace BongoJam {
                 {
                     if (not fp_Src.ShiftForward(fp_CurrentChar) or not fp_Src.Peek(sv_Peek)) //--> alpha char hopefully uwu
                     {
-                        logger->Error(format("Found END__OF__FILE! 7Unterminated comment block found UwU, Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+                        logger->Error(fmt::format("Found END__OF__FILE! 7Unterminated comment block found UwU, Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
                         return LEX_OPERATOR_SYNTAX_ERROR;
                     }
 
@@ -394,7 +397,7 @@ namespace BongoJam {
 
             if (not fp_Src.Peek(sv_Peek))
             {
-                logger->Error(format("Found END__OF__FILE while parsing '%'! Did you forget to finish a modulo statement? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+                logger->Error(fmt::format("Found END__OF__FILE while parsing '%'! Did you forget to finish a modulo statement? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
                 return LEX_OPERATOR_SYNTAX_ERROR;
             }
 
@@ -421,7 +424,7 @@ namespace BongoJam {
 
             if (not fp_Src.Peek(sv_Peek))
             {
-                logger->Error(format("Found END__OF__FILE while parsing '<'! Did you forget to finish a less than equals or bitshift/equals statement? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+                logger->Error(fmt::format("Found END__OF__FILE while parsing '<'! Did you forget to finish a less than equals or bitshift/equals statement? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
                 return LEX_OPERATOR_SYNTAX_ERROR;
             }
             else if (sv_Peek == '=')
@@ -441,7 +444,7 @@ namespace BongoJam {
 
                 if (not fp_Src.Peek(sv_Peek))
                 {
-                    logger->Error(format("Found END__OF__FILE while parsing '<'! Did you forget to finish your bitshift left operator? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+                    logger->Error(fmt::format("Found END__OF__FILE while parsing '<'! Did you forget to finish your bitshift left operator? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
                     return LEX_OPERATOR_SYNTAX_ERROR;
                 }
 
@@ -475,7 +478,7 @@ namespace BongoJam {
 
             if (not fp_Src.Peek(sv_Peek))
             {
-                logger->Error(format("Found END__OF__FILE while parsing '>'! Did you forget to finish a greater than equals or bitshift/equals statement? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+                logger->Error(fmt::format("Found END__OF__FILE while parsing '>'! Did you forget to finish a greater than equals or bitshift/equals statement? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
                 return LEX_OPERATOR_SYNTAX_ERROR;
             }
 
@@ -496,7 +499,7 @@ namespace BongoJam {
 
                 if (not fp_Src.Peek(sv_Peek))
                 {
-                    logger->Error(format("Found END__OF__FILE while parsing '<'! Did you forget to finish your bitshift left operator? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+                    logger->Error(fmt::format("Found END__OF__FILE while parsing '<'! Did you forget to finish your bitshift left operator? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
                     return LEX_OPERATOR_SYNTAX_ERROR;
                 }
 
@@ -529,7 +532,7 @@ namespace BongoJam {
 
             if (not fp_Src.Peek(sv_Peek))
             {
-                logger->Error(format("Found END__OF__FILE while parsing '&'! Did you forget to finish your bitand or bitand equals statement? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+                logger->Error(fmt::format("Found END__OF__FILE while parsing '&'! Did you forget to finish your bitand or bitand equals statement? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
                 return LEX_OPERATOR_SYNTAX_ERROR;
             }
 
@@ -557,7 +560,7 @@ namespace BongoJam {
 
             if (not fp_Src.Peek(sv_Peek))
             {
-                logger->Error(format("Found END__OF__FILE while parsing '|'! Did you forget to finish your bitor or (>w<) bitor equals statement? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+                logger->Error(fmt::format("Found END__OF__FILE while parsing '|'! Did you forget to finish your bitor or (>w<) bitor equals statement? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
                 return LEX_OPERATOR_SYNTAX_ERROR;
             }
 
@@ -588,7 +591,7 @@ namespace BongoJam {
 
             if (not fp_Src.Peek(sv_Peek))
             {
-                logger->Error(format("Found END__OF__FILE while parsing '^'! Did you forget to finish your xor or (>w<) xor equals statement? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
+                logger->Error(fmt::format("Found END__OF__FILE while parsing '^'! Did you forget to finish your xor or (>w<) xor equals statement? Error occured at line number: {}", fp_CurrentLineNumber), "Lexer");
                 return LEX_OPERATOR_SYNTAX_ERROR;
             }
 
@@ -663,7 +666,7 @@ namespace BongoJam {
             {
                 if (not LexNumber(fp_SourceCode, f_CurrentChar, fp_Tokens, f_CurrentLineNumber, logger))
                 {
-                    logger->Error(format("Error at Line Number: {}, failed to Lex number definition", f_CurrentLineNumber), "Lexer");
+                    logger->Error(fmt::format("Error at Line Number: {}, failed to Lex number definition", f_CurrentLineNumber), "Lexer");
                     return false;
                 }
                 else
@@ -682,7 +685,7 @@ namespace BongoJam {
                 {
                     if (not fp_SourceCode.ShiftForward(f_CurrentChar)) //--> alpha char hopefully uwu
                     {
-                        logger->Error(format("Found END__OF__FILE after a '@' brother! You seemed to pass a misformed formatted string uwu, Error occured at line number: {}", f_CurrentLineNumber), "Lexer");
+                        logger->Error(fmt::format("Found END__OF__FILE after a '@' brother! You seemed to pass a misformed formatted string uwu, Error occured at line number: {}", f_CurrentLineNumber), "Lexer");
                         return false;
                     } 
 
@@ -690,13 +693,13 @@ namespace BongoJam {
 
                     if (not LexWord(f_ColourIdentifier, fp_SourceCode, f_CurrentChar, f_CurrentLineNumber, logger))
                     {
-                        logger->Error(format("Found END__OF__FILE! You seemed to pass an incomplete coloured string uwu, Error occured at line number: {}", f_CurrentLineNumber), "Lexer");
+                        logger->Error(fmt::format("Found END__OF__FILE! You seemed to pass an incomplete coloured string uwu, Error occured at line number: {}", f_CurrentLineNumber), "Lexer");
                         return false;
                     }
 
                     if (find(ANSI_COLOURS.begin(), ANSI_COLOURS.end(), f_ColourIdentifier) == ANSI_COLOURS.end()) //if identifier is not a keyword then its just tokenized assuming its a var name or smth
                     {
-                        logger->Error(format("Error at Line Number: {}, expected a colour identifier but found: {} instead >:(", f_CurrentLineNumber, "@" + f_ColourIdentifier), "Lexer");
+                        logger->Error(fmt::format("Error at Line Number: {}, expected a colour identifier but found: {} instead >:(", f_CurrentLineNumber, "@" + f_ColourIdentifier), "Lexer");
                         return false;
                     }
                     
@@ -704,13 +707,13 @@ namespace BongoJam {
 
                     if (not fp_SourceCode.ShiftForward(f_CurrentChar)) //--> '"' hopefully uwu 
                     {
-                        logger->Error(format("Found END__OF__FILE when opening '\"' was expected! You seemed to pass a misformed formatted string uwu, Error occured at line number : {}", f_CurrentLineNumber), "Lexer");
+                        logger->Error(fmt::format("Found END__OF__FILE when opening '\"' was expected! You seemed to pass a misformed formatted string uwu, Error occured at line number : {}", f_CurrentLineNumber), "Lexer");
                         return false;
                     }  
 
                     if (f_CurrentChar != '"') //WTF MAN
                     {
-                        logger->Error(format("Error at Line Number: {}, expected text after colour identifier: '{}' but found: {} instead >:(", f_CurrentLineNumber, "@" + f_ColourIdentifier, f_CurrentChar), "Lexer");
+                        logger->Error(fmt::format("Error at Line Number: {}, expected text after colour identifier: '{}' but found: {} instead >:(", f_CurrentLineNumber, "@" + f_ColourIdentifier, f_CurrentChar), "Lexer");
                         return false;
                     }
                 }
@@ -719,7 +722,7 @@ namespace BongoJam {
 
                 if (not fp_SourceCode.ShiftForward(f_CurrentChar)) //shift twice since we wanna enter the string quotes
                 {
-                    logger->Error(format("Found END__OF__FILE when closing '\"' was expected! Unterminated formatted string found, Error occured at line number : {}", f_CurrentLineNumber), "Lexer");
+                    logger->Error(fmt::format("Found END__OF__FILE when closing '\"' was expected! Unterminated formatted string found, Error occured at line number : {}", f_CurrentLineNumber), "Lexer");
                     return false;
                 }   
 
@@ -739,7 +742,7 @@ namespace BongoJam {
                 {
                     if (not fp_SourceCode.ShiftForward(f_CurrentChar)) //shift twice since we wanna enter the string quotes
                     {
-                        logger->Error(format("Found END__OF__FILE when closing '\"' was expected! Unterminated formatted string found, Error occured at line number : {}", f_CurrentLineNumber), "Lexer");
+                        logger->Error(fmt::format("Found END__OF__FILE when closing '\"' was expected! Unterminated formatted string found, Error occured at line number : {}", f_CurrentLineNumber), "Lexer");
                         return false;
                     }
 
@@ -757,7 +760,7 @@ namespace BongoJam {
                     {
                         if (not fp_SourceCode.ShiftForward(f_CurrentChar)) //shift to find specific escape character uwu
                         {
-                            logger->Error(format("Found END__OF__FILE when closing escape character was expected! Unterminated formatted string found, Error occured at line number : {}", f_CurrentLineNumber), "Lexer");
+                            logger->Error(fmt::format("Found END__OF__FILE when closing escape character was expected! Unterminated formatted string found, Error occured at line number : {}", f_CurrentLineNumber), "Lexer");
                             return false;
                         }
 
@@ -813,7 +816,7 @@ namespace BongoJam {
                         {
                             if (not fp_SourceCode.ShiftForward(f_CurrentChar)) //shift twice since we wanna enter the string quotes
                             {
-                                logger->Error(format("Found END__OF__FILE when closing '}}' was expected! Unterminated formatted string insert found, Error occured at line number : {}", f_CurrentLineNumber), "Lexer");
+                                logger->Error(fmt::format("Found END__OF__FILE when closing '}}' was expected! Unterminated formatted string insert found, Error occured at line number : {}", f_CurrentLineNumber), "Lexer");
                                 return false;
                             }
 
@@ -832,7 +835,7 @@ namespace BongoJam {
                             {
                                 if (not LexNumber(fp_SourceCode, f_CurrentChar, fp_Tokens, f_CurrentLineNumber, logger))
                                 {
-                                    logger->Error(format("Error at Line Number: {}, failed to parse number inside formatted string", f_CurrentLineNumber), "Lexer");
+                                    logger->Error(fmt::format("Error at Line Number: {}, failed to parse number inside formatted string", f_CurrentLineNumber), "Lexer");
                                     return false;
                                 }
                                 else
@@ -847,7 +850,7 @@ namespace BongoJam {
 
                                 if (not LexWord(f_VariableInsert, fp_SourceCode, f_CurrentChar, f_CurrentLineNumber, logger)) //dont shift off current character since LexWord consumes the entry token
                                 {
-                                    logger->Error(format("Found END__OF__FILE when closing '}}' was expected! Unterminated formatted string insert found: '{}', Error occured at line number : {}", f_VariableInsert, f_CurrentLineNumber), "Lexer");
+                                    logger->Error(fmt::format("Found END__OF__FILE when closing '}}' was expected! Unterminated formatted string insert found: '{}', Error occured at line number : {}", f_VariableInsert, f_CurrentLineNumber), "Lexer");
                                     return false;
                                 }
 
@@ -875,7 +878,7 @@ namespace BongoJam {
 
                             if (f_IsCurrentlyInsideComment) //THROW ERROR: comment not allowed here uwu
                             {
-                                logger->Error(format("Error at Line Number: {}, found comment inside formatted string!", f_CurrentLineNumber), "Lexer");
+                                logger->Error(fmt::format("Error at Line Number: {}, found comment inside formatted string!", f_CurrentLineNumber), "Lexer");
                                 return false;
                             }
 
@@ -883,7 +886,7 @@ namespace BongoJam {
                             {
                             case '"':  //THROW ERROR: string terminated before formatted variable was closed
                             {
-                                logger->Error(format("Unterminated variable inside your string literal, brother! Error occured at line number: {}", f_CurrentLineNumber), "Lexer");
+                                logger->Error(fmt::format("Unterminated variable inside your string literal, brother! Error occured at line number: {}", f_CurrentLineNumber), "Lexer");
                                 return false;
                             }
                             break;
@@ -906,7 +909,7 @@ namespace BongoJam {
                                 fp_Tokens.emplace_back("}", TokenType::CloseBracket, f_CurrentLineNumber); //need this for the base case recursion of parse reg expr
                             break;
                             default:
-                                logger->Error(format("Unexpected token found inside formatted string: '{}', Error occured at line number: {}", f_CurrentChar, f_CurrentLineNumber), "Lexer");
+                                logger->Error(fmt::format("Unexpected token found inside formatted string: '{}', Error occured at line number: {}", f_CurrentChar, f_CurrentLineNumber), "Lexer");
                                 return false;
                             }
                         }
@@ -932,7 +935,7 @@ namespace BongoJam {
 
                 if (not LexWord(f_Identifier, fp_SourceCode, f_CurrentChar, f_CurrentLineNumber, logger))
                 {
-                    logger->Error(format("Found END__OF__FILE when identifier was expected, token in question: '{}' Error occured at line number: {}", f_Identifier, f_CurrentLineNumber), "Lexer");
+                    logger->Error(fmt::format("Found END__OF__FILE when identifier was expected, token in question: '{}' Error occured at line number: {}", f_Identifier, f_CurrentLineNumber), "Lexer");
                     return false;
                 }
 
@@ -1006,7 +1009,7 @@ namespace BongoJam {
 
                 if (not fp_SourceCode.ShiftForward(f_CurrentChar)) // Shift to the next character to start capturing the string, not the opening quote
                 {
-                    logger->Error(format("Found END__OF__FILE when closing '\"' was expected! Unterminated string found, Error occured at line number : {}", f_CurrentLineNumber), "Lexer");
+                    logger->Error(fmt::format("Found END__OF__FILE when closing '\"' was expected! Unterminated string found, Error occured at line number : {}", f_CurrentLineNumber), "Lexer");
                     return false;
                 } 
 
@@ -1034,7 +1037,7 @@ namespace BongoJam {
                     {
                         if (not fp_SourceCode.ShiftForward(f_CurrentChar)) // Find Escape character owo
                         {
-                            logger->Error(format("Found END__OF__FILE when expected escape character was expected! Unterminated string found, Error occured at line number : {}", f_CurrentLineNumber), "Lexer");
+                            logger->Error(fmt::format("Found END__OF__FILE when expected escape character was expected! Unterminated string found, Error occured at line number : {}", f_CurrentLineNumber), "Lexer");
                             return false;
                         }
 
@@ -1066,7 +1069,7 @@ namespace BongoJam {
 
                     if (not fp_SourceCode.ShiftForward(f_CurrentChar)) // Shift to the next character to start capturing the string, not the opening quote
                     {
-                        logger->Error(format("Found END__OF__FILE when closing '\"' was expected! Unterminated string found, Error occured at line number : {}", f_CurrentLineNumber), "Lexer");
+                        logger->Error(fmt::format("Found END__OF__FILE when closing '\"' was expected! Unterminated string found, Error occured at line number : {}", f_CurrentLineNumber), "Lexer");
                         return false;
                     }
                 }
@@ -1093,13 +1096,13 @@ namespace BongoJam {
 
                     if (not LexWord(f_ColourIdentifier, fp_SourceCode, f_CurrentChar, f_CurrentLineNumber, logger))
                     {
-                        logger->Error(format("Found END__OF__FILE when colour identifier was expected, token in question: '{}' Error occured at line number: {}", f_ColourIdentifier, f_CurrentLineNumber), "Lexer");
+                        logger->Error(fmt::format("Found END__OF__FILE when colour identifier was expected, token in question: '{}' Error occured at line number: {}", f_ColourIdentifier, f_CurrentLineNumber), "Lexer");
                         return false;
                     }
 
                     if (find(ANSI_COLOURS.begin(), ANSI_COLOURS.end(), f_ColourIdentifier) == ANSI_COLOURS.end()) //if identifier is not a keyword then its just tokenized assuming its a var name or smth
                     {
-                        logger->Error(format("Error at Line Number: {}, expected a colour identifier but found: {} instead >:(", f_CurrentLineNumber, "@" + f_ColourIdentifier), "Lexer");
+                        logger->Error(fmt::format("Error at Line Number: {}, expected a colour identifier but found: {} instead >:(", f_CurrentLineNumber, "@" + f_ColourIdentifier), "Lexer");
                         return false;
                     }
 
@@ -1109,7 +1112,7 @@ namespace BongoJam {
                 }
                 else
                 {
-                    logger->Error(format("Error at Line Number: {}, expected a colour identifier but found: '{}' instead >:(", f_CurrentLineNumber, f_PeekedChar), "Lexer");
+                    logger->Error(fmt::format("Error at Line Number: {}, expected a colour identifier but found: '{}' instead >:(", f_CurrentLineNumber, f_PeekedChar), "Lexer");
                     return false;
                 }
 
@@ -1120,7 +1123,7 @@ namespace BongoJam {
                 fp_Tokens.emplace_back(f_CurrentChar, TokenType::HashTag, f_CurrentLineNumber);
                 break;
             default:
-                logger->Error(format("Lexing Error: Unrecognized character found in source code at line: {}", f_CurrentLineNumber), "Lexer");
+                logger->Error(fmt::format("Lexing Error: Unrecognized character found in source code at line: {}", f_CurrentLineNumber), "Lexer");
                 return false;
             }
 

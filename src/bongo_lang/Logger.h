@@ -19,31 +19,8 @@
 
 #define PEACH_FILENAME ::PeachCore::PeachExtractFilename(__FILE__)
 
-#define PEACH_ASSERT(fp_Condition, fp_Message)                                              \
-    do                                                                                      \
-    {                                                                                       \
-        if (!(fp_Condition))                                                                \
-        {                                                                                   \
-            std::fprintf(                                                                   \
-                stderr,                                                                     \
-                "[PEACH_ASSERT FAILED] %s\n  Condition : %s\n  Location  : %s:%d\n",       \
-                (fp_Message), #fp_Condition, PEACH_FILENAME, __LINE__                      \
-            );                                                                              \
-            std::exit(-69420);                                                                   \
-        }                                                                                   \
-    } while (false)
-
-#ifdef PEACH_PLATFORM_WINDOWS
-#define NOMINMAX
-#define WIN32_LEAN_AND_MEAN
-
-#include <windows.h>
-#endif
-
 /// STL
 #include <string>
-#include <iostream>
-#include <filesystem>
 #include <fstream>
 
 #include <unordered_map>
@@ -56,6 +33,7 @@
 ///PeachCore
 #include "RingBuffer.h"
 #include "LoggerFlags.h"
+#include "Macros.h"
 
 /// moody camel queue size uwu
 constexpr const unsigned int MOODY_CAMEL_QUEUE_SIZE = 128;
@@ -63,114 +41,6 @@ constexpr const unsigned int MOODY_CAMEL_QUEUE_SIZE = 128;
 namespace BongoJam {
 
     using namespace std; //this should be here so i dont affect anybody who links against peach
-
-#if defined(PEACH_PLATFORM_WINDOWS) && defined(PEACH_USING_OS_TERMINAL)
-
-    static bool
-        EnableWindowsConsoleColours()
-    {
-        DWORD f_ConsoleMode;
-        HANDLE f_OutputHandle = GetStdHandle(STD_OUTPUT_HANDLE);
-
-        if (GetConsoleMode(f_OutputHandle, &f_ConsoleMode))
-        {
-            SetConsoleMode(f_OutputHandle, f_ConsoleMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
-            return true;
-        }
-        else
-        {
-            cerr << ("Was not able to set console mode to allow windows to display ANSI escape codes") << "\n";
-            return false;
-        }
-    }
-
-#endif
-
- #ifdef PEACH_USING_OS_TERMINAL
-
-    enum class Colours : int
-    {
-        Black,
-        Red,
-        Green,
-        Yellow,
-        Blue,
-        Magenta,
-        Cyan,
-        White,
-
-        BrightBlack,
-        BrightRed,
-        BrightGreen,
-        BrightYellow,
-        BrightBlue,
-        BrightMagenta,
-        BrightCyan,
-        BrightWhite
-    };
-
-    [[nodiscard]] constexpr string
-        CreateColouredText
-        (
-            const string& fp_SampleText,
-            const Colours fp_DesiredColour
-        )
-    {
-        switch (fp_DesiredColour)
-        {
-            //////////////////// Regular Colours ////////////////////
-
-        case Colours::Black: return "\x1B[30m" + fp_SampleText + "\033[0m";
-
-        case Colours::Red: return "\x1B[31m" + fp_SampleText + "\033[0m";
-
-        case Colours::Green: return "\x1B[32m" + fp_SampleText + "\033[0m";
-
-        case Colours::Yellow: return "\x1B[33m" + fp_SampleText + "\033[0m";
-
-        case Colours::Blue: return "\x1B[34m" + fp_SampleText + "\033[0m";
-
-        case Colours::Magenta: return "\x1B[35m" + fp_SampleText + "\033[0m";
-
-        case Colours::Cyan: return "\x1B[36m" + fp_SampleText + "\033[0m";
-
-        case Colours::White: return "\x1B[37m" + fp_SampleText + "\033[0m";
-
-
-            //////////////////// Bright Colours ////////////////////
-
-        case Colours::BrightBlack: return "\x1B[90m" + fp_SampleText + "\033[0m";
-
-        case Colours::BrightRed: return "\x1B[91m" + fp_SampleText + "\033[0m";
-
-        case Colours::BrightGreen: return "\x1B[92m" + fp_SampleText + "\033[0m";
-
-        case Colours::BrightYellow: return "\x1B[93m" + fp_SampleText + "\033[0m";
-
-        case Colours::BrightBlue: return "\x1B[94m" + fp_SampleText + "\033[0m";
-
-        case Colours::BrightMagenta: return "\x1B[95m" + fp_SampleText + "\033[0m";
-
-        case Colours::BrightCyan: return "\x1B[96m" + fp_SampleText + "\033[0m";
-
-        case Colours::BrightWhite: return "\x1B[97m" + fp_SampleText + "\033[0m";
-
-            //////////////////// Just Return the Input Text Unaltered Otherwise ////////////////////
-
-        default: return fp_SampleText;
-        }
-    }
-
-
-    #define PRINT(fp_Message, fp_DesiredColour) std::cout << ::BongoJam::CreateColouredText(fp_Message, ::BongoJam::Colours::fp_DesiredColour) << "\n"
-    #define PRINT_ERROR(fp_Message) std::cerr << ::BongoJam::CreateColouredText(fp_Message, ::BongoJam::Colours::Red) << "\n"
-
-#else
-
-    #define PRINT(fp_Message, fp_DesiredColour)
-    #define PRINT_ERROR(fp_Message)
-
- #endif
 
     constexpr const char*
         PeachExtractFilename(const char* fp_Path)
@@ -307,7 +177,7 @@ namespace BongoJam {
 
             if (not f_CreatedLogger.Initialize(fp_DesiredLoggerName, fp_DesiredOutputDirectory, fp_Flags))
             {
-                PRINT_ERROR("Unable to initialize logger named: " + fp_DesiredLoggerName);
+                BONGO_PRINT_ERROR_FMT("Unable to initialize logger named: {}", fp_DesiredLoggerName);
                 return nullopt;
             }
 
@@ -326,7 +196,7 @@ namespace BongoJam {
 
             if (not f_CreatedLogger->Initialize(fp_DesiredLoggerName, fp_DesiredOutputDirectory, fp_Flags))
             {
-                PRINT_ERROR("Unable to initialize logger named: " + fp_DesiredLoggerName);
+                BONGO_PRINT_ERROR_FMT("Unable to initialize logger named: {}", fp_DesiredLoggerName);
                 return nullptr;
             }
 
@@ -345,7 +215,7 @@ namespace BongoJam {
 
             if (not f_CreatedLogger->Initialize(fp_DesiredLoggerName, fp_DesiredOutputDirectory, fp_Flags))
             {
-                PRINT_ERROR("Unable to initialize logger named: " + fp_DesiredLoggerName);
+                BONGO_PRINT_ERROR_FMT("Unable to initialize logger named: {}", fp_DesiredLoggerName);
                 return nullptr;
             }
 
@@ -449,7 +319,7 @@ namespace BongoJam {
         void
             CloseOpenLogFiles();
 
-        [[nodiscard]] inline bool ///XXX: used for testing, this method should never call exit() for a production release, since all logging is hidden away from the game engine dev
+        [[nodiscard]] bool ///XXX: used for testing, this method should never call exit() for a production release, since all logging is hidden away from the game engine dev
             AssertThreadAccess(const string& fp_FunctionName) //we don't require a lock since this method guarantees only one thread is operating on any data within the Logger instance
             const;
 

@@ -20,7 +20,7 @@ constexpr const int FATAL_SEGMENTATION_FAULT = -6969;
 static void
     SegFaultHandler(int fp_Signal) //primitive segfault handler
 {
-    PRINT_ERROR(std::format("[!]FATAL SEGMENTATION FAULT: Crash signal received {}", fp_Signal));
+    BONGO_PRINT_ERROR_FMT("[!]FATAL SEGMENTATION FAULT: Crash signal received {}", fp_Signal);
     // possibly notify watchdog or dump stack trace
     exit(FATAL_SEGMENTATION_FAULT); //clean exit so everything calls their destructors
 }
@@ -53,7 +53,7 @@ static std::string
 
     if (f_TopLevelDir.empty())
     {
-        PRINT("Failed to find the top-level directory 'Peach-E'!", Magenta);
+        BONGO_PRINT("Failed to find the top-level directory 'Peach-E'!", BONGO_COL_MAGENTA);
         return "";
     }
 
@@ -81,7 +81,7 @@ int
     {
         //these boys are < 1kb so stack is fine for a CLI tool owo
         BongoJam::CLI bongo_cli;
-        BongoJam::CompilerThreadPool<1> f_CompilerThreadPool;
+        BongoJam::CompilerThreadPool<1> f_CompilerThreadPool; //TODO: this should come after arg parse to figure out -J flags for how many jobs we can do ^w^
 
         //int result = bongo_manager->ParseArguments(fp_ArgCount, fp_ArgVector);
 
@@ -94,8 +94,7 @@ int
     }
     catch (const std::exception& Exception) ///Try to ensure all destructors are called especially close() on LogManager
     {
-        PRINT_ERROR(std::format("Unhandled exception: {}", Exception.what()));
-
+        BONGO_PRINT_ERROR_FMT("Unhandled exception: {}", Exception.what());
         return -69; //hehe Xd
     }
 

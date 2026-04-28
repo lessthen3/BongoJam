@@ -15,9 +15,6 @@
 
 ///BongoJam
 #include "Parser.h"
-#include "../Opcodes.h"
-
-#include "../Serializer.h"
 
 enum BongoCompilerFlags : uint16_t
 {

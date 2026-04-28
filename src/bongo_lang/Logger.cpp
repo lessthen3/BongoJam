@@ -10,9 +10,11 @@
 ********************************************************************/
 #include "Logger.h"
 
+#include <filesystem>
 #include <chrono>
 #include <iomanip>
 #include <sstream>
+
 #include <fmt/format.h>
 
 static constexpr uint32_t FLUSH_EVERY_N_LOGS = 256u;
@@ -25,8 +27,35 @@ static constexpr uint8_t FLUSH_WARNING_BIT = 1u << 3;
 static constexpr uint8_t FLUSH_ERROR_BIT = 1u << 4;
 static constexpr uint8_t FLUSH_FATAL_BIT = 1u << 5;
 
-namespace BongoJam
-{
+#ifdef PEACH_PLATFORM_WINDOWS
+#define NOMINMAX
+#define WIN32_LEAN_AND_MEAN
+
+#include <windows.h>
+#endif
+
+namespace BongoJam{
+
+#if defined(PEACH_PLATFORM_WINDOWS) && defined(PEACH_USING_OS_TERMINAL)
+
+    static bool
+        EnableWindowsConsoleColours()
+    {
+        DWORD f_ConsoleMode;
+        HANDLE f_OutputHandle = GetStdHandle(STD_OUTPUT_HANDLE);
+
+        if (not GetConsoleMode(f_OutputHandle, &f_ConsoleMode))
+        {
+            std::cerr << ("Was not able to set console mode to allow windows to display ANSI escape codes") << "\n";
+            return false;
+        }
+
+        SetConsoleMode(f_OutputHandle, f_ConsoleMode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+        return true;
+    }
+
+#endif
+
     [[nodiscard]] static string //thank you chat-gpt uwu
         GetCurrentTimestamp()
     {
@@ -52,13 +81,13 @@ namespace BongoJam
         return f_AssembledTimeString.str();
     }
 
-    static constexpr uint8_t
+    BONGO_FORCEINLINE static constexpr uint8_t
         ExtractLevelMask(uint32_t fp_Flags) noexcept
     {
         return static_cast<uint8_t>(fp_Flags & 0xFF);
     }
 
-    static constexpr uint8_t
+    BONGO_FORCEINLINE static constexpr uint8_t
         ExtractFlushMask(uint32_t fp_Flags) noexcept
     {
         return static_cast<uint8_t>((fp_Flags >> 8) & 0xFF);
@@ -88,7 +117,7 @@ namespace BongoJam {
     {
         if (not AssertThreadAccess("UpdateThreadOwner")) //can't log here since it's only triggered by improper thread usage which will trigger asserthreadacess again
         {
-            PRINT_ERROR(fmt::format("Tried to call UpdateThreadOwner from a thread that didn't own logger named: {}", pm_LoggerName));
+            BONGO_PRINT_ERROR_FMT("Tried to call UpdateThreadOwner from a thread that didn't own logger named: {}", pm_LoggerName);
             return false;
         }
 
@@ -141,7 +170,7 @@ namespace BongoJam {
             {
                 if (not CreateLogFile(pm_CurrentWorkingDirectory, lv_LogStringName))
                 {
-                    PRINT_ERROR("Failed to create log file named: " + lv_LogStringName);
+                    BONGO_PRINT_ERROR(fmt::format("Failed to create log file named: {}", lv_LogStringName).c_str());
                     return false;
                 }
 
@@ -219,7 +248,7 @@ namespace BongoJam {
                 }
             }
 
-            PRINT(f_LogEntry, BrightWhite);
+            BONGO_PRINT(f_LogEntry, BONGO_COL_BRIGHT_WHITE);
         }
     }
 
@@ -263,7 +292,7 @@ namespace BongoJam {
                 }
             }
 
-            PRINT(f_LogEntry, BrightBlue);
+            BONGO_PRINT(f_LogEntry, BONGO_COL_BRIGHT_BLUE);
         }
     }
 
@@ -307,7 +336,7 @@ namespace BongoJam {
                 }
             }
 
-            PRINT(f_LogEntry, BrightGreen);
+            BONGO_PRINT(f_LogEntry, BONGO_COL_BRIGHT_GREEN);
         }
     }
 
@@ -355,7 +384,7 @@ namespace BongoJam {
                 }
             }
 
-            PRINT(f_LogEntry, BrightYellow);
+            BONGO_PRINT(f_LogEntry, BONGO_COL_BRIGHT_YELLOW);
         }
     }
 
@@ -403,7 +432,7 @@ namespace BongoJam {
                 }
             }
 
-            PRINT_ERROR(f_LogEntry);
+            BONGO_PRINT_ERROR(f_LogEntry);
         }
     }
 
@@ -451,7 +480,7 @@ namespace BongoJam {
                 }
             }
 
-            PRINT(f_LogEntry, Magenta);
+            BONGO_PRINT(f_LogEntry, BONGO_COL_MAGENTA);
         }
     }
 
@@ -491,7 +520,7 @@ namespace BongoJam {
         {
             if (fp_Flags & PEACH_DONT_CREATE_DIRECTORY)
             {
-                PRINT_ERROR("[CRITICAL_LOGGING_ERROR]: Failed to find valid log output directory");
+                BONGO_PRINT_ERROR_FMT("[CRITICAL_LOGGING_ERROR]: Failed to find valid log output directory for logger named: {}", fp_DesiredLoggerName);
                 return false;
             }
 
@@ -501,7 +530,7 @@ namespace BongoJam {
             }
             catch (const exception& f_Exception)
             {
-                PRINT_ERROR(fmt::format("Failed to create desired log output directory with exception: '{}'", f_Exception.what()));
+                BONGO_PRINT_ERROR_FMT("Failed to create desired log output directory with exception: '{}'", f_Exception.what());
                 return false;
             }
         }
@@ -510,7 +539,7 @@ namespace BongoJam {
 
         if (not UpdateActiveMask(fp_Flags))
         {
-            PRINT_ERROR("[CRITICAL_LOGGING_ERROR]: Failed to create required log files for logger named: " + pm_LoggerName);
+            BONGO_PRINT_ERROR_FMT("[CRITICAL_LOGGING_ERROR]: Failed to create required log files for logger named: {}", pm_LoggerName);
             return false;
         }
 
@@ -533,6 +562,7 @@ namespace BongoJam {
         const string f_FullPath = fp_FilePath + "/" + fp_FileName;
 
         ////////////////////////////////////////////// If file exists and is too big, truncate it //////////////////////////////////////////////
+
         error_code f_ErrorCode;
 
         if (filesystem::exists(f_FullPath, f_ErrorCode) and not f_ErrorCode)
@@ -547,11 +577,11 @@ namespace BongoJam {
 
                 if (not f_LogFile.is_open())
                 {
-                    PRINT_ERROR(fmt::format("Failed to truncate oversized log file: '{}' with logger named: {}", fp_FileName, pm_LoggerName));
+                    BONGO_PRINT_ERROR_FMT("Failed to truncate oversized log file: '{}' with logger named: {}", fp_FileName, pm_LoggerName);
                     return false;
                 }
 
-                pm_LogFiles[fp_FileName] = move(f_LogFile);
+                pm_LogFiles[fp_FileName] = std::move(f_LogFile);
 
                 ////////////////////////////////////////////// Success! //////////////////////////////////////////////
 
@@ -565,11 +595,11 @@ namespace BongoJam {
 
         if (not f_LogFile.is_open())
         {
-            PRINT_ERROR(fmt::format("Failed to open log file: '{}' with logger named: {}", fp_FileName, pm_LoggerName));
+            BONGO_PRINT_ERROR_FMT("Failed to open log file: '{}' with logger named: {}", fp_FileName, pm_LoggerName);
             return false;
         }
 
-        pm_LogFiles[fp_FileName] = move(f_LogFile);
+        pm_LogFiles[fp_FileName] = std::move(f_LogFile);
 
         ////////////////////////////////////////////// Success! //////////////////////////////////////////////
 
@@ -588,7 +618,7 @@ namespace BongoJam {
         }
     }
 
-    [[nodiscard]] inline bool ///XXX: used for testing, this method should never call exit() for a production release, since all logging is hidden away from the game engine dev
+    [[nodiscard]] BONGO_FORCEINLINE bool ///XXX: used for testing, this method should never call exit() for a production release, since all logging is hidden away from the game engine dev
         Logger::AssertThreadAccess(const string& fp_FunctionName) //we don't require a lock since this method guarantees only one thread is operating on any data within the Logger instance
         const
     {
@@ -601,7 +631,7 @@ namespace BongoJam {
         f_UckCPlusPlus << this_thread::get_id();
         string f_CallerThreadID = f_UckCPlusPlus.str();
 
-        PRINT_ERROR(fmt::format("Logger name: '{}' called method '{}' from the wrong thread, [Caller Thread ID]: {}", pm_LoggerName, fp_FunctionName, f_CallerThreadID));
+        BONGO_PRINT_ERROR_FMT("Logger name: '{}' called method '{}' from the wrong thread, [Caller Thread ID]: {}", pm_LoggerName, fp_FunctionName, f_CallerThreadID);
 
         return false;
     }

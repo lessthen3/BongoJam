@@ -63,6 +63,16 @@ add_library(bongo_core ${BONGO_BUILD_TYPE}
 
 set_target_properties(bongo_core PROPERTIES POSITION_INDEPENDENT_CODE ON) #make PIC friendly UwU
 
+if(BONGO_BUILD_SHARED)
+    target_compile_definitions(bongo_core PRIVATE 
+        BONGO_SHARED
+    )   
+else()
+    target_compile_definitions(bongo_core PRIVATE 
+        BONGO_STATIC
+    )   
+endif()
+
 ####################################### Source includes for BongoJam Lang
 
 file(GLOB FMT_SOURCES
@@ -84,13 +94,27 @@ target_sources(bongo_core PRIVATE
     ${ASMJIT_SOURCES}
 )
 
-target_include_directories(bongo_core PUBLIC
+target_include_directories(bongo_core SYSTEM PUBLIC
     third_party/ #supported across the board owo ily guys ~~nyah
 )
 
 source_group("third_party/lz4" FILES ${LZ4_SOURCES})
 source_group("third_party/fmt" FILES ${FMT_SOURCES})
 source_group("third_party/asmjit" FILES ${ASMJIT_SOURCES})
+
+# disable third party warnings OwO, idk just trusting em
+if(MSVC)
+    set(WARNING_OFF_FLAG "/W0")
+else()
+    set(WARNING_OFF_FLAG "-w") #just assuming clang or gcc if not msvc
+endif()
+
+set_source_files_properties(
+    ${LZ4_SOURCES}
+    ${FMT_SOURCES}
+    ${ASMJIT_SOURCES}
+    PROPERTIES COMPILE_FLAGS ${WARNING_OFF_FLAG}
+)
 
 ####################################### Executable Target for CLI Tool
 
@@ -115,6 +139,8 @@ target_link_libraries(bongo PRIVATE
 target_include_directories(bongo PRIVATE
     ${PROJECT_SOURCE_DIR}/src/bongo_lang
 )
+
+set_target_properties(bongo PROPERTIES POSITION_INDEPENDENT_CODE ON) #make PIC friendly UwU
 
 ####################################### Compiler Options and Definitions
 
@@ -148,104 +174,7 @@ endif()
 # daddy guarantees exactly ONE of these is always defined per build so no ambiguity 🍑
 # daddy guaranteed so ig it works OwO
 
-if(PEACH_WINDOWS)
-    target_compile_definitions(bongo_core PUBLIC
-        PEACH_PLATFORM_WINDOWS
-        PEACH_PLATFORM_DESKTOP
-        PEACH_ARCH_X64
-    )
-
-    if(BONGO_BUILD_SHARED)
-        target_compile_definitions(bongo PRIVATE 
-            BONGO_SHARED
-        )   
-    else()
-        target_compile_definitions(bongo PRIVATE 
-            BONGO_STATIC
-        )   
-    endif()
-
-elseif(PEACH_WINDOWS_ARM64)
-    target_compile_definitions(bongo_core PUBLIC
-        PEACH_PLATFORM_WINDOWS
-        PEACH_PLATFORM_DESKTOP
-        PEACH_ARCH_ARM64
-    )
-
-elseif(PEACH_MACOS)
-    target_compile_definitions(bongo_core PUBLIC
-        PEACH_PLATFORM_MACOS
-        PEACH_PLATFORM_APPLE
-        PEACH_PLATFORM_DESKTOP
-        PEACH_ARCH_ARM64 # universal binary covers both but arm64 is primary
-    )
-
-elseif(PEACH_IOS)
-    target_compile_definitions(bongo_core PUBLIC
-        PEACH_PLATFORM_IOS
-        PEACH_PLATFORM_APPLE
-        PEACH_PLATFORM_MOBILE
-        PEACH_ARCH_ARM64
-    )
-
-elseif(PEACH_TVOS)
-    target_compile_definitions(bongo_core PUBLIC
-        PEACH_PLATFORM_TVOS
-        PEACH_PLATFORM_APPLE
-        PEACH_ARCH_ARM64
-    )
-
-elseif(PEACH_LINUX)
-    target_compile_definitions(bongo_core PUBLIC
-        PEACH_PLATFORM_LINUX
-        PEACH_PLATFORM_DESKTOP
-        PEACH_ARCH_X64
-    )
-
-elseif(PEACH_BSD)
-    target_compile_definitions(bongo_core PUBLIC
-        PEACH_PLATFORM_BSD
-        PEACH_PLATFORM_FREEBSD
-        PEACH_PLATFORM_DESKTOP
-        PEACH_ARCH_X64
-    )
-
-elseif(PEACH_HAIKU)
-    target_compile_definitions(bongo_core PUBLIC
-        PEACH_PLATFORM_HAIKU
-        PEACH_PLATFORM_DESKTOP
-        PEACH_ARCH_X64
-    )
-
-elseif(PEACH_ANDROID)
-    target_compile_definitions(bongo_core PUBLIC
-        PEACH_PLATFORM_ANDROID
-        PEACH_PLATFORM_MOBILE
-        PEACH_ARCH_ARM64
-    )
-
-elseif(PEACH_WASM)
-    target_compile_definitions(bongo_core PUBLIC
-        PEACH_PLATFORM_WASM
-        PEACH_PLATFORM_WEB
-        PEACH_ARCH_WASM32
-    )
-
-elseif(PEACH_VITA)
-    target_compile_definitions(bongo_core PUBLIC
-        PEACH_PLATFORM_VITA
-        PEACH_PLATFORM_HANDHELD
-        PEACH_ARCH_ARMV7
-    )
-
-elseif(PEACH_SWITCH)
-    target_compile_definitions(bongo_core PUBLIC
-        PEACH_PLATFORM_SWITCH
-        PEACH_PLATFORM_HANDHELD
-        PEACH_ARCH_ARM64
-    )
-
-endif()
+peach_apply_platform_definitions(bongo_core PUBLIC)
 
 ####################################### Set Startup Project (Visual Studio & Xcode)
 

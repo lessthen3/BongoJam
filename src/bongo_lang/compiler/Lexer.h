@@ -11,7 +11,6 @@
 **************************************************************************/
 #pragma once
 
-#include <algorithm>
 #include <cctype>
 #include <cassert>
 #include <numbers>

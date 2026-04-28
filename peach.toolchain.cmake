@@ -1,7 +1,14 @@
-########################################
-# peach.toolchain.cmake
-# 🍑 Starlight Brew Inc, Ranyodh Singh Mandur
-########################################
+##########################################################################
+#                        Peach-E v0.0.1
+#         Created by Ranyodh Singh Mandur - 🍑 2024-2026
+#
+#              Licensed under the MIT License (MIT).
+#         For more details, see the LICENSE file or visit:
+#               https://opensource.org/licenses/MIT
+#
+#           Peach-E is a free open source game engine
+##########################################################################
+
 ############# require target platform to be passed explicitly #############
 
 if(NOT DEFINED PEACH_TARGET_PLATFORM OR PEACH_TARGET_PLATFORM STREQUAL "")
@@ -75,7 +82,19 @@ elseif(PEACH_TARGET_PLATFORM STREQUAL "windows-arm64")
 
 elseif(PEACH_TARGET_PLATFORM STREQUAL "macos")
     set(CMAKE_SYSTEM_NAME Darwin)
-    set(CMAKE_OSX_ARCHITECTURES "arm64;x86_64") # universal binary
+
+    # detect host arch if not explicitly passed in
+    if(NOT DEFINED PEACH_MAC_ARCH)
+        execute_process(
+            COMMAND uname -m
+            OUTPUT_VARIABLE f_HostArch
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+        set(PEACH_MAC_ARCH "${f_HostArch}" CACHE STRING "macOS target arch (arm64 or x86_64)")
+    endif()
+
+    set(CMAKE_OSX_ARCHITECTURES "${PEACH_MAC_ARCH}")
+
     set(CMAKE_OSX_DEPLOYMENT_TARGET "12.0")
 
     set(PEACH_MACOS               ON CACHE BOOL "" FORCE)
@@ -187,6 +206,8 @@ elseif(PEACH_TARGET_PLATFORM STREQUAL "wasm")
     set(CMAKE_AR "$ENV{EMSDK}/upstream/emscripten/emar")
     set(CMAKE_RANLIB "$ENV{EMSDK}/upstream/emscripten/emranlib")
 
+    # set(CMAKE_EXECUTABLE_SUFFIX ".html") # or .js UNSURE
+
     set(PEACH_WASM                ON CACHE BOOL "" FORCE)
     set(PEACH_PLATFORM_IS_WEB     ON CACHE BOOL "" FORCE)
 
@@ -227,3 +248,100 @@ endif()
 
 set(PEACH_TARGET_PLATFORM ${PEACH_TARGET_PLATFORM} CACHE STRING "Peach target platform" FORCE)
 message(STATUS "PeachToolchain: targeting ${PEACH_TARGET_PLATFORM} ~ nya~ ^O^")
+
+function(peach_apply_platform_definitions fp_Target fp_Visibility)
+    
+   # validate visibility arg
+    if(NOT fp_Visibility STREQUAL "PUBLIC" AND NOT fp_Visibility STREQUAL "PRIVATE" AND NOT fp_Visibility STREQUAL "INTERFACE")
+        message(FATAL_ERROR "[Peach] peach_apply_platform_definitions: invalid visibility '${fp_Visibility}', must be PUBLIC, PRIVATE, or INTERFACE")
+    endif()
+
+    if(PEACH_WINDOWS)
+        target_compile_definitions(${fp_Target} ${fp_Visibility}
+            PEACH_PLATFORM_WINDOWS
+            PEACH_PLATFORM_DESKTOP
+            PEACH_ARCH_X64
+        )
+
+    elseif(PEACH_WINDOWS_ARM64)
+        target_compile_definitions(${fp_Target} ${fp_Visibility}
+            PEACH_PLATFORM_WINDOWS
+            PEACH_PLATFORM_DESKTOP
+            PEACH_ARCH_ARM64
+        )
+
+    elseif(PEACH_MACOS)
+        target_compile_definitions(${fp_Target} ${fp_Visibility}
+            PEACH_PLATFORM_MACOS
+            PEACH_PLATFORM_APPLE
+            PEACH_PLATFORM_DESKTOP
+            PEACH_ARCH_ARM64 # universal binary covers both but arm64 is primary
+        )
+
+    elseif(PEACH_IOS)
+        target_compile_definitions(${fp_Target} ${fp_Visibility}
+            PEACH_PLATFORM_IOS
+            PEACH_PLATFORM_APPLE
+            PEACH_PLATFORM_MOBILE
+            PEACH_ARCH_ARM64
+        )
+
+    elseif(PEACH_TVOS)
+        target_compile_definitions(${fp_Target} ${fp_Visibility}
+            PEACH_PLATFORM_TVOS
+            PEACH_PLATFORM_APPLE
+            PEACH_ARCH_ARM64
+        )
+
+    elseif(PEACH_LINUX)
+        target_compile_definitions(${fp_Target} ${fp_Visibility}
+            PEACH_PLATFORM_LINUX
+            PEACH_PLATFORM_DESKTOP
+            PEACH_ARCH_X64
+        )
+
+    elseif(PEACH_BSD)
+        target_compile_definitions(${fp_Target} ${fp_Visibility}
+            PEACH_PLATFORM_BSD
+            PEACH_PLATFORM_FREEBSD
+            PEACH_PLATFORM_DESKTOP
+            PEACH_ARCH_X64
+        )
+
+    elseif(PEACH_HAIKU)
+        target_compile_definitions(${fp_Target} ${fp_Visibility}
+            PEACH_PLATFORM_HAIKU
+            PEACH_PLATFORM_DESKTOP
+            PEACH_ARCH_X64
+        )
+
+    elseif(PEACH_ANDROID)
+        target_compile_definitions(${fp_Target} ${fp_Visibility}
+            PEACH_PLATFORM_ANDROID
+            PEACH_PLATFORM_MOBILE
+            PEACH_ARCH_ARM64
+        )
+
+    elseif(PEACH_WASM)
+        target_compile_definitions(${fp_Target} ${fp_Visibility}
+            PEACH_PLATFORM_WASM
+            PEACH_PLATFORM_WEB
+            PEACH_ARCH_WASM32 #ik that wasm3 or w/e is 64 bit idfk owo uwu
+        )
+
+    elseif(PEACH_VITA)
+        target_compile_definitions(${fp_Target} ${fp_Visibility}
+            PEACH_PLATFORM_VITA
+            PEACH_PLATFORM_HANDHELD
+            PEACH_ARCH_ARMV7
+        )
+
+    elseif(PEACH_SWITCH)
+        target_compile_definitions(${fp_Target} ${fp_Visibility}
+            PEACH_PLATFORM_SWITCH
+            PEACH_PLATFORM_HANDHELD
+            PEACH_ARCH_ARM64
+        )
+
+    endif()
+endfunction()

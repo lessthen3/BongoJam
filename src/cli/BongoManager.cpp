@@ -16,6 +16,10 @@
 #include "compiler/Linker.h"
 #include "BongoManager.h"
 
+#include "Macros.h"
+
+#include <Serializer.h>
+
 //static helpers 
 namespace BongoJam {
     [[nodiscard]] static char**
@@ -60,30 +64,30 @@ namespace BongoJam {
     static void
         DisplayHelp()
     {
-        cout
-            << CreateColouredText("{Usage}: bongo <file> [options]...\n", Colours::BrightMagenta)
+        std::cout
+            << BONGO_COLOURED("{Usage}: bongo <file> [options]...\n", BONGO_COL_BRIGHT_MAGENTA)
 
-            << CreateColouredText("Compiler Options:\n  ", Colours::BrightYellow) //oh it's because i put two spaces after each \n lmao
-            << CreateColouredText("  -o <filename>\tSet output filename\n  ", Colours::Cyan) //this needs an extra two spaces at the beginning for god knows what reason ?_? !!
-            << CreateColouredText("  -d <directory>\tSet output directory\n  ", Colours::Cyan)
+            << BONGO_COLOURED("Compiler Options:\n  ", BONGO_COL_BRIGHT_YELLOW) //oh it's because i put two spaces after each \n lmao
+            << BONGO_COLOURED("  -o <filename>\tSet output filename\n  ", BONGO_COL_CYAN) //this needs an extra two spaces at the beginning for god knows what reason ?_? !!
+            << BONGO_COLOURED("  -d <directory>\tSet output directory\n  ", BONGO_COL_CYAN)
 
-            << CreateColouredText("  --compile-run\tIf used, the script will be compiled and ran immediately\n  ", Colours::Cyan)
-            << CreateColouredText("  --debug\t\tCompile in debug mode\n  ", Colours::Cyan)
-            << CreateColouredText("  --pedantic\t\tCompile with all warnings turned on\n  ", Colours::Cyan)
+            << BONGO_COLOURED("  --compile-run\tIf used, the script will be compiled and ran immediately\n  ", BONGO_COL_CYAN)
+            << BONGO_COLOURED("  --debug\t\tCompile in debug mode\n  ", BONGO_COL_CYAN)
+            << BONGO_COLOURED("  --pedantic\t\tCompile with all warnings turned on\n  ", BONGO_COL_CYAN)
 
-            << CreateColouredText("  --clear-logs\tClears Desired Log Files\n", Colours::Cyan)
-            << CreateColouredText("\t  [option 1] LOG_LEVEL_MINOR - LOG_LEVEL_MAJOR\n", Colours::BrightGreen)
-            << CreateColouredText("\t  [option 2] LOG_LEVEL_1, LOG_LEVEL_2 . . .\n  ", Colours::BrightGreen)
+            << BONGO_COLOURED("  --clear-logs\tClears Desired Log Files\n", BONGO_COL_CYAN)
+            << BONGO_COLOURED("\t  [option 1] LOG_LEVEL_MINOR - LOG_LEVEL_MAJOR\n", BONGO_COL_BRIGHT_GREEN)
+            << BONGO_COLOURED("\t  [option 2] LOG_LEVEL_1, LOG_LEVEL_2 . . .\n  ", BONGO_COL_BRIGHT_GREEN)
 
-            << CreateColouredText("  --set LOG_LEVEL_FILTER\t Filters Log Output\n  ", Colours::Cyan) //disable/enable internal logs, and set the min and max log level, one arg is min, two args is both
-            << CreateColouredText("\t  [option 1] LOG_LEVEL_MINOR - LOG_LEVEL_MAJOR\n", Colours::BrightGreen)
-            << CreateColouredText("\t  [option 2] LOG_LEVEL_1, LOG_LEVEL_2 . . .\n  ", Colours::BrightGreen)
+            << BONGO_COLOURED("  --set LOG_LEVEL_FILTER\t Filters Log Output\n  ", BONGO_COL_CYAN) //disable/enable internal logs, and set the min and max log level, one arg is min, two args is both
+            << BONGO_COLOURED("\t  [option 1] LOG_LEVEL_MINOR - LOG_LEVEL_MAJOR\n", BONGO_COL_BRIGHT_GREEN)
+            << BONGO_COLOURED("\t  [option 2] LOG_LEVEL_1, LOG_LEVEL_2 . . .\n  ", BONGO_COL_BRIGHT_GREEN)
 
-            << CreateColouredText("  --set LOG_OUTPUT_DIRECTORY <directory>\tSets Working Log Output Directory\n  ", Colours::Cyan)
-            << CreateColouredText("  --set DEFAULT_OUTPUT_DIRECTORY <directory>\tSets Default Log Output Directory\n  ", Colours::Cyan)
+            << BONGO_COLOURED("  --set LOG_OUTPUT_DIRECTORY <directory>\tSets Working Log Output Directory\n  ", BONGO_COL_CYAN)
+            << BONGO_COLOURED("  --set DEFAULT_OUTPUT_DIRECTORY <directory>\tSets Default Log Output Directory\n  ", BONGO_COL_CYAN)
 
-            << CreateColouredText("  -h, --help\tDisplay this help and exit\n  ", Colours::Cyan)
-            << CreateColouredText("  --version\tGet the currently installed compiler version\n  ", Colours::Cyan)
+            << BONGO_COLOURED("  -h, --help\tDisplay this help and exit\n  ", BONGO_COL_CYAN)
+            << BONGO_COLOURED("  --version\tGet the currently installed compiler version\n  ", BONGO_COL_CYAN)
             ;
     }
     
@@ -220,7 +224,7 @@ namespace BongoJam
     {
         if (fp_ArgCount < 2)
         {
-            PRINT("No arguments provided. Use -h or --help for usage information.", Magenta);
+            BONGO_PRINT("No arguments provided. Use -h or --help for usage information.", BONGO_COL_MAGENTA);
             return NO_ARGUMENT_PROVIDED;
         }
 
@@ -241,20 +245,15 @@ namespace BongoJam
             }
             else if (f_CompilerArg == "--version")
             {
-                cout
-                    << CreateColouredText("Current BongoJam Compiler Version: ", Colours::BrightMagenta) << CreateColouredText(BONGO_COMPILER_VERSION, Colours::BrightCyan) << "\n"
-                    << CreateColouredText("Current BongoJam Compiler Version: ", Colours::BrightMagenta) << CreateColouredText(BONGO_RUNTIME_VERSION, Colours::BrightCyan) << "\n"
+                std::cout
+                    << BONGO_COLOURED("Current BongoJam Compiler Version: ", BONGO_COL_BRIGHT_MAGENTA) << BONGO_COLOURED(BONGO_COMPILER_VERSION, BONGO_COL_BRIGHT_CYAN) << "\n"
+                    << BONGO_COLOURED("Current BongoJam Runtime Version: ", BONGO_COL_BRIGHT_MAGENTA) << BONGO_COLOURED(BONGO_RUNTIME_VERSION, BONGO_COL_BRIGHT_CYAN) << "\n"
                     ;
 
                 return BONGO_OK;
             }
             else if (f_CompilerArg == "-r")
             {
-                cout
-                    << CreateColouredText("Current BongoJam Compiler Version: ", Colours::BrightMagenta) << CreateColouredText(BONGO_COMPILER_VERSION, Colours::BrightCyan) << "\n"
-                    << CreateColouredText("Current BongoJam Compiler Version: ", Colours::BrightMagenta) << CreateColouredText(BONGO_RUNTIME_VERSION, Colours::BrightCyan) << "\n"
-                    ;
-
                 return BONGO_OK;
             }
         }
@@ -452,7 +451,7 @@ namespace BongoJam
             }
             else
             {
-                PRINT("Unknown or incomplete argument provided: " + f_CompilerArg, Magenta);
+                BONGO_PRINT("Unknown or incomplete argument provided: " + f_CompilerArg, BONGO_COL_MAGENTA);
                 return UNKNOWN_OR_INCOMPLETE_ARGUMENT;
             }
         }

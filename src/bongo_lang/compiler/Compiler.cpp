@@ -12,6 +12,11 @@
 #include "Compiler.h"
 
 #include "../ErrorCodes.h"
+#include "../Opcodes.h"
+#include "../BinaryCodec.h"
+#include "../FileIO.h"
+
+#include <fmt/format.h>
 
 namespace BongoJam::SSA {
 
@@ -141,25 +146,25 @@ bool
             case TokenType::FloatNumber:
             {
                 fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::PUSH_F);
-                BinaryCodec::EncodeDouble(fp_CompilationUnit->CompiledByteCode, stod(sv_SingleValueExpr->m_Value.m_Value));
+                BinaryCodec::LittleEndian::EncodeNumber<double>(fp_CompilationUnit->CompiledByteCode, stod(sv_SingleValueExpr->m_Value.m_Value));
             }
             break;
             case TokenType::IntNumber:
             {
                 fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::PUSH_I);
-                BinaryCodec::EncodeInt<int64_t>(fp_CompilationUnit->CompiledByteCode, stoll(sv_SingleValueExpr->m_Value.m_Value));
+                BinaryCodec::LittleEndian::EncodeNumber<int64_t>(fp_CompilationUnit->CompiledByteCode, stoll(sv_SingleValueExpr->m_Value.m_Value));
             }
             break;
             case TokenType::StringLiteral:
             {
                 fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::PUSH_S);
-                BinaryCodec::EncodeStringUTF8<uint32_t>(fp_CompilationUnit->CompiledByteCode, sv_SingleValueExpr->m_Value.m_Value);
+                BinaryCodec::LittleEndian::EncodeStringUTF8<BONGO_STRING_CHAR_MAX_LENGTH>(fp_CompilationUnit->CompiledByteCode, sv_SingleValueExpr->m_Value.m_Value);
             }
             break;
             case TokenType::UnsignedIntNumber:
             {
                 fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::PUSH_U);
-                BinaryCodec::EncodeInt<uint64_t>(fp_CompilationUnit->CompiledByteCode, stoull(sv_SingleValueExpr->m_Value.m_Value));
+                BinaryCodec::LittleEndian::EncodeNumber<uint64_t>(fp_CompilationUnit->CompiledByteCode, stoull(sv_SingleValueExpr->m_Value.m_Value));
             }
             break;
             default: //THROW ERROR:
@@ -294,7 +299,7 @@ bool
 
     //////////////////// Encode String UwU ////////////////////
 
-    BinaryCodec::EncodeStringUTF8<uint32_t>
+    BinaryCodec::LittleEndian::EncodeStringUTF8<BONGO_STRING_CHAR_MAX_LENGTH>
     (
         fp_CompilationUnit->CompiledByteCode,
         f_PrintString
@@ -326,7 +331,7 @@ bool
         {
             //////////////////// Encode String UwU ////////////////////
 
-            BinaryCodec::EncodeStringUTF8<uint32_t>
+            BinaryCodec::LittleEndian::EncodeStringUTF8<BONGO_STRING_CHAR_MAX_LENGTH>
             (
                 fp_CompilationUnit->CompiledByteCode,
                 CreateColouredText(f_StringVal->m_Value.m_Value, f_StringVal->Decorator.m_Value)
@@ -334,7 +339,7 @@ bool
         }
         else
         {
-            BinaryCodec::EncodeStringUTF8<uint32_t>
+            BinaryCodec::LittleEndian::EncodeStringUTF8<BONGO_STRING_CHAR_MAX_LENGTH>
             (
                 fp_CompilationUnit->CompiledByteCode,
                 f_StringVal->m_Value.m_Value
@@ -781,7 +786,7 @@ bool
 
     fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::STORE_LOCAL); //push new valus
 
-    BinaryCodec::EncodeInt32(fp_CompilationUnit->CompiledByteCode, pm_NextAvailableStackSlot);
+    BinaryCodec::LittleEndian::EncodeNumber<int32_t>(fp_CompilationUnit->CompiledByteCode, pm_NextAvailableStackSlot);
 
     Symbol f_Symbol; 
 
@@ -922,13 +927,13 @@ int
     }
 
     vector<Token> f_ProgramTokens;
-    if (not Tokenize(VectorStream<char>(move(f_SourceCode)), f_ProgramTokens, compiler_logger.get()))
+    if (not Tokenize(VectorStream<char>(std::move(f_SourceCode)), f_ProgramTokens, compiler_logger.get()))
     {
         compiler_logger->Fatal(fmt::format("Compiler was not able to Lex: '{}', compilation will not proceed any further. nothing was done.", fp_BongoScriptFilePath), "Compiler");
         return BONGO_FAILED_TO_LEX_SCRIPT;
     }
 
-    fp_CompilationUnit->TU = pm_BongoParser->ConstructAST(VectorStream<Token>(move(f_ProgramTokens))); //doesnt need to be heap alloc'd since its just a bunch of vectors and maps
+    fp_CompilationUnit->TU = pm_BongoParser->ConstructAST(VectorStream<Token>(std::move(f_ProgramTokens))); //doesnt need to be heap alloc'd since its just a bunch of vectors and maps
 
     if (not fp_CompilationUnit->TU)
     {
@@ -956,7 +961,7 @@ int
         {
         case SyntaxNodeType::FuncDeclaration:
         {
-            unique_ptr<FuncDeclaration> sv_FuncDec = unique_dynamic_cast<FuncDeclaration>(move(f_CurrentProgramStatement));
+            unique_ptr<FuncDeclaration> sv_FuncDec = unique_dynamic_cast<FuncDeclaration>(std::move(f_CurrentProgramStatement));
             
             if (not CompileDeclaredFunction(sv_FuncDec.get(), fp_CompilationUnit, f_CurrentNamespace))
             {
@@ -967,7 +972,7 @@ int
         break;
         case SyntaxNodeType::ClassDeclaration:
         {
-            unique_ptr<ClassDeclaration> sv_ClassDec = unique_dynamic_cast<ClassDeclaration>(move(f_CurrentProgramStatement));
+            unique_ptr<ClassDeclaration> sv_ClassDec = unique_dynamic_cast<ClassDeclaration>(std::move(f_CurrentProgramStatement));
 
             if(not CompileDeclaredClass(sv_ClassDec.get(), fp_CompilationUnit, f_CurrentNamespace))
             {
@@ -978,7 +983,7 @@ int
         break;
         case SyntaxNodeType::StructDeclaration:
         {
-            unique_ptr<StructDeclaration> sv_StructDec = unique_dynamic_cast<StructDeclaration>(move(f_CurrentProgramStatement));
+            unique_ptr<StructDeclaration> sv_StructDec = unique_dynamic_cast<StructDeclaration>(std::move(f_CurrentProgramStatement));
 
             if (not CompileDeclaredStruct(sv_StructDec.get(), fp_CompilationUnit, f_CurrentNamespace))
             {
@@ -989,14 +994,14 @@ int
         break;
         case SyntaxNodeType::NameSpace:
         {
-            unique_ptr<NamespaceDeclaration> sv_Namespace = unique_dynamic_cast<NamespaceDeclaration>(move(f_CurrentProgramStatement));
+            unique_ptr<NamespaceDeclaration> sv_Namespace = unique_dynamic_cast<NamespaceDeclaration>(std::move(f_CurrentProgramStatement));
 
             f_CurrentNamespace = sv_Namespace->m_Name.m_Value;
         }
         break;
         case SyntaxNodeType::VarDeclaration: //global var
         {
-            unique_ptr<VarDeclaration> sv_VarDec = unique_dynamic_cast<VarDeclaration>(move(f_CurrentProgramStatement));
+            unique_ptr<VarDeclaration> sv_VarDec = unique_dynamic_cast<VarDeclaration>(std::move(f_CurrentProgramStatement));
 
             if (not CompileVarDeclaration(sv_VarDec.get(), fp_CompilationUnit, f_CurrentNamespace))
             {
@@ -1013,7 +1018,7 @@ int
 
     fp_CompilationUnit->CompiledByteCode.push_back(BJ_OP::HALT); //indicate proper exit
 
-    BinaryCodec::EncodeInt<int64_t>(fp_CompilationUnit->CompiledByteCode, 0);
+    BinaryCodec::LittleEndian::EncodeNumber<int64_t>(fp_CompilationUnit->CompiledByteCode, 0);
 
     return BONGO_OK;
 }
