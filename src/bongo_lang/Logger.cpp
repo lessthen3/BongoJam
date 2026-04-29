@@ -618,7 +618,7 @@ namespace BongoJam {
         }
     }
 
-    [[nodiscard]] BONGO_FORCEINLINE bool ///XXX: used for testing, this method should never call exit() for a production release, since all logging is hidden away from the game engine dev
+    BONGO_FORCEINLINE bool ///XXX: used for testing, this method should never call exit() for a production release, since all logging is hidden away from the game engine dev
         Logger::AssertThreadAccess(const string& fp_FunctionName) //we don't require a lock since this method guarantees only one thread is operating on any data within the Logger instance
         const
     {
